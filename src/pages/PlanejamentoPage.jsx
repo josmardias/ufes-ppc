@@ -779,18 +779,23 @@ function ModalResolverConflito({
                 ].join(" ")}
               >
                 <div className="flex items-baseline justify-between gap-2 mb-1">
-                  <div className="flex items-baseline gap-2">
+                  <div className="flex flex-col gap-0">
                     <span className="font-semibold text-sm text-gray-800">
-                      {c.disciplinaCodigo}
+                      {c.disciplinaNome || c.disciplinaCodigo}
                     </span>
-                    {c.turmaCodigo && (
-                      <span className="text-xs text-gray-500">
-                        Turma {c.turmaCodigo}
+                    <div className="flex items-baseline gap-2">
+                      <span className="font-mono text-xs text-gray-400">
+                        {c.disciplinaCodigo}
                       </span>
-                    )}
+                      {c.turmaCodigo && (
+                        <span className="text-xs text-gray-500">
+                          Turma {c.turmaCodigo}
+                        </span>
+                      )}
+                    </div>
                   </div>
                   {isPendente && (
-                    <span className="text-xs font-semibold text-blue-600">
+                    <span className="text-xs font-semibold text-blue-600 flex-shrink-0">
                       Clique para confirmar
                     </span>
                   )}
@@ -1144,14 +1149,14 @@ export default function PlanejamentoPage() {
     const candidatos = conflitosDoSlot(dia, horaInicio, activeRows);
     if (candidatos.length < 2) return;
 
-    // Enriquece cada candidato com os horários da turma correspondente
+    // Enriquece cada candidato com nome e horários da turma correspondente
     const candidatosComHorarios = candidatos.map((c) => {
       const row = activeRows.find((r) => r.codigo === c.disciplinaCodigo);
       const turma = (row?.turmas ?? []).find(
         (t) => String(t?.codigo ?? "").trim() === c.turmaCodigo,
       );
       const horarios = Array.isArray(turma?.horarios) ? turma.horarios : [];
-      return { ...c, horarios };
+      return { ...c, disciplinaNome: row?.nome ?? "", horarios };
     });
 
     setConflito({
