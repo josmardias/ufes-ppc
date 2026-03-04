@@ -1,0 +1,925 @@
+{
+  "version": 1,
+  "courses": {
+    "Carga-horária-vencida-2200": {
+      "code": "Carga-horária-vencida-2200",
+      "name": "",
+      "suggestedSemester": null,
+      "prereq": [],
+      "coreq": []
+    },
+    "ELE15923": {
+      "code": "ELE15923",
+      "name": "INTRODUÇÃO À ENGENHARIA ELÉTRICA",
+      "suggestedSemester": 1,
+      "prereq": [],
+      "coreq": []
+    },
+    "ELE15924": {
+      "code": "ELE15924",
+      "name": "PRÁTICAS DE LABORATÓRIO",
+      "suggestedSemester": 1,
+      "prereq": [],
+      "coreq": []
+    },
+    "ELE15929": {
+      "code": "ELE15929",
+      "name": "DESENHO ASSISTIDO POR COMPUTADOR",
+      "suggestedSemester": 2,
+      "prereq": [],
+      "coreq": []
+    },
+    "ELE15934": {
+      "code": "ELE15934",
+      "name": "CIRCUITOS ELÉTRICOS I",
+      "suggestedSemester": 3,
+      "prereq": [
+        "ELE15924",
+        "MAT15932"
+      ],
+      "coreq": []
+    },
+    "ELE15935": {
+      "code": "ELE15935",
+      "name": "CIRCUITOS LÓGICOS",
+      "suggestedSemester": 3,
+      "prereq": [
+        "INF15927"
+      ],
+      "coreq": []
+    },
+    "ELE15938": {
+      "code": "ELE15938",
+      "name": "METODOLOGIA DA PESQUISA CIENTÍFICA",
+      "suggestedSemester": 3,
+      "prereq": [
+        "ELE15923"
+      ],
+      "coreq": []
+    },
+    "ELE15940": {
+      "code": "ELE15940",
+      "name": "CIRCUITOS ELÉTRICOS II",
+      "suggestedSemester": 4,
+      "prereq": [
+        "ELE15934",
+        "MAT15937"
+      ],
+      "coreq": []
+    },
+    "ELE15941": {
+      "code": "ELE15941",
+      "name": "ELETROMAGNETISMO I",
+      "suggestedSemester": 4,
+      "prereq": [
+        "ELE15934",
+        "MAT15936"
+      ],
+      "coreq": []
+    },
+    "ELE15942": {
+      "code": "ELE15942",
+      "name": "SISTEMAS EMBARCADOS I",
+      "suggestedSemester": 4,
+      "prereq": [
+        "ELE15935"
+      ],
+      "coreq": []
+    },
+    "ELE15943": {
+      "code": "ELE15943",
+      "name": "ELETRÔNICA BÁSICA I",
+      "suggestedSemester": 5,
+      "prereq": [
+        "ELE15940"
+      ],
+      "coreq": []
+    },
+    "ELE15944": {
+      "code": "ELE15944",
+      "name": "ELETROMAGNETISMO II",
+      "suggestedSemester": 5,
+      "prereq": [
+        "ELE15941"
+      ],
+      "coreq": []
+    },
+    "ELE15945": {
+      "code": "ELE15945",
+      "name": "LABORATÓRIO DE ELETROMAGNETISMO",
+      "suggestedSemester": 5,
+      "prereq": [],
+      "coreq": [
+        "ELE15944"
+      ]
+    },
+    "ELE15946": {
+      "code": "ELE15946",
+      "name": "CONVERSÃO ELETROMECÂNICA DE ENERGIA",
+      "suggestedSemester": 5,
+      "prereq": [
+        "ELE15941"
+      ],
+      "coreq": []
+    },
+    "ELE15947": {
+      "code": "ELE15947",
+      "name": "SINAIS E SISTEMAS",
+      "suggestedSemester": 5,
+      "prereq": [
+        "ELE15940",
+        "MAT09590",
+        "STA15932"
+      ],
+      "coreq": []
+    },
+    "ELE15948": {
+      "code": "ELE15948",
+      "name": "PROJETO EXTENSIONISTA INTEGRADO I",
+      "suggestedSemester": 5,
+      "prereq": [
+        "ELE15934"
+      ],
+      "coreq": []
+    },
+    "ELE15949": {
+      "code": "ELE15949",
+      "name": "ELETRÔNICA BÁSICA II",
+      "suggestedSemester": 6,
+      "prereq": [
+        "ELE15943"
+      ],
+      "coreq": []
+    },
+    "ELE15950": {
+      "code": "ELE15950",
+      "name": "MÁQUINAS ELÉTRICAS",
+      "suggestedSemester": 6,
+      "prereq": [
+        "ELE15946"
+      ],
+      "coreq": []
+    },
+    "ELE15951": {
+      "code": "ELE15951",
+      "name": "ANÁLISE E MODELAGEM DE SISTEMAS DINÂMICOS",
+      "suggestedSemester": 6,
+      "prereq": [
+        "ELE15947"
+      ],
+      "coreq": []
+    },
+    "ELE15952": {
+      "code": "ELE15952",
+      "name": "PRINCÍPIOS DE COMUNICAÇÕES",
+      "suggestedSemester": 6,
+      "prereq": [
+        "ELE15944",
+        "ELE15945",
+        "ELE15947"
+      ],
+      "coreq": []
+    },
+    "ELE15954": {
+      "code": "ELE15954",
+      "name": "FILTROS ANALÓGICOS E DIGITAIS",
+      "suggestedSemester": 7,
+      "prereq": [
+        "ELE15947",
+        "ELE15949"
+      ],
+      "coreq": []
+    },
+    "ELE15955": {
+      "code": "ELE15955",
+      "name": "GERAÇÃO, TRANSMISSÃO E DISTRIBUIÇÃO",
+      "suggestedSemester": 7,
+      "prereq": [
+        "ELE15944",
+        "ELE15950"
+      ],
+      "coreq": []
+    },
+    "ELE15956": {
+      "code": "ELE15956",
+      "name": "SISTEMAS REALIMENTADOS",
+      "suggestedSemester": 7,
+      "prereq": [
+        "ELE15951"
+      ],
+      "coreq": []
+    },
+    "ELE15957": {
+      "code": "ELE15957",
+      "name": "LABORATÓRIO DE CONTROLE",
+      "suggestedSemester": 7,
+      "prereq": [],
+      "coreq": [
+        "ELE15956"
+      ]
+    },
+    "ELE15958": {
+      "code": "ELE15958",
+      "name": "SISTEMAS E REDES DE COMUNICAÇÃO",
+      "suggestedSemester": 7,
+      "prereq": [
+        "ELE15952"
+      ],
+      "coreq": []
+    },
+    "ELE15959": {
+      "code": "ELE15959",
+      "name": "PROJETO EXTENSIONISTA INTEGRADO II",
+      "suggestedSemester": 7,
+      "prereq": [
+        "ELE15948"
+      ],
+      "coreq": []
+    },
+    "ELE15960": {
+      "code": "ELE15960",
+      "name": "ELETRÔNICA DE POTÊNCIA I",
+      "suggestedSemester": 8,
+      "prereq": [
+        "ELE15943",
+        "ELE15950"
+      ],
+      "coreq": []
+    },
+    "ELE15961": {
+      "code": "ELE15961",
+      "name": "INSTALAÇÕES ELÉTRICAS PREDIAIS",
+      "suggestedSemester": 8,
+      "prereq": [
+        "ELE15955"
+      ],
+      "coreq": []
+    },
+    "ELE15962": {
+      "code": "ELE15962",
+      "name": "ANÁLISE DE SISTEMAS ELÉTRICOS DE POTÊNCIA I",
+      "suggestedSemester": 8,
+      "prereq": [
+        "ELE15955"
+      ],
+      "coreq": []
+    },
+    "ELE15965": {
+      "code": "ELE15965",
+      "name": "GESTÃO E EFICIÊNCIA ENERGÉTICA",
+      "suggestedSemester": 9,
+      "prereq": [
+        "ELE15961"
+      ],
+      "coreq": []
+    },
+    "ELE15966": {
+      "code": "ELE15966",
+      "name": "TRABALHO DE CONCLUSÃO DE CURSO I",
+      "suggestedSemester": 9,
+      "prereq": [
+        "ELE15938",
+        "ELE15951",
+        "ELE15954",
+        "ELE15955",
+        "ELE15958"
+      ],
+      "coreq": []
+    },
+    "ELE15967": {
+      "code": "ELE15967",
+      "name": "INSTALAÇÕES ELÉTRICAS INDUSTRIAIS",
+      "suggestedSemester": 9,
+      "prereq": [
+        "ELE15961",
+        "ELE15962"
+      ],
+      "coreq": []
+    },
+    "ELE15968": {
+      "code": "ELE15968",
+      "name": "PROJETO EXTENSIONISTA INTEGRADO III",
+      "suggestedSemester": 9,
+      "prereq": [
+        "ELE15959"
+      ],
+      "coreq": []
+    },
+    "ELE15970": {
+      "code": "ELE15970",
+      "name": "TRABALHO DE CONCLUSÃO DE CURSO II",
+      "suggestedSemester": 10,
+      "prereq": [
+        "ELE15966"
+      ],
+      "coreq": []
+    },
+    "ELE16033": {
+      "code": "ELE16033",
+      "name": "ESTÁGIO SUPERVISIONADO OBRIGATÓRIO",
+      "suggestedSemester": 8,
+      "prereq": [
+        "Carga-horária-vencida-2200"
+      ],
+      "coreq": []
+    },
+    "EPR12990": {
+      "code": "EPR12990",
+      "name": "Engenharia Econômica",
+      "suggestedSemester": 8,
+      "prereq": [
+        "STA15932"
+      ],
+      "coreq": []
+    },
+    "EPR15953": {
+      "code": "EPR15953",
+      "name": "PRINCÍPIOS DE ECONOMIA",
+      "suggestedSemester": 6,
+      "prereq": [
+        "STA15932"
+      ],
+      "coreq": []
+    },
+    "EPR15963": {
+      "code": "EPR15963",
+      "name": "Gestão Empresarial",
+      "suggestedSemester": 8,
+      "prereq": [
+        "EPR15953"
+      ],
+      "coreq": []
+    },
+    "EPR15969": {
+      "code": "EPR15969",
+      "name": "ASPECTOS LEGAIS E ÉTICOS DA ENGENHARIA",
+      "suggestedSemester": 10,
+      "prereq": [
+        "EPR15963"
+      ],
+      "coreq": []
+    },
+    "FIS13696": {
+      "code": "FIS13696",
+      "name": "FÍSICA I",
+      "suggestedSemester": 2,
+      "prereq": [
+        "MAT15925"
+      ],
+      "coreq": []
+    },
+    "FIS13735": {
+      "code": "FIS13735",
+      "name": "FÍSICA II",
+      "suggestedSemester": 3,
+      "prereq": [
+        "FIS13696"
+      ],
+      "coreq": []
+    },
+    "FIS13737": {
+      "code": "FIS13737",
+      "name": "FÍSICA EXPERIMENTAL I",
+      "suggestedSemester": null,
+      "prereq": [
+        "FIS13696"
+      ],
+      "coreq": []
+    },
+    "FIS14461": {
+      "code": "FIS14461",
+      "name": "FÍSICA IV",
+      "suggestedSemester": 4,
+      "prereq": [
+        "FIS13735"
+      ],
+      "coreq": [
+        "ELE15941"
+      ]
+    },
+    "HID15930": {
+      "code": "HID15930",
+      "name": "FUNDAMENTOS DE ENGENHARIA AMBIENTAL",
+      "suggestedSemester": 2,
+      "prereq": [],
+      "coreq": []
+    },
+    "HID15964": {
+      "code": "HID15964",
+      "name": "Higiene e Segurança do Trabalho",
+      "suggestedSemester": 8,
+      "prereq": [],
+      "coreq": [
+        "EPR15963"
+      ]
+    },
+    "INF15927": {
+      "code": "INF15927",
+      "name": "PROGRAMAÇÃO I",
+      "suggestedSemester": 1,
+      "prereq": [],
+      "coreq": []
+    },
+    "INF15933": {
+      "code": "INF15933",
+      "name": "PROGRAMAÇÃO ORIENTADA A OBJETOS",
+      "suggestedSemester": 2,
+      "prereq": [
+        "INF15927"
+      ],
+      "coreq": []
+    },
+    "INF15939": {
+      "code": "INF15939",
+      "name": "ALGORITMOS NUMÉRICOS",
+      "suggestedSemester": null,
+      "prereq": [
+        "INF15933",
+        "MAT15932",
+        "MAT15937"
+      ],
+      "coreq": []
+    },
+    "MAT09590": {
+      "code": "MAT09590",
+      "name": "Introdução às Variáveis Complexas",
+      "suggestedSemester": null,
+      "prereq": [
+        "MAT15936"
+      ],
+      "coreq": []
+    },
+    "MAT15925": {
+      "code": "MAT15925",
+      "name": "CÁLCULO I",
+      "suggestedSemester": 1,
+      "prereq": [],
+      "coreq": []
+    },
+    "MAT15931": {
+      "code": "MAT15931",
+      "name": "CÁLCULO II",
+      "suggestedSemester": 2,
+      "prereq": [
+        "MAT15925"
+      ],
+      "coreq": []
+    },
+    "MAT15932": {
+      "code": "MAT15932",
+      "name": "ÁLGEBRA LINEAR",
+      "suggestedSemester": 2,
+      "prereq": [],
+      "coreq": [
+        "MAT15931"
+      ]
+    },
+    "MAT15936": {
+      "code": "MAT15936",
+      "name": "CÁLCULO III",
+      "suggestedSemester": 3,
+      "prereq": [
+        "MAT15931"
+      ],
+      "coreq": []
+    },
+    "MAT15937": {
+      "code": "MAT15937",
+      "name": "CÁLCULO IV",
+      "suggestedSemester": 3,
+      "prereq": [
+        "MAT15931"
+      ],
+      "coreq": []
+    },
+    "QUI15926": {
+      "code": "QUI15926",
+      "name": "QUÍMICA PARA ENGENHARIA",
+      "suggestedSemester": 1,
+      "prereq": [],
+      "coreq": []
+    },
+    "QUI15928": {
+      "code": "QUI15928",
+      "name": "LABORATÓRIO DE QUÍMICA PARA ENGENHARIA",
+      "suggestedSemester": 1,
+      "prereq": [],
+      "coreq": [
+        "QUI15926"
+      ]
+    },
+    "STA15932": {
+      "code": "STA15932",
+      "name": "PROBABILIDADE E ESTATÍSTICA",
+      "suggestedSemester": 2,
+      "prereq": [
+        "MAT15925"
+      ],
+      "coreq": []
+    }
+  },
+  "edges": [
+    {
+      "type": "pre",
+      "from": "ELE15923",
+      "to": "ELE15938",
+      "label": ""
+    },
+    {
+      "type": "pre",
+      "from": "ELE15924",
+      "to": "ELE15934",
+      "label": ""
+    },
+    {
+      "type": "pre",
+      "from": "INF15927",
+      "to": "INF15933",
+      "label": ""
+    },
+    {
+      "type": "pre",
+      "from": "INF15927",
+      "to": "ELE15935",
+      "label": ""
+    },
+    {
+      "type": "pre",
+      "from": "MAT15925",
+      "to": "FIS13696",
+      "label": ""
+    },
+    {
+      "type": "pre",
+      "from": "MAT15925",
+      "to": "MAT15931",
+      "label": ""
+    },
+    {
+      "type": "pre",
+      "from": "MAT15925",
+      "to": "STA15932",
+      "label": ""
+    },
+    {
+      "type": "co",
+      "from": "QUI15926",
+      "to": "QUI15928",
+      "label": "co-requisito"
+    },
+    {
+      "type": "pre",
+      "from": "FIS13696",
+      "to": "FIS13735",
+      "label": ""
+    },
+    {
+      "type": "pre",
+      "from": "FIS13696",
+      "to": "FIS13737",
+      "label": ""
+    },
+    {
+      "type": "pre",
+      "from": "INF15933",
+      "to": "INF15939",
+      "label": ""
+    },
+    {
+      "type": "co",
+      "from": "MAT15931",
+      "to": "MAT15932",
+      "label": "co-requisito"
+    },
+    {
+      "type": "pre",
+      "from": "MAT15931",
+      "to": "MAT15936",
+      "label": ""
+    },
+    {
+      "type": "pre",
+      "from": "MAT15931",
+      "to": "MAT15937",
+      "label": ""
+    },
+    {
+      "type": "pre",
+      "from": "MAT15932",
+      "to": "ELE15934",
+      "label": ""
+    },
+    {
+      "type": "pre",
+      "from": "MAT15932",
+      "to": "INF15939",
+      "label": ""
+    },
+    {
+      "type": "pre",
+      "from": "STA15932",
+      "to": "ELE15947",
+      "label": ""
+    },
+    {
+      "type": "pre",
+      "from": "STA15932",
+      "to": "EPR15953",
+      "label": ""
+    },
+    {
+      "type": "pre",
+      "from": "STA15932",
+      "to": "EPR12990",
+      "label": ""
+    },
+    {
+      "type": "pre",
+      "from": "ELE15934",
+      "to": "ELE15940",
+      "label": ""
+    },
+    {
+      "type": "pre",
+      "from": "ELE15934",
+      "to": "ELE15941",
+      "label": ""
+    },
+    {
+      "type": "pre",
+      "from": "ELE15934",
+      "to": "ELE15948",
+      "label": ""
+    },
+    {
+      "type": "pre",
+      "from": "ELE15935",
+      "to": "ELE15942",
+      "label": ""
+    },
+    {
+      "type": "pre",
+      "from": "ELE15938",
+      "to": "ELE15966",
+      "label": ""
+    },
+    {
+      "type": "pre",
+      "from": "FIS13735",
+      "to": "FIS14461",
+      "label": ""
+    },
+    {
+      "type": "pre",
+      "from": "MAT15936",
+      "to": "ELE15941",
+      "label": ""
+    },
+    {
+      "type": "pre",
+      "from": "MAT15936",
+      "to": "MAT09590",
+      "label": ""
+    },
+    {
+      "type": "pre",
+      "from": "MAT15937",
+      "to": "ELE15940",
+      "label": ""
+    },
+    {
+      "type": "pre",
+      "from": "MAT15937",
+      "to": "INF15939",
+      "label": ""
+    },
+    {
+      "type": "pre",
+      "from": "ELE15940",
+      "to": "ELE15943",
+      "label": ""
+    },
+    {
+      "type": "pre",
+      "from": "ELE15940",
+      "to": "ELE15947",
+      "label": ""
+    },
+    {
+      "type": "co",
+      "from": "ELE15941",
+      "to": "FIS14461",
+      "label": "co-requisito"
+    },
+    {
+      "type": "pre",
+      "from": "ELE15941",
+      "to": "ELE15944",
+      "label": ""
+    },
+    {
+      "type": "pre",
+      "from": "ELE15941",
+      "to": "ELE15946",
+      "label": ""
+    },
+    {
+      "type": "pre",
+      "from": "MAT09590",
+      "to": "ELE15947",
+      "label": ""
+    },
+    {
+      "type": "pre",
+      "from": "ELE15943",
+      "to": "ELE15949",
+      "label": ""
+    },
+    {
+      "type": "pre",
+      "from": "ELE15943",
+      "to": "ELE15960",
+      "label": ""
+    },
+    {
+      "type": "co",
+      "from": "ELE15944",
+      "to": "ELE15945",
+      "label": "co-requisito"
+    },
+    {
+      "type": "pre",
+      "from": "ELE15944",
+      "to": "ELE15952",
+      "label": ""
+    },
+    {
+      "type": "pre",
+      "from": "ELE15944",
+      "to": "ELE15955",
+      "label": ""
+    },
+    {
+      "type": "pre",
+      "from": "ELE15946",
+      "to": "ELE15950",
+      "label": ""
+    },
+    {
+      "type": "pre",
+      "from": "ELE15945",
+      "to": "ELE15952",
+      "label": ""
+    },
+    {
+      "type": "pre",
+      "from": "ELE15947",
+      "to": "ELE15951",
+      "label": ""
+    },
+    {
+      "type": "pre",
+      "from": "ELE15947",
+      "to": "ELE15952",
+      "label": ""
+    },
+    {
+      "type": "pre",
+      "from": "ELE15947",
+      "to": "ELE15954",
+      "label": ""
+    },
+    {
+      "type": "pre",
+      "from": "ELE15948",
+      "to": "ELE15959",
+      "label": ""
+    },
+    {
+      "type": "pre",
+      "from": "ELE15949",
+      "to": "ELE15954",
+      "label": ""
+    },
+    {
+      "type": "pre",
+      "from": "ELE15950",
+      "to": "ELE15955",
+      "label": ""
+    },
+    {
+      "type": "pre",
+      "from": "ELE15950",
+      "to": "ELE15960",
+      "label": ""
+    },
+    {
+      "type": "pre",
+      "from": "ELE15951",
+      "to": "ELE15956",
+      "label": ""
+    },
+    {
+      "type": "pre",
+      "from": "ELE15951",
+      "to": "ELE15966",
+      "label": ""
+    },
+    {
+      "type": "pre",
+      "from": "ELE15952",
+      "to": "ELE15958",
+      "label": ""
+    },
+    {
+      "type": "pre",
+      "from": "EPR15953",
+      "to": "EPR15963",
+      "label": ""
+    },
+    {
+      "type": "pre",
+      "from": "ELE15954",
+      "to": "ELE15966",
+      "label": ""
+    },
+    {
+      "type": "pre",
+      "from": "ELE15955",
+      "to": "ELE15961",
+      "label": ""
+    },
+    {
+      "type": "pre",
+      "from": "ELE15955",
+      "to": "ELE15962",
+      "label": ""
+    },
+    {
+      "type": "pre",
+      "from": "ELE15955",
+      "to": "ELE15966",
+      "label": ""
+    },
+    {
+      "type": "co",
+      "from": "ELE15956",
+      "to": "ELE15957",
+      "label": "co-requisito"
+    },
+    {
+      "type": "pre",
+      "from": "ELE15958",
+      "to": "ELE15966",
+      "label": ""
+    },
+    {
+      "type": "pre",
+      "from": "ELE15959",
+      "to": "ELE15968",
+      "label": ""
+    },
+    {
+      "type": "pre",
+      "from": "ELE15961",
+      "to": "ELE15965",
+      "label": ""
+    },
+    {
+      "type": "pre",
+      "from": "ELE15961",
+      "to": "ELE15967",
+      "label": ""
+    },
+    {
+      "type": "pre",
+      "from": "ELE15962",
+      "to": "ELE15967",
+      "label": ""
+    },
+    {
+      "type": "co",
+      "from": "EPR15963",
+      "to": "HID15964",
+      "label": "co-requisito"
+    },
+    {
+      "type": "pre",
+      "from": "EPR15963",
+      "to": "EPR15969",
+      "label": ""
+    },
+    {
+      "type": "pre",
+      "from": "Carga-horária-vencida-2200",
+      "to": "ELE16033",
+      "label": ""
+    },
+    {
+      "type": "pre",
+      "from": "ELE15966",
+      "to": "ELE15970",
+      "label": ""
+    }
+  ]
+}

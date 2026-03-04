@@ -1,0 +1,20 @@
+# Dependências
+node_modules/
+
+# Build
+dist/
+
+# Saída dos scripts Node
+output/
+
+# Arquivos de sistema
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+
+# Env
+.env
+.env.local
