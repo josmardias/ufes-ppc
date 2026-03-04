@@ -21,7 +21,7 @@ import {
   HOUR_END,
   rowsToCourseSections,
   courseSectionSlots,
-  courseSectionHasConflict,
+  courseSectionHasConflictOnDay,
   firstConflictingSlot,
 } from "../domain/calendar.js";
 
@@ -465,9 +465,10 @@ export default function WeekCalendar({
                                       `${ev.turma.courseCode}::${ev.turma.codigo}`,
                                     ) ?? false
                                   }
-                                  hasConflict={courseSectionHasConflict(
+                                  hasConflict={courseSectionHasConflictOnDay(
                                     ev.turma,
                                     allCourseSections,
+                                    dia,
                                   )}
                                   onConflictClick={onConflictClick}
                                   onMultiTurmaClick={onMultiSectionClick}

@@ -197,6 +197,46 @@ export function courseSectionHasConflict(section, allCourseSections) {
     .some((other) => courseSectionsConflict(section, other));
 }
 
+/**
+ * Returns true if this course section conflicts with any other in the list
+ * specifically on the given day.
+ *
+ * Used by the calendar card renderer so that a multi-day section only shows
+ * red on the days where the actual slot overlap occurs.
+ *
+ * @param {CourseSection} section
+ * @param {CourseSection[]} allCourseSections
+ * @param {string} dia — e.g. "Qua"
+ * @returns {boolean}
+ */
+export function courseSectionHasConflictOnDay(section, allCourseSections, dia) {
+  const mySlotsOnDay = courseSectionSlots(section).filter((s) => s.dia === dia);
+  if (mySlotsOnDay.length === 0) return false;
+
+  const others = (
+    Array.isArray(allCourseSections) ? allCourseSections : []
+  ).filter((other) => other !== section);
+
+  for (const other of others) {
+    if (
+      other.courseCode === section.courseCode &&
+      other.codigo === section.codigo
+    )
+      continue;
+
+    const otherSlotsOnDay = courseSectionSlots(other).filter(
+      (s) => s.dia === dia,
+    );
+    for (const mine of mySlotsOnDay) {
+      for (const theirs of otherSlotsOnDay) {
+        if (_slotsByHourConflict(mine, theirs)) return true;
+      }
+    }
+  }
+
+  return false;
+}
+
 // ---------------------------------------------------------------------------
 // isPeriodResolved / blockingReasons
 // ---------------------------------------------------------------------------

@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import {
   generateSemester,
   upsertSemester,
@@ -1416,7 +1416,9 @@ export default function ScheduleBuilderPage() {
             <button
               onClick={handleGenerate}
               disabled={generateBlocked}
-              title={generateBlocked ? termBlockingReasons.join("\n") : undefined}
+              title={
+                generateBlocked ? termBlockingReasons.join("\n") : undefined
+              }
               className="flex-shrink-0 px-4 py-2.5 text-sm font-medium border-b-2 border-transparent text-gray-400 hover:text-gray-600 hover:border-gray-300 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer whitespace-nowrap border-l border-l-gray-200"
             >
               + {next.courseTerm}º per
