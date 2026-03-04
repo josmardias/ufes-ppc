@@ -21,6 +21,23 @@ import offer1Json from "../data/oferta-semestre-1.json";
 import offer2Json from "../data/oferta-semestre-2.json";
 import WeekCalendar from "../components/WeekCalendar.jsx";
 
+// ---------------------------------------------------------------------------
+// useEscKey — calls handler when Escape is pressed, while modal is mounted
+// ---------------------------------------------------------------------------
+
+function useEscKey(handler) {
+  const handlerRef = useRef(handler);
+  handlerRef.current = handler;
+
+  useEffect(() => {
+    function onKeyDown(e) {
+      if (e.key === "Escape") handlerRef.current?.();
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, []);
+}
+
 const ANO_INICIO = 2024;
 const SC_INICIO = 1;
 
@@ -31,6 +48,7 @@ const TURNO_OPCOES = [
 ];
 
 function ModalPrimeiroperiodo({ onConfirm }) {
+  // No Esc close — user must make a choice before proceeding.
   const [so, setSo] = useState(null); // semestre oferta de ingresso: 1 | 2
 
   const pronto = so !== null;
@@ -114,6 +132,7 @@ function ModalAdicionarDisciplinas({
   onConfirm,
   onCancel,
 }) {
+  useEscKey(onCancel);
   const [selecionados, setSelecionados] = useState(new Set());
   const [turno, setTurno] = useState("dia");
 
@@ -282,6 +301,7 @@ function ModalRemoverDisciplina({
   onConfirm,
   onFechar,
 }) {
+  useEscKey(onFechar);
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
@@ -324,6 +344,7 @@ function ModalRemoverDisciplina({
 }
 
 function ModalEscolherTurma({ row, onEscolher, onFechar }) {
+  useEscKey(onFechar);
   const [pending, setPendente] = useState(row._pendenteInicial ?? null);
   const turmas = Array.isArray(row.turmas) ? row.turmas : [];
 
@@ -475,6 +496,7 @@ function ModalConfirmarPeriodo({
   onConfirm,
   onCancel,
 }) {
+  useEscKey(onCancel);
   const CUTOFF = 13 * 60;
 
   // Busca turmas de uma disciplina na oferta correta para este período
@@ -729,6 +751,7 @@ function ModalResolverConflito({
   onEscolher,
   onFechar,
 }) {
+  useEscKey(onFechar);
   const [pending, setPendente] = useState(initialPending ?? null);
   const horaLabel = `${String(Math.floor(horaInicio / 60)).padStart(2, "0")}:00`;
 
