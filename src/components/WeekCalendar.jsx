@@ -10,19 +10,19 @@
  * Props:
  *   rows               — PlanningRow[] for the period
  *   onConflictClick    — optional: (dia, horaInicio) => void
- *   onMultiTurmaClick  — optional: (disciplinaCodigo) => void
- *   onRemoverClick     — optional: (disciplinaCodigo, turmaCodigo) => void
- *   focusedTurmas      — optional: Set<"disciplinaCodigo::turmaCodigo"> — highlighted turmas
+ *   onMultiSectionClick — optional: (courseCode) => void
+ *   onRemoverClick      — optional: (courseCode, sectionCode) => void
+ *   focusedSections     — optional: Set<"courseCode::sectionCode"> — highlighted course sections
  *   (turno removed — calendar always shows all shifts)
  */
 
 import {
   HOUR_START,
   HOUR_END,
-  rowsToTurmas,
-  turmaSlots,
-  turmaTemConflito,
-  primeiroSlotConflitante,
+  rowsToCourseSections,
+  courseSectionSlots,
+  courseSectionHasConflict,
+  firstConflictingSlot,
 } from "../domain/calendar.js";
 
 // ---------------------------------------------------------------------------
@@ -54,8 +54,8 @@ function hashStringToInt(str) {
 }
 
 function buildColorMap(rows) {
-  // Atribui cores por ordem de aparição da disciplina — sem colisões garantidas.
-  const map = new Map(); // disciplinaCodigo -> FIXED_COLORS entry
+  // Assigns colors by order of course appearance — no collisions guaranteed up to 12 courses.
+  const map = new Map(); // courseCode -> FIXED_COLORS entry
   let idx = 0;
   for (const row of Array.isArray(rows) ? rows : []) {
     const codigo = String(row?.codigo ?? "").trim();
@@ -67,7 +67,7 @@ function buildColorMap(rows) {
 }
 
 // ---------------------------------------------------------------------------
-// Constantes
+// Constants
 // ---------------------------------------------------------------------------
 
 const DAYS = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sab"];
@@ -80,10 +80,10 @@ const DAY_LABELS = {
   Sab: "Sábado",
 };
 
-const ROW_HEIGHT = 54; // px por hora
+const ROW_HEIGHT = 54; // px per hour
 
 /**
- * Retorna todas as horas de HOUR_START a HOUR_END sempre visíveis.
+ * Returns all hours from HOUR_START to HOUR_END, always visible.
  */
 function calcVisibleHours() {
   return Array.from(
@@ -99,60 +99,60 @@ function minToY(min, hourStart) {
 // ---------------------------------------------------------------------------
 // buildDayEvents
 //
-// Para cada dia, retorna lista de eventos com posição e coluna calculadas.
-// Eventos que se sobrepõem ficam em colunas lado a lado.
+// For each day, returns a list of events with calculated position and column.
+// Overlapping events are placed side by side in columns.
 // ---------------------------------------------------------------------------
 
-function buildDayEvents(todasTurmas, dia) {
-  // Coleta blocos: uma turma pode ter múltiplos horários no mesmo dia —
-  // agrupamos em um bloco contíguo (startMin → endMin).
-  const blocos = [];
+function buildDayEvents(allCourseSections, dia) {
+  // Collect blocks: a section may have multiple schedules on the same day —
+  // group them into a single contiguous block (startMin → endMin).
+  const blocks = [];
 
-  for (const turma of todasTurmas) {
+  for (const section of allCourseSections) {
     let startMin = null;
     let endMin = null;
 
-    // Coleta slots do dia e agrupa em blocos contíguos
-    // (slots adjacentes ou sobrepostos viram um único bloco)
-    const diaSlots = turmaSlots(turma)
+    // Collect slots for the day and group into contiguous blocks
+    // (adjacent or overlapping slots merge into one block)
+    const daySlots = courseSectionSlots(section)
       .filter((s) => s.dia === dia)
       .sort((a, b) => a.startMin - b.startMin);
 
-    if (diaSlots.length === 0) continue;
+    if (daySlots.length === 0) continue;
 
-    // Agrupa slots contíguos (fim de um == início do próximo)
-    const grupos = [];
-    let grupoStart = diaSlots[0].startMin;
-    let grupoEnd = diaSlots[0].endMin;
-    for (let i = 1; i < diaSlots.length; i++) {
-      const s = diaSlots[i];
-      if (s.startMin <= grupoEnd) {
-        // contíguo ou sobreposto — estende o grupo
-        grupoEnd = Math.max(grupoEnd, s.endMin);
+    // Group contiguous slots (end of one == start of next)
+    const groups = [];
+    let groupStart = daySlots[0].startMin;
+    let groupEnd = daySlots[0].endMin;
+    for (let i = 1; i < daySlots.length; i++) {
+      const s = daySlots[i];
+      if (s.startMin <= groupEnd) {
+        // contiguous or overlapping — extend the group
+        groupEnd = Math.max(groupEnd, s.endMin);
       } else {
-        // buraco — fecha o grupo atual e abre um novo
-        grupos.push({ startMin: grupoStart, endMin: grupoEnd });
-        grupoStart = s.startMin;
-        grupoEnd = s.endMin;
+        // gap — close the current group and open a new one
+        groups.push({ startMin: groupStart, endMin: groupEnd });
+        groupStart = s.startMin;
+        groupEnd = s.endMin;
       }
     }
-    grupos.push({ startMin: grupoStart, endMin: grupoEnd });
+    groups.push({ startMin: groupStart, endMin: groupEnd });
 
-    for (const g of grupos) {
+    for (const g of groups) {
       startMin = Math.max(g.startMin, HOUR_START * 60);
       endMin = Math.min(g.endMin, HOUR_END * 60);
       if (endMin <= startMin) continue;
-      blocos.push({ turma, startMin, endMin });
+      blocks.push({ turma: section, startMin, endMin });
     }
   }
 
-  // Ordena por início
-  blocos.sort((a, b) => a.startMin - b.startMin || a.endMin - b.endMin);
+  // Sort by start time
+  blocks.sort((a, b) => a.startMin - b.startMin || a.endMin - b.endMin);
 
-  // Agrupa blocos em colunas (greedy) — blocos sobrepostos ficam em colunas diferentes
-  // columns[i] = endMin do último bloco na coluna i
+  // Assign blocks to columns (greedy) — overlapping blocks go into different columns
+  // columns[i] = endMin of the last block in column i
   const columns = [];
-  const laid = blocos.map((bloco) => {
+  const laid = blocks.map((bloco) => {
     let col = columns.findIndex((endMin) => endMin <= bloco.startMin);
     if (col === -1) {
       col = columns.length;
@@ -163,7 +163,7 @@ function buildDayEvents(todasTurmas, dia) {
     return { ...bloco, col };
   });
 
-  // Para cada bloco, calcula quantas colunas existem no SEU intervalo de tempo
+  // For each block, compute how many columns exist within its time interval
   const laidWithCols = laid.map((bloco) => {
     const concurrent = laid.filter(
       (other) => other.startMin < bloco.endMin && other.endMin > bloco.startMin,
@@ -176,10 +176,10 @@ function buildDayEvents(todasTurmas, dia) {
 }
 
 // ---------------------------------------------------------------------------
-// TurmaCard
+// CourseSectionCard
 // ---------------------------------------------------------------------------
 
-function TurmaCard({
+function CourseSectionCard({
   turma,
   top,
   height,
@@ -193,7 +193,7 @@ function TurmaCard({
   onMultiTurmaClick,
   onRemoverClick,
 }) {
-  // Conflito de horário (vermelho) tem precedência sobre múltiplas turmas (amarelo)
+  // Schedule conflict (red) takes precedence over multiple sections (yellow)
   const bgColor = hasConflict
     ? "#fee2e2"
     : hasMultiTurma
@@ -214,16 +214,16 @@ function TurmaCard({
   const widthPct = 100 / totalCols;
   const leftPct = col * widthPct;
 
-  const slots = turmaSlots(turma);
+  const slots = courseSectionSlots(turma);
   const fmt = (mins) =>
     `${String(Math.floor(mins / 60)).padStart(2, "0")}:${String(mins % 60).padStart(2, "0")}`;
 
-  // Pega o slot deste dia para o label de tempo
-  const diaSlots = slots.filter((s) => s.dia === turma._dia);
+  // Get the slot for this day to build the time label
+  const daySlots = slots.filter((s) => s.dia === turma._dia);
   let timeLabel = "";
-  if (diaSlots.length > 0) {
-    const rawStart = Math.min(...diaSlots.map((s) => s.rawStart));
-    const rawEnd = Math.max(...diaSlots.map((s) => s.rawEnd));
+  if (daySlots.length > 0) {
+    const rawStart = Math.min(...daySlots.map((s) => s.rawStart));
+    const rawEnd = Math.max(...daySlots.map((s) => s.rawEnd));
     timeLabel = `${fmt(rawStart)}–${fmt(rawEnd)}`;
   }
 
@@ -238,23 +238,23 @@ function TurmaCard({
       : onRemoverClick
         ? "Clique para remover — "
         : "";
-  const tooltip = `${tooltipPrefix}${turma.disciplinaNome}${turma.codigo ? ` (${turma.codigo})` : ""} — ${timeLabel}`;
+  const tooltip = `${tooltipPrefix}${turma.courseName}${turma.codigo ? ` (${turma.codigo})` : ""} — ${timeLabel}`;
 
   function handleClick() {
-    // Conflito de horário tem precedência
+    // Schedule conflict takes precedence
     if (hasConflict && onConflictClick) {
-      const slot = primeiroSlotConflitante(turma, turma._todasTurmas ?? []);
+      const slot = firstConflictingSlot(turma, turma._allCourseSections ?? []);
       if (slot !== null) {
-        onConflictClick(turma._dia, slot, turma.disciplinaCodigo, turma.codigo);
+        onConflictClick(turma._dia, slot, turma.courseCode, turma.codigo);
         return;
       }
     }
     if (hasMultiTurma && onMultiTurmaClick) {
-      onMultiTurmaClick(turma.disciplinaCodigo, turma.codigo);
+      onMultiTurmaClick(turma.courseCode, turma.codigo);
       return;
     }
     if (onRemoverClick) {
-      onRemoverClick(turma.disciplinaCodigo, turma.codigo);
+      onRemoverClick(turma.courseCode, turma.codigo);
     }
   }
 
@@ -282,17 +282,17 @@ function TurmaCard({
         style={{ color: textColor }}
         className="text-xs font-bold leading-snug truncate"
       >
-        {turma.disciplinaCodigo}
+        {turma.courseCode}
       </p>
       <p
         style={{ color: textColor }}
         className="text-xs leading-snug truncate opacity-80 mt-0.5"
       >
-        {turma.disciplinaNome !== turma.disciplinaCodigo
-          ? turma.disciplinaNome
+        {turma.courseName !== turma.courseCode
+          ? turma.courseName
           : turma.codigo}
       </p>
-      {turma.codigo && turma.disciplinaNome !== turma.disciplinaCodigo && (
+      {turma.codigo && turma.courseName !== turma.courseCode && (
         <p
           style={{ color: textColor }}
           className="text-xs leading-snug truncate opacity-60 mt-0.5"
@@ -317,21 +317,23 @@ function TurmaCard({
 export default function WeekCalendar({
   rows,
   onConflictClick,
-  onMultiTurmaClick,
+  onMultiSectionClick,
   onRemoverClick,
-  focusedTurmas,
+  focusedSections,
 }) {
   const colorMap = buildColorMap(rows);
-  const todasTurmas = rowsToTurmas(rows);
-  const hasEvents = todasTurmas.some((t) => turmaSlots(t).length > 0);
-
-  // Pré-calcula eventos por dia
-  const eventsByDay = Object.fromEntries(
-    DAYS.map((dia) => [dia, buildDayEvents(todasTurmas, dia)]),
+  const allCourseSections = rowsToCourseSections(rows);
+  const hasEvents = allCourseSections.some(
+    (t) => courseSectionSlots(t).length > 0,
   );
 
-  // Disciplinas com múltiplas turmas
-  const multiTurmaSet = new Set(
+  // Pre-compute events per day
+  const eventsByDay = Object.fromEntries(
+    DAYS.map((dia) => [dia, buildDayEvents(allCourseSections, dia)]),
+  );
+
+  // Courses with multiple sections
+  const multiSectionSet = new Set(
     rows.filter((r) => (r.turmas?.length ?? 0) > 1).map((r) => r.codigo),
   );
 
@@ -355,7 +357,7 @@ export default function WeekCalendar({
               ))}
             </colgroup>
 
-            {/* Cabeçalho fixo */}
+            {/* Fixed header */}
             <thead className="sticky top-0 z-20">
               <tr>
                 <th className="bg-gray-50 border-b border-r border-gray-200" />
@@ -397,7 +399,7 @@ export default function WeekCalendar({
                       </span>
                     </td>
 
-                    {/* Células de dia — apenas na primeira linha, com rowspan total */}
+                    {/* Day cells — only on the first row, with full rowspan */}
                     {hi === 0
                       ? DAYS.map((dia) => (
                           <td
@@ -436,39 +438,39 @@ export default function WeekCalendar({
                             {eventsByDay[dia].map((ev, i) => {
                               const top = minToY(ev.startMin, hourStart);
                               const height = minToY(ev.endMin, hourStart) - top;
-                              // Injeta _dia e _startMin na turma para uso no TurmaCard
-                              const turmaComDia = {
+                              // Inject _dia and _startMin into the section for use in CourseSectionCard
+                              const sectionWithDay = {
                                 ...ev.turma,
                                 _dia: dia,
                                 _startMin: ev.startMin,
-                                _todasTurmas: todasTurmas,
+                                _allCourseSections: allCourseSections,
                               };
                               return (
-                                <TurmaCard
-                                  key={`${ev.turma.disciplinaCodigo}-${ev.turma.codigo}-${i}`}
-                                  turma={turmaComDia}
+                                <CourseSectionCard
+                                  key={`${ev.turma.courseCode}-${ev.turma.codigo}-${i}`}
+                                  turma={sectionWithDay}
                                   top={top}
                                   height={height}
                                   col={ev.col}
                                   totalCols={ev.totalCols}
-                                  hasMultiTurma={multiTurmaSet.has(
-                                    ev.turma.disciplinaCodigo,
+                                  hasMultiTurma={multiSectionSet.has(
+                                    ev.turma.courseCode,
                                   )}
                                   color={
-                                    colorMap.get(ev.turma.disciplinaCodigo) ??
+                                    colorMap.get(ev.turma.courseCode) ??
                                     FIXED_COLORS[0]
                                   }
                                   isFocused={
-                                    focusedTurmas?.has(
-                                      `${ev.turma.disciplinaCodigo}::${ev.turma.codigo}`,
+                                    focusedSections?.has(
+                                      `${ev.turma.courseCode}::${ev.turma.codigo}`,
                                     ) ?? false
                                   }
-                                  hasConflict={turmaTemConflito(
+                                  hasConflict={courseSectionHasConflict(
                                     ev.turma,
-                                    todasTurmas,
+                                    allCourseSections,
                                   )}
                                   onConflictClick={onConflictClick}
-                                  onMultiTurmaClick={onMultiTurmaClick}
+                                  onMultiTurmaClick={onMultiSectionClick}
                                   onRemoverClick={onRemoverClick}
                                 />
                               );

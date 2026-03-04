@@ -17,7 +17,7 @@ const SEMESTRES = [
 
 const DIAS_ORDER = { Seg: 1, Ter: 2, Qua: 3, Qui: 4, Sex: 5, Sab: 6, Dom: 7 };
 
-function formatHorarios(horarios) {
+function formatSchedules(horarios) {
   if (!horarios || horarios.length === 0) return "—";
   return [...horarios]
     .sort((a, b) => (DIAS_ORDER[a.dia] ?? 9) - (DIAS_ORDER[b.dia] ?? 9))
@@ -25,14 +25,14 @@ function formatHorarios(horarios) {
     .join(" · ");
 }
 
-function TurmaRow({ turma }) {
+function SectionRow({ turma }) {
   return (
     <div className="flex items-start gap-3 py-1.5 border-b border-gray-50 last:border-0">
       <span className="font-mono text-xs text-gray-500 w-16 flex-shrink-0 pt-0.5">
         {turma.turma || "—"}
       </span>
       <span className="text-xs text-gray-600 flex-1">
-        {formatHorarios(turma.horarios)}
+        {formatSchedules(turma.horarios)}
       </span>
       {turma.docente && (
         <span className="text-xs text-gray-400 flex-shrink-0 max-w-[140px] truncate">
@@ -90,7 +90,7 @@ function DisciplinaCard({ disciplina }) {
             </span>
           </div>
           {turmas.map((t, i) => (
-            <TurmaRow key={i} turma={t} />
+            <SectionRow key={i} turma={t} />
           ))}
         </div>
       )}

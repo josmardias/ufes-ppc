@@ -1,5 +1,5 @@
 import { useState, createContext, useContext } from "react";
-import PlanejamentoPage from "./pages/PlanejamentoPage";
+import ScheduleBuilderPage from "./pages/ScheduleBuilderPage";
 import PpcPage from "./pages/PpcPage";
 import OfertaPage from "./pages/OfertaPage";
 import StudentSelect from "./pages/StudentSelect";
@@ -12,19 +12,23 @@ export function usePlanningContext() {
 }
 
 const TABS = [
-  { id: "planejamento", label: "Planejamento", component: PlanejamentoPage },
+  {
+    id: "schedule-builder",
+    label: "Simular Grade",
+    component: ScheduleBuilderPage,
+  },
   { id: "ppc", label: "PPC", component: PpcPage },
   { id: "oferta", label: "Oferta", component: OfertaPage },
 ];
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState("planejamento");
+  const [activeTab, setActiveTab] = useState("schedule-builder");
   const planningApi = usePlanning();
   const { alunoAtivo, logout } = planningApi;
 
   const ActivePage = TABS.find((t) => t.id === activeTab)?.component ?? null;
 
-  // Sem aluno ativo → tela de seleção
+  // No active student → show selection screen
   if (!alunoAtivo) {
     return (
       <PlanningContext.Provider value={planningApi}>

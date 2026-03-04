@@ -48,7 +48,7 @@ export default function StudentSelect() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `planejamento_${nome}.json`;
+    a.download = `schedule_${nome}.json`;
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -69,9 +69,7 @@ export default function StudentSelect() {
     setImportError("");
     const file = e.target.files?.[0];
     if (!file) return;
-    const name = file.name
-      .replace(/\.json$/i, "")
-      .replace(/^planejamento_/, "");
+    const name = file.name.replace(/\.json$/i, "").replace(/^schedule_/, "");
     const reader = new FileReader();
     reader.onload = (ev) => {
       const result = importAluno(name, ev.target.result);
@@ -112,7 +110,7 @@ export default function StudentSelect() {
               Selecione seu perfil
             </h2>
             <p className="text-sm text-gray-500 mt-1">
-              Cada aluno tem seu planejamento independente.
+              Cada aluno tem sua grade independente.
             </p>
           </div>
 
@@ -280,7 +278,7 @@ export default function StudentSelect() {
               onClick={() => importRef.current?.click()}
               className="w-full py-2 border border-dashed border-gray-300 text-gray-400 hover:border-blue-400 hover:text-blue-500 text-sm rounded-xl transition-colors cursor-pointer"
             >
-              Importar planejamento JSON
+              Importar grade JSON
             </button>
             {importError && (
               <p className="text-xs text-red-600 mt-1">{importError}</p>

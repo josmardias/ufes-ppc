@@ -2,7 +2,7 @@ import { useState, useCallback } from "react";
 
 /**
  * Storage layout:
- *   ppc_alunos       -> { [nome]: { aluno: string, rows: PlanningRow[], turno: string, semestreIngresso: number } }
+ *   ppc_alunos       -> { [nome]: { aluno: string, rows: PlanningRow[], turno: string, entryTerm: number } }
  *   ppc_aluno_ativo  -> string (name of the currently selected student)
  */
 
@@ -31,8 +31,8 @@ function readAllAlunos() {
         aluno: String(v?.aluno ?? nome),
         rows: Array.isArray(v?.rows) ? v.rows : [],
         turno: String(v?.turno ?? DEFAULT_TURNO),
-        semestreIngresso: Number(
-          v?.semestreIngresso ?? DEFAULT_SEMESTRE_INGRESSO,
+        entryTerm: Number(
+          v?.entryTerm ?? DEFAULT_SEMESTRE_INGRESSO,
         ),
       };
     }
@@ -66,7 +66,7 @@ function writeAlunoAtivo(nome) {
       localStorage.removeItem(KEY_ATIVO);
     }
   } catch {
-    // silencioso
+    // silent failure
   }
 }
 
@@ -75,7 +75,7 @@ function emptyPlanning(nome) {
     aluno: nome,
     rows: [],
     turno: DEFAULT_TURNO,
-    semestreIngresso: DEFAULT_SEMESTRE_INGRESSO,
+    entryTerm: DEFAULT_SEMESTRE_INGRESSO,
   };
 }
 
@@ -89,7 +89,7 @@ function emptyPlanning(nome) {
  * API:
  *   alunos               -> string[]  (registered names, sorted)
  *   alunoAtivo           -> string    (selected student name, "" if none)
- *   planning             -> { aluno, rows, turno, semestreIngresso } for active student (null if none)
+ *   planning             -> { aluno, rows, turno, entryTerm } for active student (null if none)
  *
  *   selectAluno(nome)    -> select existing student as active
  *   createAluno(nome)    -> create new student and select them; returns { ok, error }
@@ -105,7 +105,7 @@ function emptyPlanning(nome) {
  *   setTurno(turno)                      -> persist shift preference for active student
  *   setSemestreIngresso(si)              -> persist enrollment semester for active student
  *   clearSemestreIngresso()              -> clear enrollment semester (when deleting 1st period)
- *   setRowsAndTurno(rows, turno, si?)    -> atomically replace rows, turno, and optionally semestreIngresso
+ *   setRowsAndTurno(rows, turno, si?)    -> atomically replace rows, turno, and optionally entryTerm
  *   exportJson()                         -> JSON string of active student's planning
  *   importJson(str)                      -> import JSON into active student; returns { ok, error }
  *   resetPlanning()                      -> clear rows for active student (keeps profile)
@@ -116,7 +116,7 @@ export function usePlanning() {
 
   const planning = alunoAtivo && alunos[alunoAtivo] ? alunos[alunoAtivo] : null;
 
-  // Persiste o mapa completo e atualiza estado
+  // Persist the full map and update state
   const persistAlunos = useCallback((next) => {
     writeAllAlunos(next);
     setAlunosState(next);
@@ -200,7 +200,7 @@ export function usePlanning() {
           aluno: trimmed,
           rows: [],
           turno: "dia",
-          semestreIngresso: 1,
+          entryTerm: 1,
         };
         const next = {
           ...alunos,
@@ -224,7 +224,7 @@ export function usePlanning() {
       const next = { ...alunos };
       delete next[trimmed];
       persistAlunos(next);
-      // se era o ativo, desloga
+      // if it was the active student, log out
       if (alunoAtivo === trimmed) {
         writeAlunoAtivo("");
         setAlunoAtivoState("");
@@ -263,15 +263,15 @@ export function usePlanning() {
   );
 
   const setSemestreIngresso = useCallback(
-    (semestreIngresso) => {
+    (entryTerm) => {
       if (!alunoAtivo) return;
       setAlunosState((currentAlunos) => {
         const next = {
           ...currentAlunos,
           [alunoAtivo]: {
             ...currentAlunos[alunoAtivo],
-            semestreIngresso: Number(
-              semestreIngresso ?? DEFAULT_SEMESTRE_INGRESSO,
+            entryTerm: Number(
+              entryTerm ?? DEFAULT_SEMESTRE_INGRESSO,
             ),
           },
         };
@@ -336,7 +336,7 @@ export function usePlanning() {
         ...currentAlunos,
         [alunoAtivo]: {
           ...currentAlunos[alunoAtivo],
-          semestreIngresso: DEFAULT_SEMESTRE_INGRESSO,
+          entryTerm: DEFAULT_SEMESTRE_INGRESSO,
         },
       };
       writeAllAlunos(next);
@@ -355,7 +355,7 @@ export function usePlanning() {
             ...current,
             rows: Array.isArray(rows) ? rows : [],
             turno: String(turno ?? DEFAULT_TURNO),
-            ...(si !== null ? { semestreIngresso: Number(si) } : {}),
+            ...(si !== null ? { entryTerm: Number(si) } : {}),
           },
         };
         writeAllAlunos(next);
@@ -414,16 +414,16 @@ export function usePlanning() {
   }, [alunos, alunoAtivo, persistAlunos]);
 
   // ---------------------------------------------------------------------------
-  // Retorno
+  // Return
   // ---------------------------------------------------------------------------
 
   return {
-    // listagem
+    // listing
     alunos: Object.keys(alunos).sort(),
     alunoAtivo,
     planning,
 
-    // seleção
+    // selection
     selectAluno,
     createAluno,
     cloneAluno,

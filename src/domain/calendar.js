@@ -5,42 +5,42 @@
  * Pure functions — answer questions about the domain, no side effects.
  *
  * Domain model:
- *   Disciplina  -> has turmas (class sections)
- *   Turma       -> has horarios (time slots {dia, inicio, fim})
- *   Horario     -> a time slot on a weekday
+ *   Course        -> has course sections (turmas in JSON)
+ *   CourseSection -> has schedules (horarios in JSON: {dia, inicio, fim})
+ *   Schedule      -> a time slot on a weekday
  *
  * Exports:
- *   HOUR_START / HOUR_END           — relevant academic day range (7–22)
- *   rowsToTurmas(rows)              -> Turma[]   — extract all turmas from planning rows
- *   turmaSlots(turma)               -> Slot[]    — valid time intervals for a turma
- *   turmasConflitam(a, b)           -> boolean   — do two turmas share a 1h slot?
- *   turmaTemConflito(turma, all)    -> boolean   — does this turma conflict with any other?
- *   periodoEstaResolvido(rows)      -> boolean   — period has no conflicts and 1 turma per discipline?
- *   periodoTemConflitoDeHorario(rows) -> boolean — period has any schedule conflict?
- *   motivosBloqueio(rows)           -> string[]  — blocking issues preventing next period generation
- *   todosConflitosDeHorario(rows)   -> { dia, horaInicio }[]  — all unique conflicting slots
- *   conflitosDoSlot(dia, hora, rows) -> { disciplinaCodigo, turmaCodigo }[]  — turmas in a slot
- *   resolverConflitoSlot(...)       -> PlanningRow[]  — resolve a slot conflict
- *   resolverTurmaVencedora(...)     -> PlanningRow[]  — elect winner turma, remove conflicting ones
- *   periodoTemTurno(rows, turno)    -> boolean   — period has any schedule in the given shift?
+ *   HOUR_START / HOUR_END                — relevant academic day range (7–22)
+ *   rowsToCourseSections(rows)           -> CourseSection[]  — extract all course sections from planning rows
+ *   courseSectionSlots(section)          -> Slot[]           — valid time intervals for a course section
+ *   courseSectionsConflict(a, b)         -> boolean          — do two sections share a 1h slot?
+ *   courseSectionHasConflict(s, all)     -> boolean          — does this section conflict with any other?
+ *   isPeriodResolved(rows)           -> boolean          — period has no conflicts and 1 section per course?
+ *   periodHasScheduleConflict(rows)    -> boolean          — period has any schedule conflict?
+ *   blockingReasons(rows)               -> string[]         — blocking issues preventing next period generation
+ *   allScheduleConflicts(rows)        -> { dia, horaInicio }[]  — all unique conflicting slots
+ *   sectionsInSlot(dia, hora, rows)     -> { courseCode, sectionCode }[]  — sections in a slot
+ *   resolveSlotConflict(...)            -> PlanningRow[]   — resolve a slot conflict
+ *   resolveWinningCourseSection(...)     -> PlanningRow[]   — elect winner section, remove conflicting ones
+ *   periodHasShift(rows, turno)         -> boolean         — period has any schedule in the given shift?
  *
  * Informal types:
  *
  *   PlanningRow {
  *     codigo, nome, semestre_curso,
- *     turmas: Turma[]
+ *     turmas: CourseSection[]   // JSON field name kept as-is (persisted)
  *   }
  *
- *   Turma {
+ *   CourseSection {
  *     codigo:   string
  *     docente:  string
- *     horarios: Horario[]
- *     // enriched by rowsToTurmas:
- *     disciplinaCodigo: string
- *     disciplinaNome:   string
+ *     horarios: Schedule[]   // JSON field name kept as-is (persisted)
+ *     // enriched by rowsToCourseSections:
+ *     courseCode: string
+ *     courseName: string
  *   }
  *
- *   Horario {
+ *   Schedule {
  *     dia:    string   // "Seg" | "Ter" | "Qua" | "Qui" | "Sex" | "Sab" | "Dom"
  *     inicio: string   // "HH:MM"
  *     fim:    string   // "HH:MM"
@@ -65,35 +65,35 @@ export const HOUR_START = 7; // 07:00 — start of the academic day
 export const HOUR_END = 22; // 22:00 — end of the academic day
 
 // ---------------------------------------------------------------------------
-// rowsToTurmas
+// rowsToCourseSections
 // ---------------------------------------------------------------------------
 
 /**
- * Extracts all turmas from planning rows, enriching each with
- * disciplinaCodigo and disciplinaNome for traceability.
+ * Extracts all course sections from planning rows, enriching each with
+ * courseCode and courseName for traceability.
  *
  * Waiver rows (semestre_curso === "_") are ignored.
  *
  * @param {PlanningRow[]} rows
- * @returns {Turma[]}
+ * @returns {CourseSection[]}
  */
-export function rowsToTurmas(rows) {
+export function rowsToCourseSections(rows) {
   const result = [];
 
   for (const row of Array.isArray(rows) ? rows : []) {
     if (String(row?.semestre_curso ?? "").trim() === "_") continue;
 
-    const disciplinaCodigo = String(row?.codigo ?? "").trim();
-    const disciplinaNome = String(row?.nome ?? "").trim() || disciplinaCodigo;
+    const courseCode = String(row?.codigo ?? "").trim();
+    const courseName = String(row?.nome ?? "").trim() || courseCode;
 
-    const turmas = Array.isArray(row.turmas) ? row.turmas : [];
-    for (const turma of turmas) {
+    const sections = Array.isArray(row.turmas) ? row.turmas : [];
+    for (const section of sections) {
       result.push({
-        codigo: String(turma?.codigo ?? "").trim(),
-        docente: String(turma?.docente ?? "").trim(),
-        horarios: Array.isArray(turma?.horarios) ? turma.horarios : [],
-        disciplinaCodigo,
-        disciplinaNome,
+        codigo: String(section?.codigo ?? "").trim(),
+        docente: String(section?.docente ?? "").trim(),
+        horarios: Array.isArray(section?.horarios) ? section.horarios : [],
+        courseCode,
+        courseName,
       });
     }
   }
@@ -102,21 +102,21 @@ export function rowsToTurmas(rows) {
 }
 
 // ---------------------------------------------------------------------------
-// turmaSlots
+// courseSectionSlots
 // ---------------------------------------------------------------------------
 
 /**
- * Converts a turma's horarios into validated time slots clamped to
+ * Converts a course section's schedules into validated time slots clamped to
  * [HOUR_START, HOUR_END]. Invalid entries are discarded.
  *
- * @param {Turma} turma
+ * @param {CourseSection} section
  * @returns {Slot[]}
  */
-export function turmaSlots(turma) {
-  const horarios = Array.isArray(turma?.horarios) ? turma.horarios : [];
+export function courseSectionSlots(section) {
+  const schedules = Array.isArray(section?.horarios) ? section.horarios : [];
   const result = [];
 
-  for (const h of horarios) {
+  for (const h of schedules) {
     const rawStart = hhmmToMinutes(h?.inicio);
     const rawEnd = hhmmToMinutes(h?.fim);
 
@@ -140,44 +140,40 @@ export function turmaSlots(turma) {
 }
 
 // ---------------------------------------------------------------------------
-// turmasConflitam
+// courseSectionsConflict
 // ---------------------------------------------------------------------------
 
 /**
- * Responde: "estas duas turmas conflitam?"
+ * Answers: "do these two course sections conflict?"
  *
- * Conflito é definido por sobreposição em ao menos um slot de 1h (HH:00–HH+1:00)
- * no mesmo dia — regra idêntica ao script imprimir-periodo.mjs.
+ * A conflict is defined by overlap in at least one 1h slot (HH:00–HH+1:00)
+ * on the same day — same rule as the imprimir-periodo.mjs script.
  *
- * Regras:
- * - Mesma turma (mesmo codigo E mesma disciplina) → não conflita
- *   (são os vários dias da mesma aula, ex: Ter e Qui da turma 06.1 N)
- * - Turmas diferentes da mesma disciplina → conflitam
- *   (aluno não pode frequentar duas turmas da mesma disciplina)
- * - Turmas de disciplinas diferentes → conflitam se houver sobreposição de horário
+ * Rules:
+ * - Same section (same codigo AND same course) → no conflict
+ *   (these are the multiple days of the same class, e.g. Tue and Thu of section 06.1 N)
+ * - Different sections of the same course → conflict
+ *   (student cannot attend two sections of the same course)
+ * - Sections of different courses → conflict if there is schedule overlap
  *
- * @param {Turma} a
- * @param {Turma} b
+ * @param {CourseSection} a
+ * @param {CourseSection} b
  * @returns {boolean}
  */
-export function turmasConflitam(a, b) {
-  // Mesma turma da mesma disciplina → não é conflito
-  // (são os vários horários de uma mesma aula, ex: Ter e Qui da turma 06.1 N)
-  if (
-    a.disciplinaCodigo &&
-    a.disciplinaCodigo === b.disciplinaCodigo &&
-    a.codigo === b.codigo
-  ) {
+export function courseSectionsConflict(a, b) {
+  // Same section of the same course → not a conflict
+  // (these are the multiple schedules of the same class, e.g. Tue and Thu of section 06.1 N)
+  if (a.courseCode && a.courseCode === b.courseCode && a.codigo === b.codigo) {
     return false;
   }
 
-  const slotsA = turmaSlots(a);
-  const slotsB = turmaSlots(b);
+  const slotsA = courseSectionSlots(a);
+  const slotsB = courseSectionSlots(b);
 
   for (const sa of slotsA) {
     for (const sb of slotsB) {
       if (sa.dia !== sb.dia) continue;
-      if (_slotsConflitamPorHora(sa, sb)) return true;
+      if (_slotsByHourConflict(sa, sb)) return true;
     }
   }
 
@@ -185,57 +181,58 @@ export function turmasConflitam(a, b) {
 }
 
 // ---------------------------------------------------------------------------
-// turmaTemConflito
+// courseSectionHasConflict
 // ---------------------------------------------------------------------------
 
 /**
- * Returns true if this turma conflicts with any other in the list.
+ * Returns true if this course section conflicts with any other in the list.
  *
- * @param {Turma} turma
- * @param {Turma[]} todasTurmas
+ * @param {CourseSection} section
+ * @param {CourseSection[]} allCourseSections
  * @returns {boolean}
  */
-export function turmaTemConflito(turma, todasTurmas) {
-  return (Array.isArray(todasTurmas) ? todasTurmas : [])
-    .filter((other) => other !== turma)
-    .some((other) => turmasConflitam(turma, other));
+export function courseSectionHasConflict(section, allCourseSections) {
+  return (Array.isArray(allCourseSections) ? allCourseSections : [])
+    .filter((other) => other !== section)
+    .some((other) => courseSectionsConflict(section, other));
 }
 
 // ---------------------------------------------------------------------------
-// periodoEstaResolvido / motivosBloqueio
+// isPeriodResolved / blockingReasons
 // ---------------------------------------------------------------------------
 
 /**
  * Returns true if the period is resolved and the next one can be generated.
  *
  * A period is resolved when:
- * 1. Each discipline has exactly 1 turma.
- * 2. No turma conflicts with another.
+ * 1. Each course has exactly 1 section.
+ * 2. No section conflicts with another.
  *
  * @param {PlanningRow[]} rows
  * @returns {boolean}
  */
-export function periodoEstaResolvido(rows) {
-  return motivosBloqueio(rows).length === 0;
+export function isPeriodResolved(rows) {
+  return blockingReasons(rows).length === 0;
 }
 
 /**
- * Responde: "o período tem algum conflito de horário entre turmas?"
+ * Returns true if the period has any schedule conflict between sections.
  *
- * Ignora o problema de múltiplas turmas por disciplina — só verifica
- * se há sobreposição de horários entre turmas distintas.
+ * Ignores the multiple-sections-per-course problem — only checks
+ * for schedule overlap between distinct sections.
  *
  * @param {PlanningRow[]} rows
  * @returns {boolean}
  */
-export function periodoTemConflitoDeHorario(rows) {
-  const rowsValidas = (Array.isArray(rows) ? rows : []).filter(
+export function periodHasScheduleConflict(rows) {
+  const validRows = (Array.isArray(rows) ? rows : []).filter(
     (r) => String(r?.semestre_curso ?? "").trim() !== "_",
   );
-  const turmas = rowsToTurmas(rowsValidas);
-  for (let i = 0; i < turmas.length; i++) {
-    for (let j = i + 1; j < turmas.length; j++) {
-      if (turmasConflitam(turmas[i], turmas[j])) return true;
+  const allCourseSections = rowsToCourseSections(validRows);
+  for (let i = 0; i < allCourseSections.length; i++) {
+    for (let j = i + 1; j < allCourseSections.length; j++) {
+      if (courseSectionsConflict(allCourseSections[i], allCourseSections[j]))
+        return true;
     }
   }
   return false;
@@ -247,23 +244,23 @@ export function periodoTemConflitoDeHorario(rows) {
  * @param {PlanningRow[]} rows
  * @returns {{ dia: string, horaInicio: number, codigos: string[] }[]}
  */
-export function todosConflitosDeHorario(rows) {
+export function allScheduleConflicts(rows) {
   const DIAS = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sab", "Dom"];
-  const rowsValidas = (Array.isArray(rows) ? rows : []).filter(
+  const validRows = (Array.isArray(rows) ? rows : []).filter(
     (r) => String(r?.semestre_curso ?? "").trim() !== "_",
   );
-  const turmas = rowsToTurmas(rowsValidas);
-  const slots = new Map(); // key "Dia|HH:00" -> Set<disciplinaCodigo>
+  const allCourseSections = rowsToCourseSections(validRows);
+  const slots = new Map(); // key "Dia|HH:00" -> Set<courseCode>
 
-  for (let i = 0; i < turmas.length; i++) {
-    for (let j = i + 1; j < turmas.length; j++) {
-      const a = turmas[i];
-      const b = turmas[j];
-      if (!turmasConflitam(a, b)) continue;
+  for (let i = 0; i < allCourseSections.length; i++) {
+    for (let j = i + 1; j < allCourseSections.length; j++) {
+      const a = allCourseSections[i];
+      const b = allCourseSections[j];
+      if (!courseSectionsConflict(a, b)) continue;
 
-      // Encontra os slots de 1h onde conflitam
-      for (const sa of turmaSlots(a)) {
-        for (const sb of turmaSlots(b)) {
+      // Find the 1h slots where they conflict
+      for (const sa of courseSectionSlots(a)) {
+        for (const sb of courseSectionSlots(b)) {
           if (sa.dia !== sb.dia) continue;
           for (
             let slot = Math.floor(sa.startMin / 60) * 60;
@@ -274,8 +271,8 @@ export function todosConflitosDeHorario(rows) {
             if (sb.startMin < slotEnd && sb.endMin > slot) {
               const key = `${sa.dia}|${slot}`;
               if (!slots.has(key)) slots.set(key, new Set());
-              slots.get(key).add(a.disciplinaCodigo);
-              slots.get(key).add(b.disciplinaCodigo);
+              slots.get(key).add(a.courseCode);
+              slots.get(key).add(b.courseCode);
             }
           }
         }
@@ -303,36 +300,36 @@ export function todosConflitosDeHorario(rows) {
  * @param {PlanningRow[]} rows
  * @returns {string[]}
  */
-export function motivosBloqueio(rows) {
+export function blockingReasons(rows) {
   const motivos = [];
-  const rowsValidas = (Array.isArray(rows) ? rows : []).filter(
+  const validRows = (Array.isArray(rows) ? rows : []).filter(
     (r) => String(r?.semestre_curso ?? "").trim() !== "_",
   );
 
-  // 1) disciplinas com mais de 1 turma
-  for (const row of rowsValidas) {
-    const turmas = Array.isArray(row?.turmas) ? row.turmas : [];
-    if (turmas.length > 1) {
+  // 1) courses with more than 1 section
+  for (const row of validRows) {
+    const sections = Array.isArray(row?.turmas) ? row.turmas : [];
+    if (sections.length > 1) {
       motivos.push(
-        `${row.codigo} tem ${turmas.length} turmas — escolha apenas 1.`,
+        `${row.codigo} tem ${sections.length} turmas — escolha apenas 1.`,
       );
     }
   }
 
-  // 2) conflitos de horário entre turmas de disciplinas diferentes
-  const turmas = rowsToTurmas(rowsValidas);
-  const conflitantes = new Set();
-  for (let i = 0; i < turmas.length; i++) {
-    for (let j = i + 1; j < turmas.length; j++) {
-      if (turmasConflitam(turmas[i], turmas[j])) {
-        conflitantes.add(turmas[i].disciplinaCodigo);
-        conflitantes.add(turmas[j].disciplinaCodigo);
+  // 2) schedule conflicts between sections of different courses
+  const allCourseSections = rowsToCourseSections(validRows);
+  const conflicting = new Set();
+  for (let i = 0; i < allCourseSections.length; i++) {
+    for (let j = i + 1; j < allCourseSections.length; j++) {
+      if (courseSectionsConflict(allCourseSections[i], allCourseSections[j])) {
+        conflicting.add(allCourseSections[i].courseCode);
+        conflicting.add(allCourseSections[j].courseCode);
       }
     }
   }
-  if (conflitantes.size > 0) {
+  if (conflicting.size > 0) {
     motivos.push(
-      `Conflito de horário entre: ${[...conflitantes].sort().join(", ")}.`,
+      `Conflito de horário entre: ${[...conflicting].sort().join(", ")}.`,
     );
   }
 
@@ -340,68 +337,72 @@ export function motivosBloqueio(rows) {
 }
 
 // ---------------------------------------------------------------------------
-// periodoTemTurno
+// periodHasShift
 // ---------------------------------------------------------------------------
 
 const CUTOFF = 13 * 60; // 13:00
 
 /**
- * Responde: "o período tem alguma turma com horário no turno dado?"
+ * Returns true if the period has any section with a schedule in the given shift.
  *
  * @param {PlanningRow[]} rows
  * @param {"manha"|"tarde"|"dia"} turno
  * @returns {boolean}
  */
-export function periodoTemTurno(rows, turno) {
+export function periodHasShift(rows, turno) {
   if (turno === "dia") return true;
-  const turmas = rowsToTurmas(Array.isArray(rows) ? rows : []);
-  for (const turma of turmas) {
-    for (const slot of turmaSlots(turma)) {
-      const inicioMin = slot.startMin;
-      if (turno === "manha" && inicioMin < CUTOFF) return true;
-      if (turno === "tarde" && inicioMin >= CUTOFF) return true;
+  const allCourseSections = rowsToCourseSections(
+    Array.isArray(rows) ? rows : [],
+  );
+  for (const section of allCourseSections) {
+    for (const slot of courseSectionSlots(section)) {
+      const startMin = slot.startMin;
+      if (turno === "manha" && startMin < CUTOFF) return true;
+      if (turno === "tarde" && startMin >= CUTOFF) return true;
     }
   }
   return false;
 }
 
 // ---------------------------------------------------------------------------
-// conflitosDoSlot / resolverConflitoSlot
+// sectionsInSlot / resolveSlotConflict
 // ---------------------------------------------------------------------------
 
 /**
- * Returns the first 1h slot (in minutes since 00:00) where this turma
+ * Returns the first 1h slot (in minutes since 00:00) where this section
  * conflicts with another. Returns null if no conflict found.
  *
- * @param {Turma} turma
- * @param {Turma[]} todasTurmas
+ * @param {CourseSection} section
+ * @param {CourseSection[]} allCourseSections
  * @returns {number|null}
  */
-export function primeiroSlotConflitante(turma, todasTurmas) {
-  const others = (Array.isArray(todasTurmas) ? todasTurmas : []).filter(
+export function firstConflictingSlot(section, allCourseSections) {
+  const others = (
+    Array.isArray(allCourseSections) ? allCourseSections : []
+  ).filter(
     (other) =>
-      other !== turma &&
+      other !== section &&
       !(
-        other.disciplinaCodigo === turma.disciplinaCodigo &&
-        other.codigo === turma.codigo
+        other.courseCode === section.courseCode &&
+        other.codigo === section.codigo
       ),
   );
 
-  const meusSlotsOrdenados = turmaSlots(turma).sort(
+  const mySlotsOrdered = courseSectionSlots(section).sort(
     (a, b) => a.startMin - b.startMin,
   );
 
-  for (const meuSlot of meusSlotsOrdenados) {
+  for (const mySlot of mySlotsOrdered) {
     for (
-      let slot = Math.floor(meuSlot.startMin / 60) * 60;
-      slot < meuSlot.endMin;
+      let slot = Math.floor(mySlot.startMin / 60) * 60;
+      slot < mySlot.endMin;
       slot += 60
     ) {
       const slotEnd = slot + 60;
       for (const other of others) {
-        for (const outroSlot of turmaSlots(other)) {
-          if (outroSlot.dia !== meuSlot.dia) continue;
-          if (outroSlot.startMin < slotEnd && outroSlot.endMin > slot) {
+        for (const otherSlot of courseSectionSlots(other)) {
+          if (otherSlot.dia !== mySlot.dia) continue;
+          if (otherSlot.startMin < slotEnd && otherSlot.endMin > slot) {
             return slot;
           }
         }
@@ -413,14 +414,14 @@ export function primeiroSlotConflitante(turma, todasTurmas) {
 }
 
 /**
- * Returns all (discipline, turma) pairs occupying a given 1h slot.
+ * Returns all (course, section) pairs occupying a given 1h slot.
  *
  * @param {string} dia        — e.g. "Ter"
  * @param {number} horaInicio — full hour in minutes, e.g. 9*60 for 09:00
  * @param {PlanningRow[]} rows
- * @returns {{ disciplinaCodigo: string, turmaCodigo: string }[]}
+ * @returns {{ courseCode: string, sectionCode: string }[]}
  */
-export function conflitosDoSlot(dia, horaInicio, rows) {
+export function sectionsInSlot(dia, horaInicio, rows) {
   const slotStart = horaInicio;
   const slotEnd = horaInicio + 60;
   const result = [];
@@ -428,20 +429,20 @@ export function conflitosDoSlot(dia, horaInicio, rows) {
   for (const row of Array.isArray(rows) ? rows : []) {
     if (String(row?.semestre_curso ?? "").trim() === "_") continue;
 
-    const turmas = Array.isArray(row?.turmas) ? row.turmas : [];
-    for (const turma of turmas) {
-      const slots = turmaSlots({
-        ...turma,
-        disciplinaCodigo: row.codigo,
-        disciplinaNome: row.nome,
+    const sections = Array.isArray(row?.turmas) ? row.turmas : [];
+    for (const section of sections) {
+      const slots = courseSectionSlots({
+        ...section,
+        courseCode: row.codigo,
+        courseName: row.nome,
       });
       const ocupa = slots.some(
         (s) => s.dia === dia && s.startMin < slotEnd && s.endMin > slotStart,
       );
       if (ocupa) {
         result.push({
-          disciplinaCodigo: String(row?.codigo ?? "").trim(),
-          turmaCodigo: String(turma?.codigo ?? "").trim(),
+          courseCode: String(row?.codigo ?? "").trim(),
+          sectionCode: String(section?.codigo ?? "").trim(),
         });
       }
     }
@@ -451,27 +452,27 @@ export function conflitosDoSlot(dia, horaInicio, rows) {
 }
 
 /**
- * Resolve um conflito de slot elegendo uma turma vencedora.
+ * Resolves a slot conflict by electing a winner section.
  *
- * Para cada disciplina que ocupa o slot:
- * - Se é a disciplina+turma vencedora → mantém apenas essa turma na row.
- * - Se é outra turma da MESMA disciplina que ocupa o slot → remove essa turma da row.
- * - Se é uma turma de OUTRA disciplina que ocupa o slot → remove essa turma da row.
+ * For each course occupying the slot:
+ * - If it is the winning course+section → keeps only that section in the row.
+ * - If it is another section of the SAME course occupying the slot → removes it.
+ * - If it is a section of a DIFFERENT course occupying the slot → removes it.
  *
- * Rows sem turmas após a remoção são mantidas (sem horário não é motivo de exclusão).
+ * Rows with no sections after removal are kept (no schedule is not a removal reason).
  *
  * @param {string} dia
- * @param {number} horaInicio           — hora cheia em minutos
- * @param {string} vencedorDisciplinaCodigo
- * @param {string} vencedorTurmaCodigo
+ * @param {number} horaInicio              — full hour in minutes
+ * @param {string} winnerCourseCode
+ * @param {string} winnerSectionCode
  * @param {PlanningRow[]} rows
  * @returns {PlanningRow[]}
  */
-export function resolverConflitoSlot(
+export function resolveSlotConflict(
   dia,
   horaInicio,
-  vencedorDisciplinaCodigo,
-  vencedorTurmaCodigo,
+  winnerCourseCode,
+  winnerSectionCode,
   rows,
 ) {
   const slotStart = horaInicio;
@@ -480,105 +481,104 @@ export function resolverConflitoSlot(
   return (Array.isArray(rows) ? rows : []).map((row) => {
     if (String(row?.semestre_curso ?? "").trim() === "_") return row;
 
-    const turmas = Array.isArray(row?.turmas) ? row.turmas : [];
-    const disciplinaCodigo = String(row?.codigo ?? "").trim();
+    const sections = Array.isArray(row?.turmas) ? row.turmas : [];
+    const courseCode = String(row?.codigo ?? "").trim();
 
-    // Filtra turmas que ocupam o slot e não são a vencedora
-    const turmasFiltradas = turmas.filter((turma) => {
-      const turmaCodigo = String(turma?.codigo ?? "").trim();
-      const slots = turmaSlots({
-        ...turma,
-        disciplinaCodigo,
-        disciplinaNome: row.nome,
+    // Filter out sections that occupy the slot and are not the winner
+    const filteredSections = sections.filter((section) => {
+      const sectionCode = String(section?.codigo ?? "").trim();
+      const slots = courseSectionSlots({
+        ...section,
+        courseCode,
+        courseName: row.nome,
       });
       const ocupaSlot = slots.some(
         (s) => s.dia === dia && s.startMin < slotEnd && s.endMin > slotStart,
       );
 
-      if (!ocupaSlot) return true; // não está no slot → mantém
+      if (!ocupaSlot) return true; // not in the slot → keep
 
-      // está no slot: mantém só se for a vencedora
+      // in the slot: keep only if it is the winner
       return (
-        disciplinaCodigo === vencedorDisciplinaCodigo &&
-        turmaCodigo === vencedorTurmaCodigo
+        courseCode === winnerCourseCode && sectionCode === winnerSectionCode
       );
     });
 
-    if (turmasFiltradas.length === turmas.length) return row; // nada mudou
-    return { ...row, turmas: turmasFiltradas };
+    if (filteredSections.length === sections.length) return row; // nothing changed
+    return { ...row, turmas: filteredSections };
   });
 }
 
 // ---------------------------------------------------------------------------
-// resolverTurmaVencedora
+// resolveWinningCourseSection
 // ---------------------------------------------------------------------------
 
 /**
- * Elects a winner turma and applies the resolution across the entire period:
+ * Elects a winner course section and applies the resolution across the entire period:
  *
- * 1. For the winner's discipline: keeps only the winner turma.
- * 2. For all other disciplines: removes any turma that conflicts with the winner.
+ * 1. For the winner's course: keeps only the winner section.
+ * 2. For all other courses: removes any section that conflicts with the winner.
  *
- * @param {string} vencedorDisciplinaCodigo
- * @param {string} vencedorTurmaCodigo
+ * @param {string} winnerCourseCode
+ * @param {string} winnerSectionCode
  * @param {PlanningRow[]} rows
  * @returns {PlanningRow[]}
  */
-export function resolverTurmaVencedora(
-  vencedorDisciplinaCodigo,
-  vencedorTurmaCodigo,
+export function resolveWinningCourseSection(
+  winnerCourseCode,
+  winnerSectionCode,
   rows,
 ) {
-  // Monta o objeto Turma da vencedora para comparar com turmasConflitam
-  const rowVencedora = (Array.isArray(rows) ? rows : []).find(
-    (r) => String(r?.codigo ?? "").trim() === vencedorDisciplinaCodigo,
+  // Build the winner CourseSection object for comparison with courseSectionsConflict
+  const winnerRow = (Array.isArray(rows) ? rows : []).find(
+    (r) => String(r?.codigo ?? "").trim() === winnerCourseCode,
   );
-  const turmaVencedoraRaw = (rowVencedora?.turmas ?? []).find(
-    (t) => String(t?.codigo ?? "").trim() === vencedorTurmaCodigo,
+  const winnerSectionRaw = (winnerRow?.turmas ?? []).find(
+    (t) => String(t?.codigo ?? "").trim() === winnerSectionCode,
   );
-  const turmaVencedora = turmaVencedoraRaw
+  const winnerSection = winnerSectionRaw
     ? {
-        ...turmaVencedoraRaw,
-        disciplinaCodigo: vencedorDisciplinaCodigo,
-        disciplinaNome: rowVencedora?.nome ?? "",
+        ...winnerSectionRaw,
+        courseCode: winnerCourseCode,
+        courseName: winnerRow?.nome ?? "",
       }
     : null;
 
   return (Array.isArray(rows) ? rows : []).map((row) => {
-    const disciplinaCodigo = String(row?.codigo ?? "").trim();
-    const turmas = Array.isArray(row?.turmas) ? row.turmas : [];
+    const courseCode = String(row?.codigo ?? "").trim();
+    const sections = Array.isArray(row?.turmas) ? row.turmas : [];
 
-    if (disciplinaCodigo === vencedorDisciplinaCodigo) {
-      // Na disciplina vencedora: mantém só a turma vencedora
-      const filtradas = turmas.filter(
-        (t) => String(t?.codigo ?? "").trim() === vencedorTurmaCodigo,
+    if (courseCode === winnerCourseCode) {
+      // Winner's course: keep only the winner section
+      const filtered = sections.filter(
+        (t) => String(t?.codigo ?? "").trim() === winnerSectionCode,
       );
-      if (filtradas.length === turmas.length) return row;
-      return { ...row, turmas: filtradas };
+      if (filtered.length === sections.length) return row;
+      return { ...row, turmas: filtered };
     }
 
-    if (!turmaVencedora) return row;
+    if (!winnerSection) return row;
 
-    // Em outras disciplinas: remove turmas que conflitam com a vencedora
-    const filtradas = turmas.filter((t) => {
-      const turmaObj = {
+    // Other courses: remove sections that conflict with the winner
+    const filtered = sections.filter((t) => {
+      const sectionObj = {
         ...t,
-        disciplinaCodigo,
-        disciplinaNome: row?.nome ?? "",
+        courseCode,
+        courseName: row?.nome ?? "",
       };
-      return !turmasConflitam(turmaVencedora, turmaObj);
+      return !courseSectionsConflict(winnerSection, sectionObj);
     });
 
-    if (filtradas.length === turmas.length) return row;
+    if (filtered.length === sections.length) return row;
 
-    // Se todas as turmas foram removidas, mantém a primeira sem horários.
-    // turmas: [] seria re-enriquecido pela oferta; uma turma sem horários não é.
-    if (filtradas.length === 0 && turmas.length > 0) {
-      const placeholder = { ...turmas[0], horarios: [] };
+    // If all sections were removed, keep the first one with empty schedules.
+    // turmas: [] would be re-enriched from the offer; a section without schedules won't be.
+    if (filtered.length === 0 && sections.length > 0) {
+      const placeholder = { ...sections[0], horarios: [] };
       return { ...row, turmas: [placeholder] };
     }
 
-    return { ...row, turmas: filtradas };
+    return { ...row, turmas: filtered };
   });
 }
 
@@ -593,7 +593,7 @@ export function resolverTurmaVencedora(
  * @param {Slot} b
  * @returns {boolean}
  */
-function _slotsConflitamPorHora(a, b) {
+function _slotsByHourConflict(a, b) {
   const slotInicio = Math.floor(a.startMin / 60) * 60;
   const slotFim = a.endMin;
 

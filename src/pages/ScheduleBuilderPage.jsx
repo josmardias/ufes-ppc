@@ -1,24 +1,24 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import {
-  gerarSemestre,
+  generateSemester,
   upsertSemester,
   deleteSemester,
   groupUnique,
   inferNextSemester,
-  calcDisponiveisParaAdicionar,
-  enrichRowsWithOferta,
+  calcAvailableToAdd,
+  enrichRowsWithOffer,
 } from "../domain/planning.js";
 import {
-  motivosBloqueio,
-  periodoTemConflitoDeHorario,
-  todosConflitosDeHorario,
-  conflitosDoSlot,
-  resolverTurmaVencedora,
+  blockingReasons,
+  periodHasScheduleConflict,
+  allScheduleConflicts,
+  sectionsInSlot,
+  resolveWinningCourseSection,
 } from "../domain/calendar.js";
 import { usePlanningContext } from "../App.jsx";
 import ppcJson from "../data/ppc-2022.json";
-import ofertaS1Json from "../data/oferta-semestre-1.json";
-import ofertaS2Json from "../data/oferta-semestre-2.json";
+import offer1Json from "../data/oferta-semestre-1.json";
+import offer2Json from "../data/oferta-semestre-2.json";
 import WeekCalendar from "../components/WeekCalendar.jsx";
 
 const ANO_INICIO = 2024;
@@ -108,9 +108,9 @@ function Badge({ children, color = "gray" }) {
 }
 
 function ModalAdicionarDisciplinas({
-  disponiveis,
-  semestreCurso,
-  turmasJaNoPeriodo,
+  available,
+  courseTerm,
+  existingSections,
   onConfirm,
   onCancel,
 }) {
@@ -140,18 +140,18 @@ function ModalAdicionarDisciplinas({
             Adicionar disciplinas
           </h3>
           <p className="text-sm text-gray-500">
-            Disciplinas disponíveis para o {semestreCurso}º período. Selecione
-            as que deseja adicionar.
+            Disciplinas disponíveis para o {courseTerm}º período. Selecione as
+            que deseja adicionar.
           </p>
         </div>
 
         <div className="overflow-y-auto flex-1 px-4 py-2">
-          {disponiveis.length === 0 ? (
+          {available.length === 0 ? (
             <p className="text-sm text-gray-400 text-center py-8">
               Nenhuma disciplina disponível para adicionar.
             </p>
           ) : (
-            disponiveis.map((r) => {
+            available.map((r) => {
               const checked = selecionados.has(r.codigo);
               const allTurmas = Array.isArray(r.turmas) ? r.turmas : [];
               // Verifica se há turmas disponíveis no turno selecionado
@@ -173,7 +173,7 @@ function ModalAdicionarDisciplinas({
               const semTurmaNoTurno = !temTurmaNoTurno && turno !== "dia";
               // Turmas já presentes no período para esta disciplina
               const jaExistentes = new Set(
-                (turmasJaNoPeriodo?.[r.codigo] ?? []).map((t) =>
+                (existingSections?.[r.codigo] ?? []).map((t) =>
                   String(t?.codigo ?? "").trim(),
                 ),
               );
@@ -256,7 +256,7 @@ function ModalAdicionarDisciplinas({
         <div className="px-6 py-4 border-t border-gray-100 flex gap-2">
           <button
             onClick={() =>
-              onConfirm(disponiveis.filter((r) => selecionados.has(r.codigo)))
+              onConfirm(available.filter((r) => selecionados.has(r.codigo)))
             }
             disabled={selecionados.size === 0}
             className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-bold rounded-xl transition-colors cursor-pointer"
@@ -277,8 +277,8 @@ function ModalAdicionarDisciplinas({
 }
 
 function ModalRemoverDisciplina({
-  disciplinaCodigo,
-  disciplinaNome,
+  courseCode,
+  courseName,
   onConfirm,
   onFechar,
 }) {
@@ -297,10 +297,10 @@ function ModalRemoverDisciplina({
         <p className="text-sm text-gray-500 mb-5">
           Remover{" "}
           <span className="font-semibold text-gray-700">
-            {disciplinaNome || disciplinaCodigo}
+            {courseName || courseCode}
           </span>{" "}
           <span className="font-mono text-xs text-gray-400">
-            ({disciplinaCodigo})
+            ({courseCode})
           </span>{" "}
           deste período?
         </p>
@@ -324,14 +324,14 @@ function ModalRemoverDisciplina({
 }
 
 function ModalEscolherTurma({ row, onEscolher, onFechar }) {
-  const [pendente, setPendente] = useState(row._pendenteInicial ?? null);
+  const [pending, setPendente] = useState(row._pendenteInicial ?? null);
   const turmas = Array.isArray(row.turmas) ? row.turmas : [];
 
-  function handleClick(turmaCodigo) {
-    if (pendente === turmaCodigo) {
-      onEscolher(row.codigo, turmaCodigo);
+  function handleClick(sectionCode) {
+    if (pending === sectionCode) {
+      onEscolher(row.codigo, sectionCode);
     } else {
-      setPendente(turmaCodigo);
+      setPendente(sectionCode);
     }
   }
 
@@ -352,7 +352,7 @@ function ModalEscolherTurma({ row, onEscolher, onFechar }) {
         </p>
         <div className="flex flex-col gap-2">
           {turmas.map((t) => {
-            const isPendente = pendente === t.codigo;
+            const isPendente = pending === t.codigo;
             const horarios = Array.isArray(t.horarios) ? t.horarios : [];
             return (
               <button
@@ -467,9 +467,9 @@ function DisciplinaCard({ row }) {
 
 function ModalConfirmarPeriodo({
   newRows,
-  semestreCurso,
-  semestreOferta,
-  turnoInicial,
+  courseTerm,
+  offerTerm,
+  initialShift,
   ofertaS1,
   ofertaS2,
   onConfirm,
@@ -478,12 +478,12 @@ function ModalConfirmarPeriodo({
   const CUTOFF = 13 * 60;
 
   // Busca turmas de uma disciplina na oferta correta para este período
-  function getTurmasDisciplina(codigo) {
+  function getSectionsForCourse(codigo) {
     const turmas = [];
     const seen = new Set();
-    // Usa só a oferta do semestreOferta deste período, não ambas
-    const ofertaCorreta = semestreOferta === 1 ? ofertaS1 : ofertaS2;
-    for (const oferta of [ofertaCorreta]) {
+    // Usa só a oferta do offerTerm deste período, não ambas
+    const correctOffer = offerTerm === 1 ? ofertaS1 : ofertaS2;
+    for (const oferta of [correctOffer]) {
       const d = (oferta?.disciplinas ?? []).find((d) => d.codigo === codigo);
       for (const t of d?.turmas ?? []) {
         const key = String(t?.turma ?? t?.codigo ?? "").trim();
@@ -503,7 +503,7 @@ function ModalConfirmarPeriodo({
     return turmas;
   }
 
-  function turmaNoTurno(turma, t) {
+  function sectionMatchesShift(turma, t) {
     if (t === "dia") return true;
     return (turma.horarios ?? []).some((h) => {
       const mins = parseInt(h.inicio?.split(":")[0] ?? "0") * 60;
@@ -511,25 +511,25 @@ function ModalConfirmarPeriodo({
     });
   }
 
-  function disciplinaVisivel(r, t) {
+  function isCourseVisible(r, t) {
     if (t === "dia") return true;
-    const turmas = getTurmasDisciplina(r.codigo);
-    return turmas.some((turma) => turmaNoTurno(turma, t));
+    const turmas = getSectionsForCourse(r.codigo);
+    return turmas.some((turma) => sectionMatchesShift(turma, t));
   }
 
-  const [turno, setTurno] = useState(turnoInicial ?? "dia");
+  const [turno, setTurno] = useState(initialShift ?? "dia");
 
   // Ao mudar turno: seleciona todas as visíveis
-  const rowsVisiveis = newRows.filter((r) => disciplinaVisivel(r, turno));
+  const visibleRows = newRows.filter((r) => isCourseVisible(r, turno));
 
   const [selecionados, setSelecionados] = useState(
-    () => new Set(rowsVisiveis.map((r) => r.codigo)),
+    () => new Set(visibleRows.map((r) => r.codigo)),
   );
 
-  function handleTurnoChange(novoTurno) {
-    setTurno(novoTurno);
+  function handleShiftChange(newShift) {
+    setTurno(newShift);
     // Seleciona todas as disciplinas visíveis no novo turno
-    const visiveis = newRows.filter((r) => disciplinaVisivel(r, novoTurno));
+    const visiveis = newRows.filter((r) => isCourseVisible(r, newShift));
     setSelecionados(new Set(visiveis.map((r) => r.codigo)));
   }
 
@@ -543,15 +543,15 @@ function ModalConfirmarPeriodo({
   }
 
   function toggleTodos() {
-    if (selecionados.size === rowsVisiveis.length) {
+    if (selecionados.size === visibleRows.length) {
       setSelecionados(new Set());
     } else {
-      setSelecionados(new Set(rowsVisiveis.map((r) => r.codigo)));
+      setSelecionados(new Set(visibleRows.map((r) => r.codigo)));
     }
   }
 
   const todosSelecionados =
-    rowsVisiveis.length > 0 && selecionados.size === rowsVisiveis.length;
+    visibleRows.length > 0 && selecionados.size === visibleRows.length;
   const algumSelecionado = selecionados.size > 0;
 
   return (
@@ -566,12 +566,12 @@ function ModalConfirmarPeriodo({
         {/* Header */}
         <div className="px-6 pt-6 pb-4 border-b border-gray-100">
           <h3 className="text-base font-bold text-gray-900 mb-0.5">
-            {semestreCurso}º período
+            {courseTerm}º período
           </h3>
           <p className="text-sm text-gray-500 mb-3">
-            {rowsVisiveis.length} disciplina
-            {rowsVisiveis.length !== 1 ? "s" : ""} disponíve
-            {rowsVisiveis.length !== 1 ? "is" : "l"} neste turno. Desmarque as
+            {visibleRows.length} disciplina
+            {visibleRows.length !== 1 ? "s" : ""} disponíve
+            {visibleRows.length !== 1 ? "is" : "l"} neste turno. Desmarque as
             que não deseja incluir.
           </p>
           {/* Turno */}
@@ -580,12 +580,12 @@ function ModalConfirmarPeriodo({
             <div className="flex rounded-lg border border-gray-300 overflow-hidden">
               {TURNO_OPCOES.map(({ id, label }) => {
                 const count = newRows.filter((r) =>
-                  disciplinaVisivel(r, id),
+                  isCourseVisible(r, id),
                 ).length;
                 return (
                   <button
                     key={id}
-                    onClick={() => handleTurnoChange(id)}
+                    onClick={() => handleShiftChange(id)}
                     className={[
                       "px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer flex flex-col items-center leading-tight",
                       turno === id
@@ -618,14 +618,14 @@ function ModalConfirmarPeriodo({
 
         {/* Lista — só mostra disciplinas visíveis no turno */}
         <div className="overflow-y-auto flex-1 px-4 py-2">
-          {rowsVisiveis.length === 0 ? (
+          {visibleRows.length === 0 ? (
             <p className="text-sm text-gray-400 text-center py-8">
               Nenhuma disciplina disponível neste turno.
             </p>
           ) : (
-            rowsVisiveis.map((r) => {
+            visibleRows.map((r) => {
               const checked = selecionados.has(r.codigo);
-              const turmas = getTurmasDisciplina(r.codigo);
+              const turmas = getSectionsForCourse(r.codigo);
               const multiplas = turmas.length > 1;
               return (
                 <label
@@ -664,7 +664,7 @@ function ModalConfirmarPeriodo({
                             ? t.horarios
                             : [];
                           const destaque =
-                            turno === "dia" || turmaNoTurno(t, turno);
+                            turno === "dia" || sectionMatchesShift(t, turno);
                           return (
                             <div
                               key={i}
@@ -699,7 +699,7 @@ function ModalConfirmarPeriodo({
           <button
             onClick={() =>
               onConfirm(
-                rowsVisiveis.filter((r) => selecionados.has(r.codigo)),
+                visibleRows.filter((r) => selecionados.has(r.codigo)),
                 turno,
               )
             }
@@ -724,22 +724,22 @@ function ModalConfirmarPeriodo({
 function ModalResolverConflito({
   dia,
   horaInicio,
-  candidatos,
-  pendenteInicial,
+  candidates,
+  initialPending,
   onEscolher,
   onFechar,
 }) {
-  const [pendente, setPendente] = useState(pendenteInicial ?? null);
+  const [pending, setPendente] = useState(initialPending ?? null);
   const horaLabel = `${String(Math.floor(horaInicio / 60)).padStart(2, "0")}:00`;
 
   function handleClick(c) {
-    const key = `${c.disciplinaCodigo}-${c.turmaCodigo}`;
-    const pendenteKey = pendente
-      ? `${pendente.disciplinaCodigo}-${pendente.turmaCodigo}`
+    const key = `${c.courseCode}-${c.sectionCode}`;
+    const pendenteKey = pending
+      ? `${pending.courseCode}-${pending.sectionCode}`
       : null;
 
     if (pendenteKey === key) {
-      onEscolher(c.disciplinaCodigo, c.turmaCodigo);
+      onEscolher(c.courseCode, c.sectionCode);
     } else {
       setPendente(c);
     }
@@ -755,18 +755,17 @@ function ModalResolverConflito({
         onClick={(e) => e.stopPropagation()}
       >
         <h3 className="text-base font-bold text-gray-900 mb-1">
-          Resolver conflito
+          Resolver conflict
         </h3>
         <p className="text-sm text-gray-500 mb-4">
           {dia} {horaLabel} — escolha a turma vencedora. As demais serão
           removidas deste slot.
         </p>
         <div className="flex flex-col gap-2">
-          {candidatos.map((c) => {
-            const key = `${c.disciplinaCodigo}-${c.turmaCodigo}`;
+          {candidates.map((c) => {
+            const key = `${c.courseCode}-${c.sectionCode}`;
             const isPendente =
-              pendente &&
-              `${pendente.disciplinaCodigo}-${pendente.turmaCodigo}` === key;
+              pending && `${pending.courseCode}-${pending.sectionCode}` === key;
             return (
               <button
                 key={key}
@@ -781,15 +780,15 @@ function ModalResolverConflito({
                 <div className="flex items-baseline justify-between gap-2 mb-1">
                   <div className="flex flex-col gap-0">
                     <span className="font-semibold text-sm text-gray-800">
-                      {c.disciplinaNome || c.disciplinaCodigo}
+                      {c.courseName || c.courseCode}
                     </span>
                     <div className="flex items-baseline gap-2">
                       <span className="font-mono text-xs text-gray-400">
-                        {c.disciplinaCodigo}
+                        {c.courseCode}
                       </span>
-                      {c.turmaCodigo && (
+                      {c.sectionCode && (
                         <span className="text-xs text-gray-500">
-                          Turma {c.turmaCodigo}
+                          Turma {c.sectionCode}
                         </span>
                       )}
                     </div>
@@ -856,7 +855,7 @@ function SemestreView({
   onResolverConflito,
   onEscolherTurma,
   onRemoverDisciplina,
-  focusedTurmas,
+  focusedSections,
   turno,
 }) {
   const [view, setView] = useState("calendar");
@@ -888,9 +887,9 @@ function SemestreView({
         <WeekCalendar
           rows={rows}
           onConflictClick={onResolverConflito}
-          onMultiTurmaClick={onEscolherTurma}
+          onMultiSectionClick={onEscolherTurma}
           onRemoverClick={onRemoverDisciplina}
-          focusedTurmas={focusedTurmas}
+          focusedSections={focusedSections}
         />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -903,7 +902,7 @@ function SemestreView({
   );
 }
 
-export default function PlanejamentoPage() {
+export default function ScheduleBuilderPage() {
   const {
     planning,
     setRows,
@@ -917,27 +916,27 @@ export default function PlanejamentoPage() {
 
   // Default de turno baseado no semestre de ingresso:
   // 1º semestre → manhã, 2º semestre → tarde, sem ingresso → dia
-  const defaultTurno =
-    planning?.semestreIngresso === 1
+  const defaultShift =
+    planning?.entryTerm === 1
       ? "manha"
-      : planning?.semestreIngresso === 2
+      : planning?.entryTerm === 2
         ? "tarde"
         : "dia";
-  const turno = planning?.turno ?? defaultTurno;
+  const turno = planning?.turno ?? defaultShift;
   const [activeTab, setActiveTab] = useState(null);
   const [lastResult, setLastResult] = useState(null);
   const [error, setError] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [conflito, setConflito] = useState(null); // { dia, horaInicio, candidatos, rawRows }
-  const [pendingPeriodo, setPendingPeriodo] = useState(null); // { newRows, semestreCurso, semestreOferta, isFirst, turnoVal }
-  const [escolhendoTurma, setEscolhendoTurma] = useState(null); // row com múltiplas turmas
-  const [adicionandoDisciplinas, setAdicionandoDisciplinas] = useState(false);
-  const [removendoDisciplina, setRemovendoDisciplina] = useState(null); // { codigo, nome }
+  const [conflict, setConflict] = useState(null); // { dia, horaInicio, candidates, rawRows }
+  const [pendingTerm, setPendingTerm] = useState(null); // { newRows, courseTerm, offerTerm, isFirst, shiftVal }
+  const [pickingSection, setPickingSection] = useState(null); // row with multiple sections
+  const [addingCourses, setAddingCourses] = useState(false);
+  const [removingCourse, setRemovingCourse] = useState(null); // { code, name }
 
-  const [askingSemestreIngresso, setAskingSemestreIngresso] = useState(false);
-  const semestreIngresso = planning?.semestreIngresso ?? 1;
-  const temSemestreIngresso =
-    planning?.semestreIngresso != null &&
+  const [askingEntryTerm, setAskingEntryTerm] = useState(false);
+  const entryTerm = planning?.entryTerm ?? 1;
+  const hasEntryTerm =
+    planning?.entryTerm != null &&
     planning.rows?.some((r) => String(r?.semestre_curso ?? "").trim() !== "_");
 
   const isFirstGeneration =
@@ -949,11 +948,11 @@ export default function PlanejamentoPage() {
     planning?.rows ?? [],
     ANO_INICIO,
     SC_INICIO,
-    semestreIngresso,
+    entryTerm,
   );
 
   // Agrupa rows por semestre_curso
-  const { grouped, sortedKeys, lastNumericSc } = useMemo(() => {
+  const { grouped, sortedKeys, lastTerm } = useMemo(() => {
     const grouped = new Map();
     for (const r of planning?.rows ?? []) {
       const sc = String(r?.semestre_curso ?? "");
@@ -967,52 +966,52 @@ export default function PlanejamentoPage() {
       return Number(a) - Number(b);
     });
     const numericKeys = sortedKeys.filter((k) => k !== "_");
-    const lastNumericSc = numericKeys.at(-1) ?? null;
-    return { grouped, sortedKeys, lastNumericSc };
+    const lastTerm = numericKeys.at(-1) ?? null;
+    return { grouped, sortedKeys, lastTerm };
   }, [planning?.rows]);
 
   const lastRows = useMemo(() => {
-    if (!lastNumericSc) return [];
+    if (!lastTerm) return [];
     return (planning?.rows ?? []).filter(
-      (r) => String(r?.semestre_curso ?? "").trim() === lastNumericSc,
+      (r) => String(r?.semestre_curso ?? "").trim() === lastTerm,
     );
-  }, [planning?.rows, lastNumericSc]);
+  }, [planning?.rows, lastTerm]);
 
-  const bloqueios = useMemo(
-    () => (lastNumericSc ? motivosBloqueio(lastRows) : []),
-    [lastRows, lastNumericSc],
+  const termBlockingReasons = useMemo(
+    () => (lastTerm ? blockingReasons(lastRows) : []),
+    [lastRows, lastTerm],
   );
-  const gerarBloqueado = bloqueios.length > 0;
+  const generateBlocked = termBlockingReasons.length > 0;
 
   // Quando um novo semestre é gerado, seleciona a aba dele automaticamente
   useEffect(() => {
     if (lastResult) {
-      setActiveTab(String(lastResult.semestreCurso));
+      setActiveTab(String(lastResult.courseTerm));
     }
   }, [lastResult]);
 
   // Se a aba ativa sumiu (ex: delete), volta para o último
   useEffect(() => {
     if (activeTab && !grouped.has(activeTab)) {
-      setActiveTab(lastNumericSc);
+      setActiveTab(lastTerm);
     }
-    if (!activeTab && lastNumericSc) {
-      setActiveTab(lastNumericSc);
+    if (!activeTab && lastTerm) {
+      setActiveTab(lastTerm);
     }
     setConfirmDelete(false);
   }, [sortedKeys.join(",")]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  function doGerar(
+  function doGenerate(
     semestreIngressoVal,
-    turnoVal = turno,
+    shiftVal = turno,
     isFirst = false,
-    novoSemestreIngresso = null,
+    newEntryTerm = null,
   ) {
     setError(null);
     // Lê as rows mais recentes do estado para evitar stale closure
     withCurrentRows((currentRows) => {
       try {
-        const { semestreCurso, semestreOferta } = (() => {
+        const { courseTerm, offerTerm } = (() => {
           const inf = inferNextSemester(
             currentRows,
             ANO_INICIO,
@@ -1024,27 +1023,27 @@ export default function PlanejamentoPage() {
 
         // Gera sempre sem filtro de turno — todas as disciplinas elegíveis
         // pelo PPC. A modal cuidará de habilitar/desabilitar pelo turno.
-        const { newRows } = gerarSemestre({
+        const { newRows } = generateSemester({
           rows: currentRows,
           ppcJson,
-          ofertaJson: null,
+          offerJson: null,
           turno: "dia",
           semOferta: true,
           anoInicio: ANO_INICIO,
           scInicio: SC_INICIO,
-          semestreIngresso: semestreIngressoVal,
+          entryTerm: semestreIngressoVal,
         });
 
         if (newRows.length === 0) {
           setError("Nenhuma disciplina disponível para este período.");
         } else {
-          setPendingPeriodo({
+          setPendingTerm({
             newRows,
-            semestreCurso,
-            semestreOferta,
+            courseTerm,
+            offerTerm,
             isFirst,
-            turnoVal,
-            novoSemestreIngresso,
+            shiftVal,
+            newEntryTerm,
           });
         }
       } catch (e) {
@@ -1053,69 +1052,66 @@ export default function PlanejamentoPage() {
     });
   }
 
-  const handleConfirmarPeriodo = useCallback(
+  const handleConfirmTerm = useCallback(
     (rowsSelecionadas, turnoEscolhido) => {
-      if (!pendingPeriodo) return;
-      const { semestreCurso, semestreOferta, isFirst, novoSemestreIngresso } =
-        pendingPeriodo;
-      const turnoVal = turnoEscolhido ?? pendingPeriodo.turnoVal;
+      if (!pendingTerm) return;
+      const { courseTerm, offerTerm, isFirst, newEntryTerm } = pendingTerm;
+      const shiftVal = turnoEscolhido ?? pendingTerm.shiftVal;
 
       // Enriquece as rows selecionadas com turmas de ambas as ofertas
-      const so = pendingPeriodo.semestreOferta;
+      const so = pendingTerm.offerTerm;
       const rowsEnriquecidas = rowsSelecionadas.map((r) => ({
         ...r,
         semestre_oferta: String(so),
       }));
-      const rowsComTurmas = enrichRowsWithOferta(
+      const rowsComTurmas = enrichRowsWithOffer(
         rowsEnriquecidas,
-        ofertaS1Json,
-        ofertaS2Json,
-        turnoVal,
+        offer1Json,
+        offer2Json,
+        shiftVal,
       );
 
       if (isFirst) {
         setRowsAndTurno(
           groupUnique(
-            upsertSemester(planning?.rows ?? [], semestreCurso, rowsComTurmas),
+            upsertSemester(planning?.rows ?? [], courseTerm, rowsComTurmas),
           ),
-          turnoVal,
-          novoSemestreIngresso,
+          shiftVal,
+          newEntryTerm,
         );
       } else {
         upsertRows((currentRows) =>
-          groupUnique(
-            upsertSemester(currentRows, semestreCurso, rowsComTurmas),
-          ),
+          groupUnique(upsertSemester(currentRows, courseTerm, rowsComTurmas)),
         );
       }
 
       setLastResult({
-        semestreCurso,
-        semestreOferta,
+        courseTerm,
+        offerTerm,
         count: rowsSelecionadas.length,
       });
-      setPendingPeriodo(null);
+      setPendingTerm(null);
     },
-    [pendingPeriodo, upsertRows, setTurno, setRowsAndTurno, planning?.rows],
+    [pendingTerm, upsertRows, setTurno, setRowsAndTurno, planning?.rows],
   );
 
-  function handleGerar() {
-    if (gerarBloqueado) return;
+  function handleGenerate() {
+    if (generateBlocked) return;
     if (isFirstGeneration) {
-      setAskingSemestreIngresso(true);
+      setAskingEntryTerm(true);
       return;
     }
-    doGerar(semestreIngresso);
+    doGenerate(entryTerm);
   }
 
-  function handleConfirmPrimeiroperiodo(so) {
-    setAskingSemestreIngresso(false);
+  function handleConfirmFirstTerm(so) {
+    setAskingEntryTerm(false);
     // turno default por semestre de ingresso
-    const turnoDefault = so === 1 ? "manha" : "tarde";
-    doGerar(so, turnoDefault, true, so);
+    const defaultShift = so === 1 ? "manha" : "tarde";
+    doGenerate(so, defaultShift, true, so);
   }
 
-  function handleDeletePeriodo() {
+  function handleDeleteTerm() {
     if (!activeTab) return;
     if (!confirmDelete) {
       setConfirmDelete(true);
@@ -1134,124 +1130,120 @@ export default function PlanejamentoPage() {
   const tabLabel = (sc) => (sc === "_" ? "Dispensas" : `${sc}º per`);
 
   const activeRows = activeTab ? (grouped.get(activeTab) ?? []) : [];
-  // activeRows já contêm horários — não precisa de enriquecimento
+  // activeRows already contain schedules — no enrichment needed
 
   const activeFirst = activeRows[0];
 
-  // Usa activeRows (enriquecidas com horários) para detectar candidatos ao conflito,
-  // mas persiste usando rawRows (planejamento real, sem enriquecimento).
+  // Uses activeRows (enriched with schedules) to detect conflict candidates,
+  // but persists using rawRows (the real planning, without enrichment).
   function handleConflictClick(
     dia,
     horaInicio,
     clickedDisciplina,
     clickedTurma,
   ) {
-    const candidatos = conflitosDoSlot(dia, horaInicio, activeRows);
-    if (candidatos.length < 2) return;
+    const candidates = sectionsInSlot(dia, horaInicio, activeRows);
+    if (candidates.length < 2) return;
 
     // Enriquece cada candidato com nome e horários da turma correspondente
-    const candidatosComHorarios = candidatos.map((c) => {
-      const row = activeRows.find((r) => r.codigo === c.disciplinaCodigo);
-      const turma = (row?.turmas ?? []).find(
-        (t) => String(t?.codigo ?? "").trim() === c.turmaCodigo,
+    const candidatesWithSchedules = candidates.map((c) => {
+      const row = activeRows.find((r) => r.codigo === c.courseCode);
+      const section = (row?.turmas ?? []).find(
+        (t) => String(t?.codigo ?? "").trim() === c.sectionCode,
       );
-      const horarios = Array.isArray(turma?.horarios) ? turma.horarios : [];
-      return { ...c, disciplinaNome: row?.nome ?? "", horarios };
+      const horarios = Array.isArray(section?.horarios) ? section.horarios : [];
+      return { ...c, courseName: row?.nome ?? "", horarios };
     });
 
-    setConflito({
+    setConflict({
       dia,
       horaInicio,
-      candidatos: candidatosComHorarios,
-      pendenteInicial:
+      candidates: candidatesWithSchedules,
+      initialPending:
         clickedDisciplina && clickedTurma
-          ? { disciplinaCodigo: clickedDisciplina, turmaCodigo: clickedTurma }
+          ? { courseCode: clickedDisciplina, sectionCode: clickedTurma }
           : null,
     });
   }
 
-  function handleEscolherVencedor(disciplinaCodigo, turmaCodigo) {
-    if (!conflito) return;
+  function handlePickWinner(courseCode, sectionCode) {
+    if (!conflict) return;
 
     const outras = (planning?.rows ?? []).filter(
-      (r) => String(r?.semestre_curso ?? "").trim() !== lastNumericSc,
+      (r) => String(r?.semestre_curso ?? "").trim() !== lastTerm,
     );
 
-    // Resolve sobre activeRows (enriquecidas) — têm os horários necessários
-    // para detectar conflitos. Persistimos o resultado enriquecido diretamente.
-    const resolvidas = resolverTurmaVencedora(
-      disciplinaCodigo,
-      turmaCodigo,
+    // Resolves over activeRows (enriched) — they have the schedules needed
+    // to detect conflicts. We persist the enriched result directly.
+    const resolvidas = resolveWinningCourseSection(
+      courseCode,
+      sectionCode,
       activeRows,
     );
 
     setRows([...outras, ...resolvidas]);
-    setConflito(null);
+    setConflict(null);
   }
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
-      {askingSemestreIngresso && (
-        <ModalPrimeiroperiodo onConfirm={handleConfirmPrimeiroperiodo} />
+      {askingEntryTerm && (
+        <ModalPrimeiroperiodo onConfirm={handleConfirmFirstTerm} />
       )}
-      {pendingPeriodo && (
+      {pendingTerm && (
         <ModalConfirmarPeriodo
-          newRows={pendingPeriodo.newRows}
-          semestreCurso={pendingPeriodo.semestreCurso}
-          semestreOferta={pendingPeriodo.semestreOferta}
-          turnoInicial={pendingPeriodo.turnoVal}
-          ofertaS1={ofertaS1Json}
-          ofertaS2={ofertaS2Json}
-          onConfirm={handleConfirmarPeriodo}
-          onCancel={() => setPendingPeriodo(null)}
+          newRows={pendingTerm.newRows}
+          courseTerm={pendingTerm.courseTerm}
+          offerTerm={pendingTerm.offerTerm}
+          initialShift={pendingTerm.shiftVal}
+          ofertaS1={offer1Json}
+          ofertaS2={offer2Json}
+          onConfirm={handleConfirmTerm}
+          onCancel={() => setPendingTerm(null)}
         />
       )}
-      {adicionandoDisciplinas && (
+      {addingCourses && (
         <ModalAdicionarDisciplinas
-          semestreCurso={Number(lastNumericSc)}
-          turmasJaNoPeriodo={Object.fromEntries(
+          courseTerm={Number(lastTerm)}
+          existingSections={Object.fromEntries(
             (planning?.rows ?? [])
               .filter(
-                (r) => String(r?.semestre_curso ?? "").trim() === lastNumericSc,
+                (r) => String(r?.semestre_curso ?? "").trim() === lastTerm,
               )
               .map((r) => [r.codigo, r.turmas ?? []]),
           )}
-          disponiveis={calcDisponiveisParaAdicionar({
-            // Passa rows SEM o período atual — comportamento idêntico a gerar
-            // o período do zero: disciplinas do período atual não são
-            // consideradas planejadas nem concluídas.
+          available={calcAvailableToAdd({
+            // Pass rows WITHOUT the current term — same behavior as generating
+            // the term from scratch: courses in the current term are not
+            // considered planned or completed.
             rows: (planning?.rows ?? []).filter(
-              (r) => String(r?.semestre_curso ?? "").trim() !== lastNumericSc,
+              (r) => String(r?.semestre_curso ?? "").trim() !== lastTerm,
             ),
             ppcJson,
-            ofertaJson: (() => {
+            offerJson: (() => {
               const scRows = (planning?.rows ?? []).filter(
-                (r) => String(r?.semestre_curso ?? "").trim() === lastNumericSc,
+                (r) => String(r?.semestre_curso ?? "").trim() === lastTerm,
               );
               const so2 = scRows[0]?.semestre_oferta;
-              return so2 === "1"
-                ? ofertaS1Json
-                : so2 === "2"
-                  ? ofertaS2Json
-                  : null;
+              return so2 === "1" ? offer1Json : so2 === "2" ? offer2Json : null;
             })(),
             turno: "dia",
-            semestreCurso: Number(lastNumericSc),
-            semestreIngresso,
+            courseTerm: Number(lastTerm),
+            entryTerm,
             anoInicio: ANO_INICIO,
             scInicio: SC_INICIO,
           })}
           onConfirm={(rowsParaAdicionar) => {
             if (rowsParaAdicionar.length === 0) {
-              setAdicionandoDisciplinas(false);
+              setAddingCourses(false);
               return;
             }
             upsertRows((currentRows) => {
               const outras = currentRows.filter(
-                (r) => String(r?.semestre_curso ?? "").trim() !== lastNumericSc,
+                (r) => String(r?.semestre_curso ?? "").trim() !== lastTerm,
               );
               const atuais = currentRows.filter(
-                (r) => String(r?.semestre_curso ?? "").trim() === lastNumericSc,
+                (r) => String(r?.semestre_curso ?? "").trim() === lastTerm,
               );
               const atuaisPorCodigo = new Map(atuais.map((r) => [r.codigo, r]));
               const mescladas = atuais.map((row) => {
@@ -1276,66 +1268,66 @@ export default function PlanejamentoPage() {
               );
               return groupUnique([...outras, ...mescladas, ...novas]);
             });
-            setAdicionandoDisciplinas(false);
+            setAddingCourses(false);
           }}
-          onCancel={() => setAdicionandoDisciplinas(false)}
+          onCancel={() => setAddingCourses(false)}
         />
       )}
-      {removendoDisciplina && (
+      {removingCourse && (
         <ModalRemoverDisciplina
-          disciplinaCodigo={removendoDisciplina.codigo}
-          disciplinaNome={removendoDisciplina.nome}
+          courseCode={removingCourse.codigo}
+          courseName={removingCourse.nome}
           onConfirm={() => {
             const updated = (planning?.rows ?? []).filter(
               (r) =>
                 !(
-                  String(r?.semestre_curso ?? "").trim() === lastNumericSc &&
-                  r.codigo === removendoDisciplina.codigo
+                  String(r?.semestre_curso ?? "").trim() === lastTerm &&
+                  r.codigo === removingCourse.codigo
                 ),
             );
             setRows(updated);
-            setRemovendoDisciplina(null);
+            setRemovingCourse(null);
           }}
-          onFechar={() => setRemovendoDisciplina(null)}
+          onFechar={() => setRemovingCourse(null)}
         />
       )}
-      {escolhendoTurma && (
+      {pickingSection && (
         <ModalEscolherTurma
-          row={escolhendoTurma}
-          onEscolher={(disciplinaCodigo, turmaCodigo) => {
+          row={pickingSection}
+          onEscolher={(courseCode, sectionCode) => {
             const outras = (planning?.rows ?? []).filter(
-              (r) => String(r?.semestre_curso ?? "").trim() !== lastNumericSc,
+              (r) => String(r?.semestre_curso ?? "").trim() !== lastTerm,
             );
-            const resolvidas = resolverTurmaVencedora(
-              disciplinaCodigo,
-              turmaCodigo,
+            const resolvidas = resolveWinningCourseSection(
+              courseCode,
+              sectionCode,
               activeRows,
             );
             setRows([...outras, ...resolvidas]);
-            setEscolhendoTurma(null);
+            setPickingSection(null);
           }}
-          onFechar={() => setEscolhendoTurma(null)}
+          onFechar={() => setPickingSection(null)}
         />
       )}
-      {conflito && (
+      {conflict && (
         <ModalResolverConflito
-          dia={conflito.dia}
-          horaInicio={conflito.horaInicio}
-          candidatos={conflito.candidatos}
-          pendenteInicial={conflito.pendenteInicial}
-          onEscolher={handleEscolherVencedor}
-          onFechar={() => setConflito(null)}
+          dia={conflict.dia}
+          horaInicio={conflict.horaInicio}
+          candidates={conflict.candidates}
+          initialPending={conflict.initialPending}
+          onEscolher={handlePickWinner}
+          onFechar={() => setConflict(null)}
         />
       )}
 
       {/* Feedback — conflitos de horário (vermelho, prioridade visual) */}
-      {gerarBloqueado && periodoTemConflitoDeHorario(lastRows) && (
+      {generateBlocked && periodHasScheduleConflict(lastRows) && (
         <CollapsibleBanner
           color="red"
-          title={`Conflitos de horário no ${lastNumericSc}º período`}
+          title={`Conflitos de horário no ${lastTerm}º período`}
         >
           <ul className="list-disc list-inside space-y-0.5">
-            {todosConflitosDeHorario(activeRows).map(
+            {allScheduleConflicts(activeRows).map(
               ({ dia, horaInicio, codigos }) => {
                 const hora = `${String(Math.floor(horaInicio / 60)).padStart(2, "0")}:00`;
                 return (
@@ -1350,22 +1342,23 @@ export default function PlanejamentoPage() {
       )}
 
       {/* Feedback — múltiplas turmas (amarelo, sempre visível se houver) */}
-      {gerarBloqueado && bloqueios.some((m) => !m.includes("Conflito")) && (
-        <CollapsibleBanner
-          color="amber"
-          title={`Múltiplas turmas no ${lastNumericSc}º período`}
-        >
-          <ul className="list-disc list-inside space-y-0.5">
-            {lastRows
-              .filter((r) => (r.turmas?.length ?? 0) > 1)
-              .map((r) => (
-                <li key={r.codigo}>
-                  {r.codigo} tem {r.turmas.length} turmas
-                </li>
-              ))}
-          </ul>
-        </CollapsibleBanner>
-      )}
+      {generateBlocked &&
+        termBlockingReasons.some((m) => !m.includes("Conflito")) && (
+          <CollapsibleBanner
+            color="amber"
+            title={`Múltiplas turmas no ${lastTerm}º período`}
+          >
+            <ul className="list-disc list-inside space-y-0.5">
+              {lastRows
+                .filter((r) => (r.turmas?.length ?? 0) > 1)
+                .map((r) => (
+                  <li key={r.codigo}>
+                    {r.codigo} tem {r.turmas.length} turmas
+                  </li>
+                ))}
+            </ul>
+          </CollapsibleBanner>
+        )}
 
       {error && (
         <div className="mb-4 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
@@ -1375,7 +1368,7 @@ export default function PlanejamentoPage() {
 
       {lastResult && (
         <div className="mb-4 bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg px-4 py-3">
-          ✓ {lastResult.semestreCurso}º período gerado — {lastResult.count}{" "}
+          ✓ {lastResult.courseTerm}º período gerado — {lastResult.count}{" "}
           disciplina{lastResult.count !== 1 ? "s" : ""} selecionada
           {lastResult.count !== 1 ? "s" : ""}
         </div>
@@ -1388,7 +1381,7 @@ export default function PlanejamentoPage() {
             Nenhuma disciplina planejada ainda.
           </p>
           <button
-            onClick={handleGerar}
+            onClick={handleGenerate}
             className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl transition-colors cursor-pointer shadow"
           >
             Gerar 1º período
@@ -1400,7 +1393,7 @@ export default function PlanejamentoPage() {
           <div className="flex items-stretch gap-0 border-b border-gray-200 mb-6 overflow-x-auto">
             {sortedKeys.map((sc) => {
               const isActive = sc === activeTab;
-              const isLast = sc === lastNumericSc;
+              const isLast = sc === lastTerm;
               return (
                 <button
                   key={sc}
@@ -1421,12 +1414,12 @@ export default function PlanejamentoPage() {
             })}
             {/* Botão gerar estilizado como aba */}
             <button
-              onClick={handleGerar}
-              disabled={gerarBloqueado}
-              title={gerarBloqueado ? bloqueios.join("\n") : undefined}
+              onClick={handleGenerate}
+              disabled={generateBlocked}
+              title={generateBlocked ? termBlockingReasons.join("\n") : undefined}
               className="flex-shrink-0 px-4 py-2.5 text-sm font-medium border-b-2 border-transparent text-gray-400 hover:text-gray-600 hover:border-gray-300 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer whitespace-nowrap border-l border-l-gray-200"
             >
-              + {next.semestreCurso}º per
+              + {next.courseTerm}º per
             </button>
           </div>
 
@@ -1442,16 +1435,16 @@ export default function PlanejamentoPage() {
                   {activeRows.length !== 1 ? "s" : ""}
                 </p>
               </div>
-              {activeTab === lastNumericSc && (
+              {activeTab === lastTerm && (
                 <div className="flex gap-2">
                   <button
-                    onClick={() => setAdicionandoDisciplinas(true)}
+                    onClick={() => setAddingCourses(true)}
                     className="px-3 py-1.5 text-xs font-medium rounded-lg border border-blue-300 text-blue-600 bg-white hover:border-blue-500 hover:bg-blue-50 transition-colors cursor-pointer"
                   >
                     + Disciplinas
                   </button>
                   <button
-                    onClick={handleDeletePeriodo}
+                    onClick={handleDeleteTerm}
                     onBlur={() => setConfirmDelete(false)}
                     className={[
                       "px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors cursor-pointer",
@@ -1485,46 +1478,46 @@ export default function PlanejamentoPage() {
               key={activeTab}
               rows={activeRows}
               turno={turno}
-              focusedTurmas={(() => {
-                // Destaca turmas do modal de conflito aberto
-                if (conflito) {
+              focusedSections={(() => {
+                // Highlights course sections from the open conflict modal
+                if (conflict) {
                   return new Set(
-                    conflito.candidatos.map(
-                      (c) => `${c.disciplinaCodigo}::${c.turmaCodigo}`,
+                    conflict.candidates.map(
+                      (c) => `${c.courseCode}::${c.sectionCode}`,
                     ),
                   );
                 }
                 // Destaca todas as turmas da disciplina com múltiplas turmas aberta
-                if (escolhendoTurma) {
+                if (pickingSection) {
                   return new Set(
-                    (escolhendoTurma.turmas ?? []).map(
-                      (t) => `${escolhendoTurma.codigo}::${t.codigo}`,
+                    (pickingSection.turmas ?? []).map(
+                      (t) => `${pickingSection.codigo}::${t.codigo}`,
                     ),
                   );
                 }
                 return null;
               })()}
               onResolverConflito={
-                activeTab === lastNumericSc ? handleConflictClick : undefined
+                activeTab === lastTerm ? handleConflictClick : undefined
               }
               onEscolherTurma={
-                activeTab === lastNumericSc
-                  ? (codigo, turmaCodigo) => {
+                activeTab === lastTerm
+                  ? (codigo, sectionCode) => {
                       const row = activeRows.find((r) => r.codigo === codigo);
                       if (row)
-                        setEscolhendoTurma({
+                        setPickingSection({
                           ...row,
-                          _pendenteInicial: turmaCodigo ?? null,
+                          _pendenteInicial: sectionCode ?? null,
                         });
                     }
                   : undefined
               }
               onRemoverDisciplina={
-                activeTab === lastNumericSc
+                activeTab === lastTerm
                   ? (codigo) => {
                       const row = activeRows.find((r) => r.codigo === codigo);
                       if (row)
-                        setRemovendoDisciplina({
+                        setRemovingCourse({
                           codigo: row.codigo,
                           nome: row.nome,
                         });

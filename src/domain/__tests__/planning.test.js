@@ -4,8 +4,8 @@ import {
   upsertSemester,
   deleteSemester,
   groupUnique,
-  enrichRowsWithOferta,
-  gerarSemestre,
+  enrichRowsWithOffer,
+  generateSemester,
 } from "../planning.js";
 
 // ---------------------------------------------------------------------------
@@ -73,87 +73,87 @@ function makeOfertaJson(semestre, disciplinas) {
 // ---------------------------------------------------------------------------
 
 describe("inferNextSemester", () => {
-  it("retorna sc=1 para planejamento vazio (semestreIngresso=1)", () => {
+  it("returns sc=1 for empty planning (entryTerm=1)", () => {
     const result = inferNextSemester([], 2024, 1, 1);
-    expect(result.semestreCurso).toBe(1);
-    expect(result.semestreOferta).toBe(1);
+    expect(result.courseTerm).toBe(1);
+    expect(result.offerTerm).toBe(1);
     expect(result.ano).toBe(2024);
   });
 
-  it("retorna sc=1 para planejamento vazio (semestreIngresso=2)", () => {
+  it("returns sc=1 for empty planning (entryTerm=2)", () => {
     const result = inferNextSemester([], 2024, 1, 2);
-    expect(result.semestreCurso).toBe(1);
-    expect(result.semestreOferta).toBe(2);
+    expect(result.courseTerm).toBe(1);
+    expect(result.offerTerm).toBe(2);
     expect(result.ano).toBe(2024);
   });
 
-  it("avança sc corretamente com semestreIngresso=1", () => {
+  it("advances sc correctly with entryTerm=1", () => {
     const rows = [makeRow("MAT001", "1"), makeRow("FIS001", "1")];
     const result = inferNextSemester(rows, 2024, 1, 1);
-    expect(result.semestreCurso).toBe(2);
-    expect(result.semestreOferta).toBe(2);
+    expect(result.courseTerm).toBe(2);
+    expect(result.offerTerm).toBe(2);
     expect(result.ano).toBe(2024);
   });
 
-  it("alterna semestreIngresso=1: sc1->S1, sc2->S2, sc3->S1, sc4->S2", () => {
+  it("alterna entryTerm=1: sc1->S1, sc2->S2, sc3->S1, sc4->S2", () => {
     const ano = 2024;
     expect(inferNextSemester([], ano, 1, 1)).toMatchObject({
-      semestreCurso: 1,
-      semestreOferta: 1,
+      courseTerm: 1,
+      offerTerm: 1,
     });
 
     const rows1 = [makeRow("A", "1")];
     expect(inferNextSemester(rows1, ano, 1, 1)).toMatchObject({
-      semestreCurso: 2,
-      semestreOferta: 2,
+      courseTerm: 2,
+      offerTerm: 2,
     });
 
     const rows2 = [makeRow("A", "1"), makeRow("B", "2")];
     expect(inferNextSemester(rows2, ano, 1, 1)).toMatchObject({
-      semestreCurso: 3,
-      semestreOferta: 1,
+      courseTerm: 3,
+      offerTerm: 1,
     });
 
     const rows3 = [makeRow("A", "1"), makeRow("B", "2"), makeRow("C", "3")];
     expect(inferNextSemester(rows3, ano, 1, 1)).toMatchObject({
-      semestreCurso: 4,
-      semestreOferta: 2,
+      courseTerm: 4,
+      offerTerm: 2,
     });
   });
 
-  it("alterna semestreIngresso=2: sc1->S2, sc2->S1, sc3->S2, sc4->S1", () => {
+  it("alterna entryTerm=2: sc1->S2, sc2->S1, sc3->S2, sc4->S1", () => {
     const ano = 2024;
     expect(inferNextSemester([], ano, 1, 2)).toMatchObject({
-      semestreCurso: 1,
-      semestreOferta: 2,
+      courseTerm: 1,
+      offerTerm: 2,
     });
 
     const rows1 = [makeRow("A", "1")];
     expect(inferNextSemester(rows1, ano, 1, 2)).toMatchObject({
-      semestreCurso: 2,
-      semestreOferta: 1,
+      courseTerm: 2,
+      offerTerm: 1,
     });
 
     const rows2 = [makeRow("A", "1"), makeRow("B", "2")];
     expect(inferNextSemester(rows2, ano, 1, 2)).toMatchObject({
-      semestreCurso: 3,
-      semestreOferta: 2,
+      courseTerm: 3,
+      offerTerm: 2,
     });
   });
 
-  it("ignora rows de dispensa ao calcular maxSc", () => {
+  it("ignores waiver rows when computing maxSc", () => {
     const rows = [makeRow("MAT001", "_"), makeRow("FIS001", "1")];
     const result = inferNextSemester(rows, 2024, 1, 1);
-    expect(result.semestreCurso).toBe(2);
+    expect(result.courseTerm).toBe(2);
   });
 
-  it("ano avança a cada 2 semestres com semestreIngresso=1", () => {
+  it("year advances every 2 terms with entryTerm=1", () => {
     const rows2 = [makeRow("A", "1"), makeRow("B", "2")];
     const r3 = inferNextSemester(rows2, 2024, 1, 1);
     expect(r3.ano).toBe(2025);
   });
 
-  it("ano avança a cada 2 semestres com semestreIngresso=2", () => {
+  it("year advances every 2 terms with entryTerm=2", () => {
     const rows1 = [makeRow("A", "1")];
     const r2 = inferNextSemester(rows1, 2024, 1, 2);
     expect(r2.ano).toBe(2025);
@@ -186,13 +186,13 @@ describe("upsertSemester", () => {
     expect(result.find((r) => r.codigo === "MAT001")).toBeUndefined();
   });
 
-  it("mantém rows de outros semestres intactas", () => {
+  it("keeps rows from other terms intact", () => {
     const existing = [makeRow("MAT001", "1"), makeRow("FIS001", "2")];
     const result = upsertSemester(existing, 1, [makeRow("BIO001", "1")]);
     expect(result.find((r) => r.codigo === "FIS001")).toBeTruthy();
   });
 
-  it("ordena por semestre_curso numérico", () => {
+  it("sorts by numeric semestre_curso", () => {
     const existing = [makeRow("C", "3"), makeRow("A", "1")];
     const result = upsertSemester(existing, 2, [makeRow("B", "2")]);
     const semestres = result.map((r) => r.semestre_curso);
@@ -221,24 +221,24 @@ describe("deleteSemester", () => {
     expect(result[0].codigo).toBe("QUI001");
   });
 
-  it("não remove rows de outros semestres", () => {
+  it("does not remove rows from other terms", () => {
     const rows = [makeRow("MAT001", "1"), makeRow("FIS001", "2")];
     const result = deleteSemester(rows, "1");
     expect(result).toHaveLength(1);
     expect(result[0].codigo).toBe("FIS001");
   });
 
-  it("retorna array vazio se só havia um semestre", () => {
+  it("returns empty array if there was only one term", () => {
     const rows = [makeRow("MAT001", "1")];
     expect(deleteSemester(rows, "1")).toHaveLength(0);
   });
 
-  it("retorna original se semestre não existe", () => {
+  it("returns original if term does not exist", () => {
     const rows = [makeRow("MAT001", "1")];
     expect(deleteSemester(rows, "9")).toHaveLength(1);
   });
 
-  it("não remove rows de dispensa (_)", () => {
+  it("does not remove waiver rows (_)", () => {
     const rows = [makeRow("MAT001", "_"), makeRow("FIS001", "1")];
     const result = deleteSemester(rows, "1");
     expect(result).toHaveLength(1);
@@ -251,7 +251,7 @@ describe("deleteSemester", () => {
 // ---------------------------------------------------------------------------
 
 describe("groupUnique", () => {
-  it("mantém rows únicas intactas", () => {
+  it("keeps unique rows intact", () => {
     const rows = [makeRow("MAT001", "1"), makeRow("FIS001", "1")];
     expect(groupUnique(rows)).toHaveLength(2);
   });
@@ -268,7 +268,7 @@ describe("groupUnique", () => {
     expect(result[0].turmas).toHaveLength(2);
   });
 
-  it("não mescla a mesma disciplina em semestres diferentes", () => {
+  it("does not merge the same course across different terms", () => {
     const rows = [makeRow("MAT001", "1"), makeRow("MAT001", "2")];
     expect(groupUnique(rows)).toHaveLength(2);
   });
@@ -280,10 +280,10 @@ describe("groupUnique", () => {
 });
 
 // ---------------------------------------------------------------------------
-// enrichRowsWithOferta
+// enrichRowsWithOffer
 // ---------------------------------------------------------------------------
 
-describe("enrichRowsWithOferta", () => {
+describe("enrichRowsWithOffer", () => {
   it("enriquece row sem turmas com dados da oferta", () => {
     const rows = [makeRow("MAT001", "1", [])];
     const ofertaS1 = makeOfertaJson(1, [
@@ -298,13 +298,13 @@ describe("enrichRowsWithOferta", () => {
         ],
       },
     ]);
-    const result = enrichRowsWithOferta(rows, ofertaS1, {}, "dia");
+    const result = enrichRowsWithOffer(rows, ofertaS1, {}, "dia");
     expect(result[0].turmas).toHaveLength(1);
     expect(result[0].turmas[0].horarios).toHaveLength(1);
   });
 
-  it("não sobrescreve row que já tem turmas (mesmo sem horários)", () => {
-    // Row com turma mas sem horários — representa escolha do usuário após resolução de conflito
+  it("does not overwrite row that already has sections (even without schedules)", () => {
+    // Row with a section but no schedules — represents user choice after conflict resolution
     const rows = [makeRow("MAT001", "1", [makeRawTurma("T1", [])])];
     const ofertaS1 = makeOfertaJson(1, [
       {
@@ -318,13 +318,13 @@ describe("enrichRowsWithOferta", () => {
         ],
       },
     ]);
-    const result = enrichRowsWithOferta(rows, ofertaS1, {}, "dia");
-    // Mantém a turma original (T1), não sobrescreve com T2 da oferta
+    const result = enrichRowsWithOffer(rows, ofertaS1, {}, "dia");
+    // Keeps the original section (T1), does not overwrite with T2 from offer
     expect(result[0].turmas).toHaveLength(1);
     expect(result[0].turmas[0].codigo).toBe("T1");
   });
 
-  it("não sobrescreve row com turmas com horários", () => {
+  it("does not overwrite row with sections that have schedules", () => {
     const rows = [
       makeRow("MAT001", "1", [
         makeRawTurma("T1", [makeHorario("Ter", "09:00", "11:00")]),
@@ -342,13 +342,13 @@ describe("enrichRowsWithOferta", () => {
         ],
       },
     ]);
-    const result = enrichRowsWithOferta(rows, ofertaS1, {}, "dia");
+    const result = enrichRowsWithOffer(rows, ofertaS1, {}, "dia");
     expect(result[0].turmas[0].codigo).toBe("T1");
   });
 
-  it("não sobrescreve row com turmas vazias após resolução de conflito", () => {
-    // Disciplina perdeu o conflito — resolverTurmaVencedora deixa 1 turma sem horários
-    // como placeholder para evitar re-enriquecimento pela oferta.
+  it("does not overwrite row with empty sections after conflict resolution", () => {
+    // Course lost the conflict — resolveWinningCourseSection leaves 1 section without schedules
+    // as a placeholder to prevent re-enrichment from the offer.
     const rows = [makeRow("INF001", "1", [makeRawTurma("T1", [])])];
     const ofertaS1 = makeOfertaJson(1, [
       {
@@ -362,14 +362,14 @@ describe("enrichRowsWithOferta", () => {
         ],
       },
     ]);
-    const result = enrichRowsWithOferta(rows, ofertaS1, {}, "dia");
-    // Row com turma sem horários NÃO é re-enriquecida — placeholder preservado
+    const result = enrichRowsWithOffer(rows, ofertaS1, {}, "dia");
+    // Row with a section but no schedules is NOT re-enriched — placeholder preserved
     expect(result[0].turmas).toHaveLength(1);
     expect(result[0].turmas[0].codigo).toBe("T1");
     expect(result[0].turmas[0].horarios).toHaveLength(0);
   });
 
-  it("usa oferta S2 quando semestre_oferta da row é '2'", () => {
+  it("uses offer S2 when semestre_oferta on the row is '2'", () => {
     const row = { ...makeRow("MAT001", "1", []), semestre_oferta: "2" };
     const ofertaS2 = makeOfertaJson(2, [
       {
@@ -383,11 +383,11 @@ describe("enrichRowsWithOferta", () => {
         ],
       },
     ]);
-    const result = enrichRowsWithOferta([row], {}, ofertaS2, "dia");
+    const result = enrichRowsWithOffer([row], {}, ofertaS2, "dia");
     expect(result[0].turmas[0].codigo).toBe("T2");
   });
 
-  it("não enriquece rows de dispensa", () => {
+  it("does not enrich waiver rows", () => {
     const rows = [makeRow("MAT001", "_", [])];
     const ofertaS1 = makeOfertaJson(1, [
       {
@@ -401,11 +401,11 @@ describe("enrichRowsWithOferta", () => {
         ],
       },
     ]);
-    const result = enrichRowsWithOferta(rows, ofertaS1, {}, "dia");
+    const result = enrichRowsWithOffer(rows, ofertaS1, {}, "dia");
     expect(result[0].turmas).toHaveLength(0);
   });
 
-  it("filtra turmas pelo turno manhã", () => {
+  it("filters sections by morning shift", () => {
     const rows = [makeRow("MAT001", "1", [])];
     const ofertaS1 = makeOfertaJson(1, [
       {
@@ -415,21 +415,21 @@ describe("enrichRowsWithOferta", () => {
             turma: "T1",
             horarios: [makeHorario("Seg", "09:00", "11:00")],
             docente: "",
-          }, // manhã
+          }, // morning
           {
             turma: "T2",
             horarios: [makeHorario("Seg", "14:00", "16:00")],
             docente: "",
-          }, // tarde
+          }, // afternoon
         ],
       },
     ]);
-    const result = enrichRowsWithOferta(rows, ofertaS1, {}, "manha");
+    const result = enrichRowsWithOffer(rows, ofertaS1, {}, "manha");
     expect(result[0].turmas).toHaveLength(1);
     expect(result[0].turmas[0].codigo).toBe("T1");
   });
 
-  it("filtra turmas pelo turno tarde", () => {
+  it("filters sections by afternoon shift", () => {
     const rows = [makeRow("MAT001", "1", [])];
     const ofertaS1 = makeOfertaJson(1, [
       {
@@ -439,137 +439,137 @@ describe("enrichRowsWithOferta", () => {
             turma: "T1",
             horarios: [makeHorario("Seg", "09:00", "11:00")],
             docente: "",
-          }, // manhã
+          }, // morning
           {
             turma: "T2",
             horarios: [makeHorario("Seg", "14:00", "16:00")],
             docente: "",
-          }, // tarde
+          }, // afternoon
         ],
       },
     ]);
-    const result = enrichRowsWithOferta(rows, ofertaS1, {}, "tarde");
+    const result = enrichRowsWithOffer(rows, ofertaS1, {}, "tarde");
     expect(result[0].turmas).toHaveLength(1);
     expect(result[0].turmas[0].codigo).toBe("T2");
   });
 });
 
 // ---------------------------------------------------------------------------
-// gerarSemestre
+// generateSemester
 // ---------------------------------------------------------------------------
 
-describe("gerarSemestre", () => {
-  it("seleciona disciplinas sem pré-requisitos no primeiro semestre", () => {
+describe("generateSemester", () => {
+  it("selects courses with no prerequisites in the first term", () => {
     const ppcJson = makePpcJson([
       { code: "MAT001", suggestedSemester: 1 },
       { code: "FIS001", suggestedSemester: 1 },
     ]);
-    const { newRows, semestreCurso } = gerarSemestre({
+    const { newRows, courseTerm } = generateSemester({
       rows: [],
       ppcJson,
-      ofertaJson: null,
+      offerJson: null,
       turno: "dia",
       semOferta: true,
       anoInicio: 2024,
       scInicio: 1,
-      semestreIngresso: 1,
+      entryTerm: 1,
     });
-    expect(semestreCurso).toBe(1);
+    expect(courseTerm).toBe(1);
     expect(newRows.map((r) => r.codigo)).toContain("MAT001");
     expect(newRows.map((r) => r.codigo)).toContain("FIS001");
   });
 
-  it("não seleciona disciplina com pré-requisito não cumprido", () => {
+  it("does not select course with unmet prerequisite", () => {
     const ppcJson = makePpcJson([
       { code: "MAT001", suggestedSemester: 1 },
       { code: "MAT002", prereq: ["MAT001"], suggestedSemester: 2 },
     ]);
-    const { newRows } = gerarSemestre({
+    const { newRows } = generateSemester({
       rows: [],
       ppcJson,
-      ofertaJson: null,
+      offerJson: null,
       turno: "dia",
       semOferta: true,
       anoInicio: 2024,
       scInicio: 1,
-      semestreIngresso: 1,
+      entryTerm: 1,
     });
     expect(newRows.map((r) => r.codigo)).not.toContain("MAT002");
   });
 
-  it("seleciona disciplina com pré-requisito cumprido no semestre anterior", () => {
+  it("selects course with prerequisite met in the previous term", () => {
     const ppcJson = makePpcJson([
       { code: "MAT001", suggestedSemester: 1 },
       { code: "MAT002", prereq: ["MAT001"], suggestedSemester: 2 },
     ]);
     const existingRows = [makeRow("MAT001", "1")];
-    const { newRows, semestreCurso } = gerarSemestre({
+    const { newRows, courseTerm } = generateSemester({
       rows: existingRows,
       ppcJson,
-      ofertaJson: null,
+      offerJson: null,
       turno: "dia",
       semOferta: true,
       anoInicio: 2024,
       scInicio: 1,
-      semestreIngresso: 1,
+      entryTerm: 1,
     });
-    expect(semestreCurso).toBe(2);
+    expect(courseTerm).toBe(2);
     expect(newRows.map((r) => r.codigo)).toContain("MAT002");
   });
 
-  it("não duplica disciplinas já planejadas em outros semestres", () => {
+  it("does not duplicate courses already planned in other terms", () => {
     const ppcJson = makePpcJson([
       { code: "MAT001", suggestedSemester: 1 },
       { code: "FIS001", suggestedSemester: 1 },
     ]);
     const existingRows = [makeRow("MAT001", "1")];
-    const { newRows } = gerarSemestre({
+    const { newRows } = generateSemester({
       rows: existingRows,
       ppcJson,
-      ofertaJson: null,
+      offerJson: null,
       turno: "dia",
       semOferta: true,
       anoInicio: 2024,
       scInicio: 1,
-      semestreIngresso: 1,
+      entryTerm: 1,
     });
-    // MAT001 já estava no sc=1, agora gera sc=2
+    // MAT001 was already in sc=1, now generates sc=2
     expect(newRows.map((r) => r.codigo)).not.toContain("MAT001");
   });
 
-  it("inclui disciplinas dispensadas como cumpridas para pré-requisitos", () => {
+  it("treats waived courses as completed for prerequisites", () => {
     const ppcJson = makePpcJson([
       { code: "MAT001", suggestedSemester: 1 },
       { code: "MAT002", prereq: ["MAT001"], suggestedSemester: 2 },
     ]);
     const existingRows = [makeRow("MAT001", "_")]; // dispensada
-    const { newRows } = gerarSemestre({
+    const { newRows } = generateSemester({
       rows: existingRows,
       ppcJson,
-      ofertaJson: null,
+      offerJson: null,
       turno: "dia",
       semOferta: true,
       anoInicio: 2024,
       scInicio: 1,
-      semestreIngresso: 1,
+      entryTerm: 1,
     });
     expect(newRows.map((r) => r.codigo)).toContain("MAT002");
   });
 
-  it("infere o semestre correto a partir das rows existentes", () => {
+  it("infers the correct term from existing rows", () => {
     const ppcJson = makePpcJson([{ code: "FIS001" }]);
     const existingRows = [makeRow("MAT001", "1"), makeRow("FIS001", "1")];
-    const { semestreCurso, semestreOferta } = gerarSemestre({
+    const { courseTerm, offerTerm } = generateSemester({
       rows: existingRows,
       ppcJson,
-      ofertaJson: null,
+      offerJson: null,
       turno: "dia",
       semOferta: true,
       anoInicio: 2024,
       scInicio: 1,
-      semestreIngresso: 1,
+      entryTerm: 1,
     });
-    expect(semestreCurso).toBe(2);
-    expect(semestreOferta).toBe(2);
+    expect(courseTerm).toBe(2);
+    expect(offerTerm).toBe(2);
   });
 });
