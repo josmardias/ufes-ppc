@@ -1,7 +1,7 @@
 {
   "semestre": 2,
   "fonte_pdf": "relatoriooferta-engenhariaeletrica-2025-2osemestre_-_08.08.25.pdf",
-  "gerado_em": "2026-03-04T01:43:52.343Z",
+  "gerado_em": "2026-03-04T14:32:51.620Z",
   "disciplinas": [
     {
       "semestre": 2,
@@ -751,7 +751,24 @@
       "codigo": "FIS14461",
       "nome": "FÍSICA IV",
       "carga_horaria": 60,
-      "turmas": []
+      "turmas": [
+        {
+          "turma": "06.1",
+          "horarios": [
+            {
+              "dia": "Seg",
+              "inicio": "09:00",
+              "fim": "11:00"
+            },
+            {
+              "dia": "Qua",
+              "inicio": "09:00",
+              "fim": "11:00"
+            }
+          ],
+          "docente": ""
+        }
+      ]
     },
     {
       "semestre": 2,
@@ -759,7 +776,29 @@
       "codigo": "INF15939",
       "nome": "ALGORITMOS NUMÉRICOS",
       "carga_horaria": 60,
-      "turmas": []
+      "turmas": [
+        {
+          "turma": "06.1",
+          "horarios": [
+            {
+              "dia": "Seg",
+              "inicio": "11:00",
+              "fim": "13:00"
+            },
+            {
+              "dia": "Qua",
+              "inicio": "11:00",
+              "fim": "12:00"
+            },
+            {
+              "dia": "Qua",
+              "inicio": "12:00",
+              "fim": "13:00"
+            }
+          ],
+          "docente": ""
+        }
+      ]
     },
     {
       "semestre": 2,
@@ -1256,7 +1295,24 @@
       "codigo": "ELE08575",
       "nome": "Sistemas Embarcados I",
       "carga_horaria": 75,
-      "turmas": []
+      "turmas": [
+        {
+          "turma": "06.1",
+          "horarios": [
+            {
+              "dia": "Seg",
+              "inicio": "13:00",
+              "fim": "16:00"
+            },
+            {
+              "dia": "Qua",
+              "inicio": "13:00",
+              "fim": "15:00"
+            }
+          ],
+          "docente": ""
+        }
+      ]
     },
     {
       "semestre": 2,
@@ -1426,7 +1482,24 @@
       "codigo": "ELE08509",
       "nome": "Gestão e Eficiência Energética",
       "carga_horaria": 60,
-      "turmas": []
+      "turmas": [
+        {
+          "turma": "06.1",
+          "horarios": [
+            {
+              "dia": "Ter",
+              "inicio": "09:00",
+              "fim": "11:00"
+            },
+            {
+              "dia": "Qui",
+              "inicio": "09:00",
+              "fim": "11:00"
+            }
+          ],
+          "docente": ""
+        }
+      ]
     },
     {
       "semestre": 2,
@@ -1434,7 +1507,13 @@
       "codigo": "ELE10820",
       "nome": "Estágio Supervisionado",
       "carga_horaria": 300,
-      "turmas": []
+      "turmas": [
+        {
+          "turma": "06.1",
+          "horarios": [],
+          "docente": ""
+        }
+      ]
     },
     {
       "semestre": 2,
@@ -1624,7 +1703,19 @@
       "codigo": "ELE08552",
       "nome": "Projeto de Graduação I",
       "carga_horaria": 30,
-      "turmas": []
+      "turmas": [
+        {
+          "turma": "06.1",
+          "horarios": [
+            {
+              "dia": "Sex",
+              "inicio": "13:00",
+              "fim": "15:00"
+            }
+          ],
+          "docente": ""
+        }
+      ]
     },
     {
       "semestre": 2,
@@ -1632,7 +1723,13 @@
       "codigo": "ELE08553",
       "nome": "Projeto de Graduação II",
       "carga_horaria": 30,
-      "turmas": []
+      "turmas": [
+        {
+          "turma": "06.1",
+          "horarios": [],
+          "docente": ""
+        }
+      ]
     },
     {
       "semestre": 2,
@@ -1640,7 +1737,24 @@
       "codigo": "EPR07923",
       "nome": "Aspectos Legais e Éticos da Engenharia",
       "carga_horaria": 60,
-      "turmas": []
+      "turmas": [
+        {
+          "turma": "06.1",
+          "horarios": [
+            {
+              "dia": "Seg",
+              "inicio": "11:00",
+              "fim": "13:00"
+            },
+            {
+              "dia": "Qua",
+              "inicio": "11:00",
+              "fim": "13:00"
+            }
+          ],
+          "docente": ""
+        }
+      ]
     },
     {
       "semestre": 2,
@@ -1648,7 +1762,24 @@
       "codigo": "EPR07961",
       "nome": "Organização Industrial",
       "carga_horaria": 60,
-      "turmas": []
+      "turmas": [
+        {
+          "turma": "06.1",
+          "horarios": [
+            {
+              "dia": "Seg",
+              "inicio": "07:00",
+              "fim": "09:00"
+            },
+            {
+              "dia": "Qua",
+              "inicio": "07:00",
+              "fim": "09:00"
+            }
+          ],
+          "docente": ""
+        }
+      ]
     },
     {
       "semestre": 2,
@@ -1656,7 +1787,24 @@
       "codigo": "ELE08481",
       "nome": "Controle Avançado",
       "carga_horaria": 60,
-      "turmas": []
+      "turmas": [
+        {
+          "turma": "06.1",
+          "horarios": [
+            {
+              "dia": "Ter",
+              "inicio": "11:00",
+              "fim": "13:00"
+            },
+            {
+              "dia": "Qui",
+              "inicio": "11:00",
+              "fim": "13:00"
+            }
+          ],
+          "docente": ""
+        }
+      ]
     },
     {
       "semestre": 2,
@@ -1664,7 +1812,24 @@
       "codigo": "ELE08504",
       "nome": "Engenharia de Rádio-Freqüência",
       "carga_horaria": 60,
-      "turmas": []
+      "turmas": [
+        {
+          "turma": "06.1",
+          "horarios": [
+            {
+              "dia": "Ter",
+              "inicio": "17:00",
+              "fim": "19:00"
+            },
+            {
+              "dia": "Qui",
+              "inicio": "17:00",
+              "fim": "19:00"
+            }
+          ],
+          "docente": ""
+        }
+      ]
     },
     {
       "semestre": 2,
@@ -1672,7 +1837,24 @@
       "codigo": "ELE08579",
       "nome": "Subestações",
       "carga_horaria": 60,
-      "turmas": []
+      "turmas": [
+        {
+          "turma": "06.1",
+          "horarios": [
+            {
+              "dia": "Seg",
+              "inicio": "17:00",
+              "fim": "19:00"
+            },
+            {
+              "dia": "Qua",
+              "inicio": "17:00",
+              "fim": "19:00"
+            }
+          ],
+          "docente": ""
+        }
+      ]
     },
     {
       "semestre": 2,
@@ -1680,7 +1862,24 @@
       "codigo": "ELE08588",
       "nome": "Tópicos Especiais em Automação III",
       "carga_horaria": 60,
-      "turmas": []
+      "turmas": [
+        {
+          "turma": "06.1",
+          "horarios": [
+            {
+              "dia": "Ter",
+              "inicio": "15:00",
+              "fim": "17:00"
+            },
+            {
+              "dia": "Qui",
+              "inicio": "15:00",
+              "fim": "17:00"
+            }
+          ],
+          "docente": ""
+        }
+      ]
     },
     {
       "semestre": 2,
@@ -1688,7 +1887,24 @@
       "codigo": "ELE08590",
       "nome": "Tópicos Especiais em Automação V",
       "carga_horaria": 60,
-      "turmas": []
+      "turmas": [
+        {
+          "turma": "06.1",
+          "horarios": [
+            {
+              "dia": "Seg",
+              "inicio": "17:00",
+              "fim": "19:00"
+            },
+            {
+              "dia": "Qua",
+              "inicio": "17:00",
+              "fim": "19:00"
+            }
+          ],
+          "docente": ""
+        }
+      ]
     },
     {
       "semestre": 2,
@@ -1696,7 +1912,19 @@
       "codigo": "ELE08591",
       "nome": "Tópicos Especiais em Controle I",
       "carga_horaria": 45,
-      "turmas": []
+      "turmas": [
+        {
+          "turma": "06.1",
+          "horarios": [
+            {
+              "dia": "Ter",
+              "inicio": "08:00",
+              "fim": "11:00"
+            }
+          ],
+          "docente": ""
+        }
+      ]
     },
     {
       "semestre": 2,
@@ -1704,7 +1932,24 @@
       "codigo": "ELE08601",
       "nome": "Tópicos Especiais em Eletrônica V",
       "carga_horaria": 60,
-      "turmas": []
+      "turmas": [
+        {
+          "turma": "06.1",
+          "horarios": [
+            {
+              "dia": "Ter",
+              "inicio": "15:00",
+              "fim": "18:00"
+            },
+            {
+              "dia": "Ter",
+              "inicio": "18:00",
+              "fim": "19:00"
+            }
+          ],
+          "docente": ""
+        }
+      ]
     },
     {
       "semestre": 2,
@@ -1712,7 +1957,19 @@
       "codigo": "ELE08602",
       "nome": "Tópicos Especiais em Eletrotécnica I",
       "carga_horaria": 45,
-      "turmas": []
+      "turmas": [
+        {
+          "turma": "06.1",
+          "horarios": [
+            {
+              "dia": "Qui",
+              "inicio": "14:00",
+              "fim": "17:00"
+            }
+          ],
+          "docente": ""
+        }
+      ]
     },
     {
       "semestre": 2,
@@ -1720,7 +1977,19 @@
       "codigo": "ELE08613",
       "nome": "Tópicos Especiais em Engenharia Elétrica II",
       "carga_horaria": 45,
-      "turmas": []
+      "turmas": [
+        {
+          "turma": "06.1",
+          "horarios": [
+            {
+              "dia": "Qui",
+              "inicio": "08:00",
+              "fim": "11:00"
+            }
+          ],
+          "docente": ""
+        }
+      ]
     },
     {
       "semestre": 2,
@@ -1728,7 +1997,29 @@
       "codigo": "ELE08630",
       "nome": "Tópicos Especiais em Robótica V",
       "carga_horaria": 60,
-      "turmas": []
+      "turmas": [
+        {
+          "turma": "06.1",
+          "horarios": [
+            {
+              "dia": "Seg",
+              "inicio": "15:00",
+              "fim": "17:00"
+            },
+            {
+              "dia": "Qua",
+              "inicio": "15:00",
+              "fim": "16:00"
+            },
+            {
+              "dia": "Qua",
+              "inicio": "16:00",
+              "fim": "17:00"
+            }
+          ],
+          "docente": ""
+        }
+      ]
     },
     {
       "semestre": 2,
@@ -1736,7 +2027,24 @@
       "codigo": "ELE08634",
       "nome": "Tópicos Especiais em Sistemas de Energia IV",
       "carga_horaria": 60,
-      "turmas": []
+      "turmas": [
+        {
+          "turma": "06.1",
+          "horarios": [
+            {
+              "dia": "Ter",
+              "inicio": "17:00",
+              "fim": "19:00"
+            },
+            {
+              "dia": "Qui",
+              "inicio": "17:00",
+              "fim": "19:00"
+            }
+          ],
+          "docente": ""
+        }
+      ]
     },
     {
       "semestre": 2,
@@ -1744,7 +2052,24 @@
       "codigo": "ELE08639",
       "nome": "Tópicos Especiais em Telecomunicações IV",
       "carga_horaria": 60,
-      "turmas": []
+      "turmas": [
+        {
+          "turma": "06.1",
+          "horarios": [
+            {
+              "dia": "Ter",
+              "inicio": "09:00",
+              "fim": "11:00"
+            },
+            {
+              "dia": "Qui",
+              "inicio": "09:00",
+              "fim": "11:00"
+            }
+          ],
+          "docente": ""
+        }
+      ]
     },
     {
       "semestre": 2,
@@ -1752,7 +2077,24 @@
       "codigo": "ELE09832",
       "nome": "Redes de Computadores e de Automação",
       "carga_horaria": 60,
-      "turmas": []
+      "turmas": [
+        {
+          "turma": "06.1",
+          "horarios": [
+            {
+              "dia": "Seg",
+              "inicio": "15:00",
+              "fim": "17:00"
+            },
+            {
+              "dia": "Qua",
+              "inicio": "15:00",
+              "fim": "17:00"
+            }
+          ],
+          "docente": ""
+        }
+      ]
     },
     {
       "semestre": 2,
@@ -1760,7 +2102,24 @@
       "codigo": "ELE13655",
       "nome": "Eletrônica de Potência II",
       "carga_horaria": 60,
-      "turmas": []
+      "turmas": [
+        {
+          "turma": "06.1",
+          "horarios": [
+            {
+              "dia": "Ter",
+              "inicio": "13:00",
+              "fim": "15:00"
+            },
+            {
+              "dia": "Qui",
+              "inicio": "13:00",
+              "fim": "15:00"
+            }
+          ],
+          "docente": ""
+        }
+      ]
     },
     {
       "semestre": 2,
@@ -1768,7 +2127,24 @@
       "codigo": "ELE13656",
       "nome": "Projeto de Sistemas de Automação Industrial",
       "carga_horaria": 60,
-      "turmas": []
+      "turmas": [
+        {
+          "turma": "06.1",
+          "horarios": [
+            {
+              "dia": "Seg",
+              "inicio": "13:00",
+              "fim": "15:00"
+            },
+            {
+              "dia": "Qua",
+              "inicio": "13:00",
+              "fim": "15:00"
+            }
+          ],
+          "docente": ""
+        }
+      ]
     },
     {
       "semestre": 2,

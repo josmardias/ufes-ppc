@@ -154,8 +154,8 @@ function isDiaSemanaToken(s) {
 }
 
 function isTurmaToken(s) {
-  // Ex: "06.1 N"
-  return typeof s === "string" && /^\d{2}\.\d\s+[A-Z]$/i.test(s.trim());
+  // Ex: "06.1 N" or "06.1" (without turno suffix)
+  return typeof s === "string" && /^\d{2}\.\d(\s+[A-Z])?$/i.test(s.trim());
 }
 
 function parseCodigoNomeLine(s) {
