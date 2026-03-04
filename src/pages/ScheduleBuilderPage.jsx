@@ -13,6 +13,7 @@ import {
   periodHasScheduleConflict,
   allScheduleConflicts,
   sectionsInSlot,
+  conflictCandidatesForBlock,
   resolveWinningCourseSection,
 } from "../domain/calendar.js";
 import { usePlanningContext } from "../App.jsx";
@@ -955,6 +956,7 @@ export default function ScheduleBuilderPage() {
   const [pickingSection, setPickingSection] = useState(null); // row with multiple sections
   const [addingCourses, setAddingCourses] = useState(false);
   const [removingCourse, setRemovingCourse] = useState(null); // { code, name }
+  const [editingTerm, setEditingTerm] = useState(null); // sc string of the term being edited
 
   const [askingEntryTerm, setAskingEntryTerm] = useState(false);
   const entryTerm = planning?.entryTerm ?? 1;
@@ -1006,6 +1008,9 @@ export default function ScheduleBuilderPage() {
   );
   const generateBlocked = termBlockingReasons.length > 0;
 
+  // The "active" term for edit purposes: last term always, or whichever is in edit mode
+  const isEditable = (sc) => sc === lastTerm || sc === editingTerm;
+
   // Quando um novo semestre é gerado, seleciona a aba dele automaticamente
   useEffect(() => {
     if (lastResult) {
@@ -1023,6 +1028,13 @@ export default function ScheduleBuilderPage() {
     }
     setConfirmDelete(false);
   }, [sortedKeys.join(",")]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Exit edit mode when switching away from the term being edited
+  useEffect(() => {
+    if (editingTerm && activeTab !== editingTerm) {
+      setEditingTerm(null);
+    }
+  }, [activeTab, editingTerm]);
 
   function doGenerate(
     semestreIngressoVal,
@@ -1161,14 +1173,27 @@ export default function ScheduleBuilderPage() {
   // but persists using rawRows (the real planning, without enrichment).
   function handleConflictClick(
     dia,
-    horaInicio,
+    blockStart,
+    blockEnd,
     clickedDisciplina,
     clickedTurma,
   ) {
-    const candidates = sectionsInSlot(dia, horaInicio, activeRows);
+    // Collect all sections that overlap with the clicked card's rendered
+    // block interval [blockStart, blockEnd) on this day.
+    // This correctly scopes the modal to the visible block — a section with
+    // non-contiguous slots (e.g. 07-09 and 11-12 on Tuesday) produces two
+    // separate cards, and clicking the 07-09 block will NOT include sections
+    // that only appear at 11-12.
+    const candidates = conflictCandidatesForBlock(
+      dia,
+      blockStart,
+      blockEnd,
+      activeRows,
+    );
+
     if (candidates.length < 2) return;
 
-    // Enriquece cada candidato com nome e horários da turma correspondente
+    // Enrich each candidate with name and schedules
     const candidatesWithSchedules = candidates.map((c) => {
       const row = activeRows.find((r) => r.codigo === c.courseCode);
       const section = (row?.turmas ?? []).find(
@@ -1180,7 +1205,7 @@ export default function ScheduleBuilderPage() {
 
     setConflict({
       dia,
-      horaInicio,
+      horaInicio: blockStart,
       candidates: candidatesWithSchedules,
       initialPending:
         clickedDisciplina && clickedTurma
@@ -1193,7 +1218,7 @@ export default function ScheduleBuilderPage() {
     if (!conflict) return;
 
     const outras = (planning?.rows ?? []).filter(
-      (r) => String(r?.semestre_curso ?? "").trim() !== lastTerm,
+      (r) => String(r?.semestre_curso ?? "").trim() !== activeTab,
     );
 
     // Resolves over activeRows (enriched) — they have the schedules needed
@@ -1240,18 +1265,18 @@ export default function ScheduleBuilderPage() {
             // the term from scratch: courses in the current term are not
             // considered planned or completed.
             rows: (planning?.rows ?? []).filter(
-              (r) => String(r?.semestre_curso ?? "").trim() !== lastTerm,
+              (r) => String(r?.semestre_curso ?? "").trim() !== activeTab,
             ),
             ppcJson,
             offerJson: (() => {
               const scRows = (planning?.rows ?? []).filter(
-                (r) => String(r?.semestre_curso ?? "").trim() === lastTerm,
+                (r) => String(r?.semestre_curso ?? "").trim() === activeTab,
               );
               const so2 = scRows[0]?.semestre_oferta;
               return so2 === "1" ? offer1Json : so2 === "2" ? offer2Json : null;
             })(),
             turno: "dia",
-            courseTerm: Number(lastTerm),
+            courseTerm: Number(activeTab),
             entryTerm,
             anoInicio: ANO_INICIO,
             scInicio: SC_INICIO,
@@ -1261,12 +1286,14 @@ export default function ScheduleBuilderPage() {
               setAddingCourses(false);
               return;
             }
+            // Use activeTab so adding works for both lastTerm and editingTerm
+            const targetTerm = activeTab;
             upsertRows((currentRows) => {
               const outras = currentRows.filter(
-                (r) => String(r?.semestre_curso ?? "").trim() !== lastTerm,
+                (r) => String(r?.semestre_curso ?? "").trim() !== targetTerm,
               );
               const atuais = currentRows.filter(
-                (r) => String(r?.semestre_curso ?? "").trim() === lastTerm,
+                (r) => String(r?.semestre_curso ?? "").trim() === targetTerm,
               );
               const atuaisPorCodigo = new Map(atuais.map((r) => [r.codigo, r]));
               const mescladas = atuais.map((row) => {
@@ -1304,7 +1331,7 @@ export default function ScheduleBuilderPage() {
             const updated = (planning?.rows ?? []).filter(
               (r) =>
                 !(
-                  String(r?.semestre_curso ?? "").trim() === lastTerm &&
+                  String(r?.semestre_curso ?? "").trim() === activeTab &&
                   r.codigo === removingCourse.codigo
                 ),
             );
@@ -1319,7 +1346,7 @@ export default function ScheduleBuilderPage() {
           row={pickingSection}
           onEscolher={(courseCode, sectionCode) => {
             const outras = (planning?.rows ?? []).filter(
-              (r) => String(r?.semestre_curso ?? "").trim() !== lastTerm,
+              (r) => String(r?.semestre_curso ?? "").trim() !== activeTab,
             );
             const resolvidas = resolveWinningCourseSection(
               courseCode,
@@ -1454,36 +1481,70 @@ export default function ScheduleBuilderPage() {
               <div>
                 <h3 className="font-semibold text-gray-800">
                   {activeTab}º período
+                  {editingTerm === activeTab && (
+                    <span className="ml-2 text-xs font-normal text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">
+                      editando
+                    </span>
+                  )}
                 </h3>
                 <p className="text-xs text-gray-400 mt-0.5">
                   {activeRows.length} disciplina
                   {activeRows.length !== 1 ? "s" : ""}
                 </p>
               </div>
-              {activeTab === lastTerm && (
-                <div className="flex gap-2">
+              <div className="flex gap-2">
+                {activeTab === lastTerm ? (
+                  <>
+                    <button
+                      onClick={() => setAddingCourses(true)}
+                      className="px-3 py-1.5 text-xs font-medium rounded-lg border border-blue-300 text-blue-600 bg-white hover:border-blue-500 hover:bg-blue-50 transition-colors cursor-pointer"
+                    >
+                      + Disciplinas
+                    </button>
+                    <button
+                      onClick={handleDeleteTerm}
+                      onBlur={() => setConfirmDelete(false)}
+                      className={[
+                        "px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors cursor-pointer",
+                        confirmDelete
+                          ? "bg-red-600 text-white border-red-600 hover:bg-red-700"
+                          : "bg-white text-red-500 border-red-300 hover:border-red-500",
+                      ].join(" ")}
+                    >
+                      {confirmDelete
+                        ? `Confirmar exclusão do ${activeTab}º período`
+                        : `Deletar ${activeTab}º período`}
+                    </button>
+                  </>
+                ) : activeTab !== "_" && editingTerm !== activeTab ? (
                   <button
-                    onClick={() => setAddingCourses(true)}
-                    className="px-3 py-1.5 text-xs font-medium rounded-lg border border-blue-300 text-blue-600 bg-white hover:border-blue-500 hover:bg-blue-50 transition-colors cursor-pointer"
+                    onClick={() => setEditingTerm(activeTab)}
+                    className="px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-300 text-gray-600 bg-white hover:border-gray-400 hover:bg-gray-50 transition-colors cursor-pointer"
                   >
-                    + Disciplinas
+                    ✏️ Editar
                   </button>
-                  <button
-                    onClick={handleDeleteTerm}
-                    onBlur={() => setConfirmDelete(false)}
-                    className={[
-                      "px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors cursor-pointer",
-                      confirmDelete
-                        ? "bg-red-600 text-white border-red-600 hover:bg-red-700"
-                        : "bg-white text-red-500 border-red-300 hover:border-red-500",
-                    ].join(" ")}
-                  >
-                    {confirmDelete
-                      ? `Confirmar exclusão do ${activeTab}º período`
-                      : `Deletar ${activeTab}º período`}
-                  </button>
-                </div>
-              )}
+                ) : activeTab !== "_" && editingTerm === activeTab ? (
+                  <>
+                    <button
+                      onClick={() => setAddingCourses(true)}
+                      className="px-3 py-1.5 text-xs font-medium rounded-lg border border-blue-300 text-blue-600 bg-white hover:border-blue-500 hover:bg-blue-50 transition-colors cursor-pointer"
+                    >
+                      + Disciplinas
+                    </button>
+                    <button
+                      onClick={() => {
+                        setEditingTerm(null);
+                        setConflict(null);
+                        setPickingSection(null);
+                        setRemovingCourse(null);
+                      }}
+                      className="px-3 py-1.5 text-xs font-medium rounded-lg border border-amber-300 text-amber-700 bg-amber-50 hover:bg-amber-100 transition-colors cursor-pointer"
+                    >
+                      ✓ Encerrar edição
+                    </button>
+                  </>
+                ) : null}
+              </div>
             </div>
           )}
 
@@ -1523,10 +1584,10 @@ export default function ScheduleBuilderPage() {
                 return null;
               })()}
               onResolverConflito={
-                activeTab === lastTerm ? handleConflictClick : undefined
+                isEditable(activeTab) ? handleConflictClick : undefined
               }
               onEscolherTurma={
-                activeTab === lastTerm
+                isEditable(activeTab)
                   ? (codigo, sectionCode) => {
                       const row = activeRows.find((r) => r.codigo === codigo);
                       if (row)
@@ -1538,7 +1599,7 @@ export default function ScheduleBuilderPage() {
                   : undefined
               }
               onRemoverDisciplina={
-                activeTab === lastTerm
+                isEditable(activeTab)
                   ? (codigo) => {
                       const row = activeRows.find((r) => r.codigo === codigo);
                       if (row)

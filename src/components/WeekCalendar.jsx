@@ -22,7 +22,6 @@ import {
   rowsToCourseSections,
   courseSectionSlots,
   courseSectionHasConflictOnDay,
-  firstConflictingSlot,
 } from "../domain/calendar.js";
 
 // ---------------------------------------------------------------------------
@@ -243,11 +242,19 @@ function CourseSectionCard({
   function handleClick() {
     // Schedule conflict takes precedence
     if (hasConflict && onConflictClick) {
-      const slot = firstConflictingSlot(turma, turma._allCourseSections ?? []);
-      if (slot !== null) {
-        onConflictClick(turma._dia, slot, turma.courseCode, turma.codigo);
-        return;
-      }
+      // Pass the card's exact block bounds so handleConflictClick can collect
+      // only the sections that overlap THIS card's rendered interval, not the
+      // full section interval across the whole day.
+      const blockStart = turma._startMin ?? 0;
+      const blockEnd = turma._endMin ?? blockStart + 60;
+      onConflictClick(
+        turma._dia,
+        blockStart,
+        blockEnd,
+        turma.courseCode,
+        turma.codigo,
+      );
+      return;
     }
     if (hasMultiTurma && onMultiTurmaClick) {
       onMultiTurmaClick(turma.courseCode, turma.codigo);
@@ -443,6 +450,7 @@ export default function WeekCalendar({
                                 ...ev.turma,
                                 _dia: dia,
                                 _startMin: ev.startMin,
+                                _endMin: ev.endMin,
                                 _allCourseSections: allCourseSections,
                               };
                               return (

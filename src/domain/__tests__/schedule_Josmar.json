@@ -1,0 +1,973 @@
+{
+  "aluno": "Josmar",
+  "rows": [
+    {
+      "semestre_curso": "1",
+      "ano": "2024",
+      "semestre_oferta": "1",
+      "codigo": "ELE15923",
+      "nome": "INTRODUÇÃO À ENGENHARIA ELÉTRICA",
+      "periodo": "1",
+      "carga_horaria": "30",
+      "pre_requisitos": [],
+      "co_requisitos": [],
+      "turmas": [
+        {
+          "codigo": "06.1 N",
+          "horarios": [
+            {
+              "dia": "Ter",
+              "inicio": "11:00",
+              "fim": "13:00"
+            }
+          ],
+          "docente": ""
+        }
+      ]
+    },
+    {
+      "semestre_curso": "1",
+      "ano": "2024",
+      "semestre_oferta": "1",
+      "codigo": "ELE15924",
+      "nome": "PRÁTICAS DE LABORATÓRIO",
+      "periodo": "1",
+      "carga_horaria": "30",
+      "pre_requisitos": [],
+      "co_requisitos": [],
+      "turmas": [
+        {
+          "codigo": "06.1 N",
+          "horarios": [
+            {
+              "dia": "Qua",
+              "inicio": "11:00",
+              "fim": "13:00"
+            }
+          ],
+          "docente": ""
+        }
+      ]
+    },
+    {
+      "semestre_curso": "1",
+      "ano": "2024",
+      "semestre_oferta": "1",
+      "codigo": "HID15930",
+      "nome": "FUNDAMENTOS DE ENGENHARIA AMBIENTAL",
+      "periodo": "1",
+      "carga_horaria": "45",
+      "pre_requisitos": [],
+      "co_requisitos": [],
+      "turmas": [
+        {
+          "codigo": "06.2 N",
+          "horarios": [],
+          "docente": ""
+        }
+      ]
+    },
+    {
+      "semestre_curso": "1",
+      "ano": "2024",
+      "semestre_oferta": "1",
+      "codigo": "INF15927",
+      "nome": "PROGRAMAÇÃO I",
+      "periodo": "1",
+      "carga_horaria": "60",
+      "pre_requisitos": [],
+      "co_requisitos": [],
+      "turmas": [
+        {
+          "codigo": "06.1 N",
+          "horarios": [
+            {
+              "dia": "Ter",
+              "inicio": "09:00",
+              "fim": "11:00"
+            },
+            {
+              "dia": "Qui",
+              "inicio": "09:00",
+              "fim": "11:00"
+            }
+          ],
+          "docente": ""
+        }
+      ]
+    },
+    {
+      "semestre_curso": "1",
+      "ano": "2024",
+      "semestre_oferta": "1",
+      "codigo": "MAT15925",
+      "nome": "CÁLCULO I",
+      "periodo": "1",
+      "carga_horaria": "90",
+      "pre_requisitos": [],
+      "co_requisitos": [],
+      "turmas": [
+        {
+          "codigo": "06.1 N",
+          "horarios": [
+            {
+              "dia": "Seg",
+              "inicio": "09:00",
+              "fim": "11:00"
+            },
+            {
+              "dia": "Qua",
+              "inicio": "09:00",
+              "fim": "11:00"
+            },
+            {
+              "dia": "Sex",
+              "inicio": "09:00",
+              "fim": "11:00"
+            }
+          ],
+          "docente": ""
+        }
+      ]
+    },
+    {
+      "semestre_curso": "1",
+      "ano": "2024",
+      "semestre_oferta": "1",
+      "codigo": "QUI15926",
+      "nome": "QUÍMICA PARA ENGENHARIA",
+      "periodo": "1",
+      "carga_horaria": "60",
+      "pre_requisitos": [],
+      "co_requisitos": [],
+      "turmas": [
+        {
+          "codigo": "06.1 N",
+          "horarios": [
+            {
+              "dia": "Qua",
+              "inicio": "07:00",
+              "fim": "09:00"
+            },
+            {
+              "dia": "Sex",
+              "inicio": "07:00",
+              "fim": "09:00"
+            }
+          ],
+          "docente": ""
+        }
+      ]
+    },
+    {
+      "semestre_curso": "1",
+      "ano": "2024",
+      "semestre_oferta": "1",
+      "codigo": "QUI15928",
+      "nome": "LABORATÓRIO DE QUÍMICA PARA ENGENHARIA",
+      "periodo": "1",
+      "carga_horaria": "30",
+      "pre_requisitos": [],
+      "co_requisitos": [
+        "QUI15926"
+      ],
+      "turmas": [
+        {
+          "codigo": "06.1 N",
+          "horarios": [
+            {
+              "dia": "Ter",
+              "inicio": "07:00",
+              "fim": "09:00"
+            }
+          ],
+          "docente": ""
+        }
+      ]
+    },
+    {
+      "semestre_curso": "2",
+      "ano": "2024",
+      "semestre_oferta": "2",
+      "codigo": "ELE15929",
+      "nome": "DESENHO ASSISTIDO POR COMPUTADOR",
+      "periodo": "1",
+      "carga_horaria": "30",
+      "pre_requisitos": [],
+      "co_requisitos": [],
+      "turmas": [
+        {
+          "codigo": "06.1 N",
+          "horarios": [
+            {
+              "dia": "Qui",
+              "inicio": "11:00",
+              "fim": "13:00"
+            }
+          ],
+          "docente": ""
+        }
+      ]
+    },
+    {
+      "semestre_curso": "2",
+      "ano": "2024",
+      "semestre_oferta": "2",
+      "codigo": "FIS13696",
+      "nome": "FÍSICA I",
+      "periodo": "1",
+      "carga_horaria": "60",
+      "pre_requisitos": [
+        "MAT15925"
+      ],
+      "co_requisitos": [],
+      "turmas": [
+        {
+          "codigo": "06.1 N",
+          "horarios": [
+            {
+              "dia": "Seg",
+              "inicio": "07:00",
+              "fim": "09:00"
+            },
+            {
+              "dia": "Qua",
+              "inicio": "07:00",
+              "fim": "09:00"
+            }
+          ],
+          "docente": ""
+        }
+      ]
+    },
+    {
+      "semestre_curso": "2",
+      "ano": "2024",
+      "semestre_oferta": "2",
+      "codigo": "INF15933",
+      "nome": "PROGRAMAÇÃO ORIENTADA A OBJETOS",
+      "periodo": "1",
+      "carga_horaria": "60",
+      "pre_requisitos": [
+        "INF15927"
+      ],
+      "co_requisitos": [],
+      "turmas": [
+        {
+          "codigo": "06.1 N",
+          "horarios": [
+            {
+              "dia": "Seg",
+              "inicio": "11:00",
+              "fim": "13:00"
+            },
+            {
+              "dia": "Qua",
+              "inicio": "11:00",
+              "fim": "13:00"
+            }
+          ],
+          "docente": ""
+        }
+      ]
+    },
+    {
+      "semestre_curso": "2",
+      "ano": "2024",
+      "semestre_oferta": "2",
+      "codigo": "MAT15931",
+      "nome": "CÁLCULO II",
+      "periodo": "1",
+      "carga_horaria": "60",
+      "pre_requisitos": [
+        "MAT15925"
+      ],
+      "co_requisitos": [],
+      "turmas": [
+        {
+          "codigo": "06.1 N",
+          "horarios": [
+            {
+              "dia": "Seg",
+              "inicio": "09:00",
+              "fim": "11:00"
+            },
+            {
+              "dia": "Qua",
+              "inicio": "09:00",
+              "fim": "11:00"
+            }
+          ],
+          "docente": ""
+        }
+      ]
+    },
+    {
+      "semestre_curso": "2",
+      "ano": "2024",
+      "semestre_oferta": "2",
+      "codigo": "MAT15932",
+      "nome": "ÁLGEBRA LINEAR",
+      "periodo": "1",
+      "carga_horaria": "60",
+      "pre_requisitos": [],
+      "co_requisitos": [
+        "MAT15931"
+      ],
+      "turmas": [
+        {
+          "codigo": "06.1 N",
+          "horarios": [
+            {
+              "dia": "Ter",
+              "inicio": "09:00",
+              "fim": "11:00"
+            },
+            {
+              "dia": "Qui",
+              "inicio": "09:00",
+              "fim": "11:00"
+            }
+          ],
+          "docente": ""
+        }
+      ]
+    },
+    {
+      "semestre_curso": "2",
+      "ano": "2024",
+      "semestre_oferta": "2",
+      "codigo": "STA15932",
+      "nome": "PROBABILIDADE E ESTATÍSTICA",
+      "periodo": "1",
+      "carga_horaria": "60",
+      "pre_requisitos": [
+        "MAT15925"
+      ],
+      "co_requisitos": [],
+      "turmas": [
+        {
+          "codigo": "06.1 N",
+          "horarios": [
+            {
+              "dia": "Ter",
+              "inicio": "07:00",
+              "fim": "09:00"
+            },
+            {
+              "dia": "Qui",
+              "inicio": "07:00",
+              "fim": "09:00"
+            }
+          ],
+          "docente": ""
+        }
+      ]
+    },
+    {
+      "semestre_curso": "3",
+      "ano": "2025",
+      "semestre_oferta": "1",
+      "codigo": "ELE15934",
+      "nome": "CIRCUITOS ELÉTRICOS I",
+      "periodo": "1",
+      "carga_horaria": "75",
+      "pre_requisitos": [
+        "ELE15924",
+        "MAT15932"
+      ],
+      "co_requisitos": [],
+      "turmas": [
+        {
+          "codigo": "06.1 N",
+          "horarios": [
+            {
+              "dia": "Ter",
+              "inicio": "09:00",
+              "fim": "11:00"
+            },
+            {
+              "dia": "Ter",
+              "inicio": "12:00",
+              "fim": "13:00"
+            },
+            {
+              "dia": "Qui",
+              "inicio": "09:00",
+              "fim": "11:00"
+            }
+          ],
+          "docente": ""
+        }
+      ]
+    },
+    {
+      "semestre_curso": "3",
+      "ano": "2025",
+      "semestre_oferta": "1",
+      "codigo": "ELE15935",
+      "nome": "CIRCUITOS LÓGICOS",
+      "periodo": "1",
+      "carga_horaria": "60",
+      "pre_requisitos": [
+        "INF15927"
+      ],
+      "co_requisitos": [],
+      "turmas": [
+        {
+          "codigo": "06.1 N",
+          "horarios": [
+            {
+              "dia": "Seg",
+              "inicio": "07:00",
+              "fim": "09:00"
+            },
+            {
+              "dia": "Qua",
+              "inicio": "07:00",
+              "fim": "09:00"
+            }
+          ],
+          "docente": ""
+        }
+      ]
+    },
+    {
+      "semestre_curso": "3",
+      "ano": "2025",
+      "semestre_oferta": "1",
+      "codigo": "ELE15938",
+      "nome": "METODOLOGIA DA PESQUISA CIENTÍFICA",
+      "periodo": "1",
+      "carga_horaria": "30",
+      "pre_requisitos": [
+        "ELE15923"
+      ],
+      "co_requisitos": [],
+      "turmas": [
+        {
+          "codigo": "06.1 N",
+          "horarios": [
+            {
+              "dia": "Sex",
+              "inicio": "09:00",
+              "fim": "11:00"
+            }
+          ],
+          "docente": ""
+        }
+      ]
+    },
+    {
+      "semestre_curso": "3",
+      "ano": "2025",
+      "semestre_oferta": "1",
+      "codigo": "FIS13737",
+      "nome": "FÍSICA EXPERIMENTAL I",
+      "periodo": "1",
+      "carga_horaria": "30",
+      "pre_requisitos": [
+        "FIS13696"
+      ],
+      "co_requisitos": [],
+      "turmas": [
+        {
+          "codigo": "06.2 N",
+          "horarios": [
+            {
+              "dia": "Sex",
+              "inicio": "07:00",
+              "fim": "09:00"
+            }
+          ],
+          "docente": ""
+        }
+      ]
+    },
+    {
+      "semestre_curso": "4",
+      "ano": "2025",
+      "semestre_oferta": "2",
+      "codigo": "ELE15941",
+      "nome": "ELETROMAGNETISMO I",
+      "periodo": "1",
+      "carga_horaria": "60",
+      "pre_requisitos": [
+        "ELE15934",
+        "MAT15936"
+      ],
+      "co_requisitos": [],
+      "turmas": [
+        {
+          "codigo": "06.1 N",
+          "horarios": [
+            {
+              "dia": "Ter",
+              "inicio": "09:00",
+              "fim": "11:00"
+            },
+            {
+              "dia": "Qui",
+              "inicio": "09:00",
+              "fim": "11:00"
+            }
+          ],
+          "docente": ""
+        }
+      ]
+    },
+    {
+      "semestre_curso": "4",
+      "ano": "2025",
+      "semestre_oferta": "2",
+      "codigo": "ELE15942",
+      "nome": "SISTEMAS EMBARCADOS I",
+      "periodo": "1",
+      "carga_horaria": "90",
+      "pre_requisitos": [
+        "ELE15935"
+      ],
+      "co_requisitos": [],
+      "turmas": [
+        {
+          "codigo": "06.2 N",
+          "horarios": [
+            {
+              "dia": "Seg",
+              "inicio": "07:00",
+              "fim": "09:00"
+            },
+            {
+              "dia": "Qua",
+              "inicio": "07:00",
+              "fim": "09:00"
+            },
+            {
+              "dia": "Sex",
+              "inicio": "07:00",
+              "fim": "09:00"
+            }
+          ],
+          "docente": ""
+        }
+      ]
+    },
+    {
+      "semestre_curso": "4",
+      "ano": "2025",
+      "semestre_oferta": "2",
+      "codigo": "EPR12990",
+      "nome": "Engenharia Econômica",
+      "periodo": "1",
+      "carga_horaria": "60",
+      "pre_requisitos": [
+        "STA15932"
+      ],
+      "co_requisitos": [],
+      "turmas": [
+        {
+          "codigo": "06.1 N",
+          "horarios": [],
+          "docente": ""
+        }
+      ]
+    },
+    {
+      "semestre_curso": "4",
+      "ano": "2025",
+      "semestre_oferta": "2",
+      "codigo": "EPR15953",
+      "nome": "PRINCÍPIOS DE ECONOMIA",
+      "periodo": "1",
+      "carga_horaria": "60",
+      "pre_requisitos": [
+        "STA15932"
+      ],
+      "co_requisitos": [],
+      "turmas": [
+        {
+          "codigo": "06.1 N",
+          "horarios": [],
+          "docente": ""
+        }
+      ]
+    },
+    {
+      "semestre_curso": "4",
+      "ano": "2025",
+      "semestre_oferta": "2",
+      "codigo": "INF15939",
+      "nome": "ALGORITMOS NUMÉRICOS",
+      "periodo": "1",
+      "carga_horaria": "60",
+      "pre_requisitos": [
+        "INF15933",
+        "MAT15932",
+        "MAT15937"
+      ],
+      "co_requisitos": [],
+      "turmas": [
+        {
+          "codigo": "06.1",
+          "horarios": [
+            {
+              "dia": "Seg",
+              "inicio": "11:00",
+              "fim": "13:00"
+            },
+            {
+              "dia": "Qua",
+              "inicio": "11:00",
+              "fim": "12:00"
+            },
+            {
+              "dia": "Qua",
+              "inicio": "12:00",
+              "fim": "13:00"
+            }
+          ],
+          "docente": ""
+        }
+      ]
+    },
+    {
+      "semestre_curso": "4",
+      "ano": "2025",
+      "semestre_oferta": "2",
+      "codigo": "MAT09590",
+      "nome": "Introdução às Variáveis Complexas",
+      "periodo": "1",
+      "carga_horaria": "30",
+      "pre_requisitos": [
+        "MAT15936"
+      ],
+      "co_requisitos": [],
+      "turmas": [
+        {
+          "codigo": "06.1 N",
+          "horarios": [
+            {
+              "dia": "Sex",
+              "inicio": "09:00",
+              "fim": "11:00"
+            }
+          ],
+          "docente": ""
+        }
+      ]
+    },
+    {
+      "semestre_curso": "5",
+      "ano": "2026",
+      "semestre_oferta": "1",
+      "codigo": "ELE15944",
+      "nome": "ELETROMAGNETISMO II",
+      "periodo": "1",
+      "carga_horaria": "60",
+      "pre_requisitos": [
+        "ELE15941"
+      ],
+      "co_requisitos": [],
+      "turmas": [
+        {
+          "codigo": "06.1 N",
+          "horarios": [
+            {
+              "dia": "Seg",
+              "inicio": "09:00",
+              "fim": "11:00"
+            },
+            {
+              "dia": "Qua",
+              "inicio": "09:00",
+              "fim": "11:00"
+            }
+          ],
+          "docente": ""
+        }
+      ]
+    },
+    {
+      "semestre_curso": "5",
+      "ano": "2026",
+      "semestre_oferta": "1",
+      "codigo": "ELE15945",
+      "nome": "LABORATÓRIO DE ELETROMAGNETISMO",
+      "periodo": "1",
+      "carga_horaria": "30",
+      "pre_requisitos": [],
+      "co_requisitos": [
+        "ELE15944"
+      ],
+      "turmas": [
+        {
+          "codigo": "06.1 N",
+          "horarios": [
+            {
+              "dia": "Seg",
+              "inicio": "07:00",
+              "fim": "09:00"
+            }
+          ],
+          "docente": ""
+        }
+      ]
+    },
+    {
+      "semestre_curso": "5",
+      "ano": "2026",
+      "semestre_oferta": "1",
+      "codigo": "ELE15948",
+      "nome": "PROJETO EXTENSIONISTA INTEGRADO I",
+      "periodo": "1",
+      "carga_horaria": "60",
+      "pre_requisitos": [
+        "ELE15934"
+      ],
+      "co_requisitos": [],
+      "turmas": [
+        {
+          "codigo": "06.1 N",
+          "horarios": [
+            {
+              "dia": "Sex",
+              "inicio": "09:00",
+              "fim": "13:00"
+            }
+          ],
+          "docente": ""
+        }
+      ]
+    },
+    {
+      "semestre_curso": "5",
+      "ano": "2026",
+      "semestre_oferta": "1",
+      "codigo": "FIS13735",
+      "nome": "FÍSICA II",
+      "periodo": "1",
+      "carga_horaria": "60",
+      "pre_requisitos": [
+        "FIS13696"
+      ],
+      "co_requisitos": [],
+      "turmas": [
+        {
+          "codigo": "06.1 N",
+          "horarios": [
+            {
+              "dia": "Seg",
+              "inicio": "11:00",
+              "fim": "13:00"
+            },
+            {
+              "dia": "Qua",
+              "inicio": "11:00",
+              "fim": "13:00"
+            }
+          ],
+          "docente": ""
+        }
+      ]
+    },
+    {
+      "semestre_curso": "5",
+      "ano": "2026",
+      "semestre_oferta": "1",
+      "codigo": "MAT15936",
+      "nome": "CÁLCULO III",
+      "periodo": "1",
+      "carga_horaria": "60",
+      "pre_requisitos": [
+        "MAT15931"
+      ],
+      "co_requisitos": [],
+      "turmas": [
+        {
+          "codigo": "06.1 N",
+          "horarios": [
+            {
+              "dia": "Ter",
+              "inicio": "07:00",
+              "fim": "09:00"
+            },
+            {
+              "dia": "Qui",
+              "inicio": "07:00",
+              "fim": "09:00"
+            }
+          ],
+          "docente": ""
+        }
+      ]
+    },
+    {
+      "semestre_curso": "5",
+      "ano": "2026",
+      "semestre_oferta": "1",
+      "codigo": "MAT15937",
+      "nome": "CÁLCULO IV",
+      "periodo": "1",
+      "carga_horaria": "60",
+      "pre_requisitos": [
+        "MAT15931"
+      ],
+      "co_requisitos": [],
+      "turmas": [
+        {
+          "codigo": "06.1 N",
+          "horarios": [],
+          "docente": ""
+        }
+      ]
+    },
+    {
+      "semestre_curso": "6",
+      "ano": "2026",
+      "semestre_oferta": "2",
+      "codigo": "ELE15940",
+      "nome": "CIRCUITOS ELÉTRICOS II",
+      "periodo": "1",
+      "carga_horaria": "75",
+      "pre_requisitos": [
+        "ELE15934",
+        "MAT15937"
+      ],
+      "co_requisitos": [],
+      "turmas": [
+        {
+          "codigo": "06.1 N",
+          "horarios": [
+            {
+              "dia": "Ter",
+              "inicio": "07:00",
+              "fim": "09:00"
+            },
+            {
+              "dia": "Ter",
+              "inicio": "11:00",
+              "fim": "12:00"
+            },
+            {
+              "dia": "Qui",
+              "inicio": "07:00",
+              "fim": "09:00"
+            }
+          ],
+          "docente": ""
+        },
+        {
+          "codigo": "06.2 N",
+          "horarios": [
+            {
+              "dia": "Ter",
+              "inicio": "07:00",
+              "fim": "09:00"
+            },
+            {
+              "dia": "Ter",
+              "inicio": "12:00",
+              "fim": "13:00"
+            },
+            {
+              "dia": "Qui",
+              "inicio": "07:00",
+              "fim": "09:00"
+            }
+          ],
+          "docente": ""
+        }
+      ]
+    },
+    {
+      "semestre_curso": "6",
+      "ano": "2026",
+      "semestre_oferta": "2",
+      "codigo": "EPR15963",
+      "nome": "Gestão Empresarial",
+      "periodo": "1",
+      "carga_horaria": "60",
+      "pre_requisitos": [
+        "EPR15953"
+      ],
+      "co_requisitos": [],
+      "turmas": [
+        {
+          "codigo": "06.1 N",
+          "horarios": [
+            {
+              "dia": "Ter",
+              "inicio": "11:00",
+              "fim": "13:00"
+            },
+            {
+              "dia": "Qui",
+              "inicio": "11:00",
+              "fim": "13:00"
+            }
+          ],
+          "docente": ""
+        }
+      ]
+    },
+    {
+      "semestre_curso": "6",
+      "ano": "2026",
+      "semestre_oferta": "2",
+      "codigo": "FIS14461",
+      "nome": "FÍSICA IV",
+      "periodo": "1",
+      "carga_horaria": "60",
+      "pre_requisitos": [
+        "FIS13735"
+      ],
+      "co_requisitos": [
+        "ELE15941"
+      ],
+      "turmas": [
+        {
+          "codigo": "06.1",
+          "horarios": [
+            {
+              "dia": "Seg",
+              "inicio": "09:00",
+              "fim": "11:00"
+            },
+            {
+              "dia": "Qua",
+              "inicio": "09:00",
+              "fim": "11:00"
+            }
+          ],
+          "docente": ""
+        }
+      ]
+    },
+    {
+      "semestre_curso": "6",
+      "ano": "2026",
+      "semestre_oferta": "2",
+      "codigo": "HID15964",
+      "nome": "Higiene e Segurança do Trabalho",
+      "periodo": "1",
+      "carga_horaria": "45",
+      "pre_requisitos": [],
+      "co_requisitos": [
+        "EPR15963"
+      ],
+      "turmas": [
+        {
+          "codigo": "06.1 N",
+          "horarios": [
+            {
+              "dia": "Sex",
+              "inicio": "09:00",
+              "fim": "12:00"
+            }
+          ],
+          "docente": ""
+        }
+      ]
+    }
+  ]
+}

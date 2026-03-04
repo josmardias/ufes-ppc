@@ -198,8 +198,8 @@ export function courseSectionHasConflict(section, allCourseSections) {
 }
 
 /**
- * Returns true if this course section conflicts with any other in the list
- * specifically on the given day.
+ * Returns true if this course section conflicts with any other section
+ * on the given day.
  *
  * Used by the calendar card renderer so that a multi-day section only shows
  * red on the days where the actual slot overlap occurs.
@@ -218,6 +218,7 @@ export function courseSectionHasConflictOnDay(section, allCourseSections, dia) {
   ).filter((other) => other !== section);
 
   for (const other of others) {
+    // Same section of the same course — never a conflict (multiple days of the same class)
     if (
       other.courseCode === section.courseCode &&
       other.codigo === section.codigo
@@ -227,9 +228,20 @@ export function courseSectionHasConflictOnDay(section, allCourseSections, dia) {
     const otherSlotsOnDay = courseSectionSlots(other).filter(
       (s) => s.dia === dia,
     );
+
     for (const mine of mySlotsOnDay) {
       for (const theirs of otherSlotsOnDay) {
-        if (_slotsByHourConflict(mine, theirs)) return true;
+        if (!_slotsByHourConflict(mine, theirs)) continue;
+
+        // Same course, different section: only red when they actually share a
+        // 1h slot on this day (student physically can't be in two places).
+        // When they are on different days/times, yellow (multiple sections) is enough.
+        if (other.courseCode === section.courseCode) {
+          return true; // slot overlap already confirmed by _slotsByHourConflict
+        }
+
+        // Different course: always red when there is slot overlap.
+        return true;
       }
     }
   }
@@ -410,14 +422,20 @@ export function periodHasShift(rows, turno) {
 
 /**
  * Returns the first 1h slot (in minutes since 00:00) where this section
- * conflicts with another. Returns null if no conflict found.
+ * conflicts with another section, restricted to the given day.
+ *
+ * Priority: cross-course conflicts are preferred over same-course conflicts.
+ * This ensures that clicking a card on Tuesday where a cross-course conflict
+ * exists opens that conflict, even if a same-course conflict also exists
+ * earlier on the same day.
  *
  * @param {CourseSection} section
  * @param {CourseSection[]} allCourseSections
+ * @param {string|null} [dia] — if provided, only search for conflicts on this day
  * @returns {number|null}
  */
-export function firstConflictingSlot(section, allCourseSections) {
-  const others = (
+export function firstConflictingSlot(section, allCourseSections, dia = null) {
+  const baseSections = (
     Array.isArray(allCourseSections) ? allCourseSections : []
   ).filter(
     (other) =>
@@ -428,29 +446,40 @@ export function firstConflictingSlot(section, allCourseSections) {
       ),
   );
 
-  const mySlotsOrdered = courseSectionSlots(section).sort(
-    (a, b) => a.startMin - b.startMin,
+  const crossCourseOthers = baseSections.filter(
+    (other) => other.courseCode !== section.courseCode,
+  );
+  const sameCourseOthers = baseSections.filter(
+    (other) => other.courseCode === section.courseCode,
   );
 
-  for (const mySlot of mySlotsOrdered) {
-    for (
-      let slot = Math.floor(mySlot.startMin / 60) * 60;
-      slot < mySlot.endMin;
-      slot += 60
-    ) {
-      const slotEnd = slot + 60;
-      for (const other of others) {
-        for (const otherSlot of courseSectionSlots(other)) {
-          if (otherSlot.dia !== mySlot.dia) continue;
-          if (otherSlot.startMin < slotEnd && otherSlot.endMin > slot) {
-            return slot;
+  const mySlotsOrdered = courseSectionSlots(section)
+    .filter((s) => dia === null || s.dia === dia)
+    .sort((a, b) => a.startMin - b.startMin);
+
+  function findFirstSlot(others) {
+    for (const mySlot of mySlotsOrdered) {
+      for (
+        let slot = Math.floor(mySlot.startMin / 60) * 60;
+        slot < mySlot.endMin;
+        slot += 60
+      ) {
+        const slotEnd = slot + 60;
+        for (const other of others) {
+          for (const otherSlot of courseSectionSlots(other)) {
+            if (otherSlot.dia !== mySlot.dia) continue;
+            if (otherSlot.startMin < slotEnd && otherSlot.endMin > slot) {
+              return slot;
+            }
           }
         }
       }
     }
+    return null;
   }
 
-  return null;
+  // Prefer cross-course conflict slot; fall back to same-course if none found.
+  return findFirstSlot(crossCourseOthers) ?? findFirstSlot(sameCourseOthers);
 }
 
 /**
@@ -484,6 +513,43 @@ export function sectionsInSlot(dia, horaInicio, rows) {
           courseCode: String(row?.codigo ?? "").trim(),
           sectionCode: String(section?.codigo ?? "").trim(),
         });
+      }
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Returns all (course, section) pairs that conflict with a clicked calendar
+ * block — i.e. every section occupying any 1h slot within [blockStart, blockEnd)
+ * on the given day, including the clicked section itself.
+ *
+ * This is the canonical domain query for "who else is in my time block?".
+ * The presentation layer calls this when a conflict card is clicked and passes
+ * the result directly to the conflict resolution modal.
+ *
+ * Using the card's rendered block bounds (rather than the full section interval)
+ * ensures correctness when a section has non-contiguous slots on the same day:
+ * clicking the 07:00-09:00 block will NOT include sections that only appear
+ * at 11:00-12:00, even if both blocks belong to the same section.
+ *
+ * @param {string} dia        — weekday, e.g. "Ter"
+ * @param {number} blockStart — block start in minutes since 00:00
+ * @param {number} blockEnd   — block end in minutes since 00:00
+ * @param {PlanningRow[]} rows — planning rows for the active period
+ * @returns {{ courseCode: string, sectionCode: string }[]}
+ */
+export function conflictCandidatesForBlock(dia, blockStart, blockEnd, rows) {
+  const seen = new Set();
+  const result = [];
+
+  for (let h = Math.floor(blockStart / 60) * 60; h < blockEnd; h += 60) {
+    for (const c of sectionsInSlot(dia, h, rows)) {
+      const key = `${c.courseCode}::${c.sectionCode}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        result.push(c);
       }
     }
   }

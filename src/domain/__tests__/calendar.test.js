@@ -513,7 +513,9 @@ describe("firstConflictingSlot", () => {
     expect(firstConflictingSlot(a, [a, b])).toBeNull();
   });
 
-  it("detects conflict between different sections of the same course", () => {
+  it("detects conflict between different sections of the same course sharing a slot", () => {
+    // Two sections of the same course at the same time — student physically can't
+    // attend both, so this is a real red conflict, not just yellow.
     const a = makeCourseSection(
       "T1",
       [makeHorario("Ter", "09:00", "11:00")],
