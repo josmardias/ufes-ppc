@@ -2,7 +2,7 @@ import { useState, useCallback } from "react";
 
 /**
  * Storage layout:
- *   ppc_alunos       -> { [nome]: { aluno: string, rows: PlanningRow[], turno: string, entryTerm: number } }
+ *   ppc_alunos       -> { [nome]: { aluno: string, rows: PlanningRow[], turno: string, entryTerm: number, customOffer: { 1: OfferJson, 2: OfferJson } } }
  *   ppc_aluno_ativo  -> string (name of the currently selected student)
  */
 
@@ -31,9 +31,8 @@ function readAllAlunos() {
         aluno: String(v?.aluno ?? nome),
         rows: Array.isArray(v?.rows) ? v.rows : [],
         turno: String(v?.turno ?? DEFAULT_TURNO),
-        entryTerm: Number(
-          v?.entryTerm ?? DEFAULT_SEMESTRE_INGRESSO,
-        ),
+        entryTerm: Number(v?.entryTerm ?? DEFAULT_SEMESTRE_INGRESSO),
+        customOffer: v?.customOffer ?? { 1: null, 2: null },
       };
     }
     return out;
@@ -76,6 +75,7 @@ function emptyPlanning(nome) {
     rows: [],
     turno: DEFAULT_TURNO,
     entryTerm: DEFAULT_SEMESTRE_INGRESSO,
+    customOffer: { 1: null, 2: null },
   };
 }
 
@@ -89,7 +89,7 @@ function emptyPlanning(nome) {
  * API:
  *   alunos               -> string[]  (registered names, sorted)
  *   alunoAtivo           -> string    (selected student name, "" if none)
- *   planning             -> { aluno, rows, turno, entryTerm } for active student (null if none)
+ *   planning             -> { aluno, rows, turno, entryTerm, customOffer } for active student (null if none)
  *
  *   selectAluno(nome)    -> select existing student as active
  *   createAluno(nome)    -> create new student and select them; returns { ok, error }
@@ -108,6 +108,7 @@ function emptyPlanning(nome) {
  *   setRowsAndTurno(rows, turno, si?)    -> atomically replace rows, turno, and optionally entryTerm
  *   exportJson()                         -> JSON string of active student's planning
  *   importJson(str)                      -> import JSON into active student; returns { ok, error }
+ *   setCustomOffer(semestre, offerJson)  -> persist a custom offer for semester 1 or 2
  *   resetPlanning()                      -> clear rows for active student (keeps profile)
  */
 export function usePlanning() {
@@ -270,9 +271,7 @@ export function usePlanning() {
           ...currentAlunos,
           [alunoAtivo]: {
             ...currentAlunos[alunoAtivo],
-            entryTerm: Number(
-              entryTerm ?? DEFAULT_SEMESTRE_INGRESSO,
-            ),
+            entryTerm: Number(entryTerm ?? DEFAULT_SEMESTRE_INGRESSO),
           },
         };
         writeAllAlunos(next);
@@ -404,6 +403,28 @@ export function usePlanning() {
     [alunos, alunoAtivo, persistAlunos],
   );
 
+  const setCustomOffer = useCallback(
+    (semestre, offerJson) => {
+      if (!alunoAtivo) return;
+      setAlunosState((currentAlunos) => {
+        const current = currentAlunos[alunoAtivo] ?? {};
+        const next = {
+          ...currentAlunos,
+          [alunoAtivo]: {
+            ...current,
+            customOffer: {
+              ...(current.customOffer ?? { 1: null, 2: null }),
+              [semestre]: offerJson,
+            },
+          },
+        };
+        writeAllAlunos(next);
+        return next;
+      });
+    },
+    [alunoAtivo],
+  );
+
   const resetPlanning = useCallback(() => {
     if (!alunoAtivo) return;
     const next = {
@@ -440,6 +461,7 @@ export function usePlanning() {
     setSemestreIngresso,
     clearSemestreIngresso,
     setRowsAndTurno,
+    setCustomOffer,
     exportJson,
     importJson,
     resetPlanning,

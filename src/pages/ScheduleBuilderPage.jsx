@@ -7,6 +7,7 @@ import {
   inferNextSemester,
   calcAvailableToAdd,
   enrichRowsWithOffer,
+  mergeOffers,
 } from "../domain/planning.js";
 import {
   blockingReasons,
@@ -17,10 +18,33 @@ import {
   resolveWinningCourseSection,
 } from "../domain/calendar.js";
 import { usePlanningContext } from "../App.jsx";
+import { AddSectionModal, upsertCustomSection } from "./CustomOfferPage.jsx";
 import ppcJson from "../data/ppc-2022.json";
 import offer1Json from "../data/oferta-semestre-1.json";
 import offer2Json from "../data/oferta-semestre-2.json";
 import WeekCalendar from "../components/WeekCalendar.jsx";
+
+// ---------------------------------------------------------------------------
+// useActiveOffer — returns system offer merged with the profile's custom offer.
+// Called once per render of ScheduleBuilderPage so every downstream consumer
+// (generateSemester, enrichRowsWithOffer, ModalConfirmarPeriodo, calcAvailableToAdd)
+// automatically receives the merged offer without any extra wiring.
+// ---------------------------------------------------------------------------
+
+function useActiveOffer(planning) {
+  const customOffer = planning?.customOffer ?? { 1: null, 2: null };
+  const merged1 = useMemo(
+    () => mergeOffers(offer1Json, customOffer[1]),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [customOffer[1]],
+  );
+  const merged2 = useMemo(
+    () => mergeOffers(offer2Json, customOffer[2]),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [customOffer[2]],
+  );
+  return [merged1, merged2];
+}
 
 // ---------------------------------------------------------------------------
 // useEscKey — calls handler when Escape is pressed, while modal is mounted
@@ -881,6 +905,7 @@ function SemestreView({
   onRemoverDisciplina,
   focusedSections,
   turno,
+  onEmptyClick,
 }) {
   const [view, setView] = useState("calendar");
 
@@ -914,6 +939,7 @@ function SemestreView({
           onMultiSectionClick={onEscolherTurma}
           onRemoverClick={onRemoverDisciplina}
           focusedSections={focusedSections}
+          onEmptyClick={onEmptyClick}
         />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -936,7 +962,30 @@ export default function ScheduleBuilderPage() {
     setSemestreIngresso,
     clearSemestreIngresso,
     setRowsAndTurno,
+    setCustomOffer,
   } = usePlanningContext();
+
+  const [mergedOffer1, mergedOffer2] = useActiveOffer(planning);
+
+  // Course suggestions for AddSectionModal — PPC + both system offers, deduplicated
+  const courseSuggestions = useMemo(() => {
+    const map = new Map();
+    for (const [key, v] of Object.entries(ppcJson?.courses ?? {})) {
+      const codigo = String(v?.code ?? key).trim();
+      if (!codigo || codigo.startsWith("Carga")) continue;
+      map.set(codigo, String(v?.name ?? "").trim());
+    }
+    for (const offerJson of [offer1Json, offer2Json]) {
+      for (const d of offerJson?.disciplinas ?? []) {
+        const codigo = String(d?.codigo ?? "").trim();
+        if (!codigo) continue;
+        if (!map.has(codigo)) map.set(codigo, String(d?.nome ?? "").trim());
+      }
+    }
+    return Array.from(map.entries())
+      .map(([codigo, nome]) => ({ codigo, nome }))
+      .sort((a, b) => a.codigo.localeCompare(b.codigo));
+  }, []);
 
   // Default de turno baseado no semestre de ingresso:
   // 1º semestre → manhã, 2º semestre → tarde, sem ingresso → dia
@@ -957,6 +1006,7 @@ export default function ScheduleBuilderPage() {
   const [addingCourses, setAddingCourses] = useState(false);
   const [removingCourse, setRemovingCourse] = useState(null); // { code, name }
   const [editingTerm, setEditingTerm] = useState(null); // sc string of the term being edited
+  const [addingCustomSection, setAddingCustomSection] = useState(null); // { semestre, initialSchedules }
 
   const [askingEntryTerm, setAskingEntryTerm] = useState(false);
   const entryTerm = planning?.entryTerm ?? 1;
@@ -1101,8 +1151,8 @@ export default function ScheduleBuilderPage() {
       }));
       const rowsComTurmas = enrichRowsWithOffer(
         rowsEnriquecidas,
-        offer1Json,
-        offer2Json,
+        mergedOffer1,
+        mergedOffer2,
         shiftVal,
       );
 
@@ -1144,6 +1194,24 @@ export default function ScheduleBuilderPage() {
     // turno default por semestre de ingresso
     const defaultShift = so === 1 ? "manha" : "tarde";
     doGenerate(so, defaultShift, true, so);
+  }
+
+  function handleEmptyClick(dia, startMin, endMin) {
+    // Determine the offer semester for the active tab
+    const scRows = (planning?.rows ?? []).filter(
+      (r) => String(r?.semestre_curso ?? "").trim() === activeTab,
+    );
+    const semestre = Number(scRows[0]?.semestre_oferta ?? 1) || 1;
+
+    const toHHMM = (mins) =>
+      `${String(Math.floor(mins / 60)).padStart(2, "0")}:00`;
+
+    setAddingCustomSection({
+      semestre,
+      initialSchedules: [
+        { dia, inicio: toHHMM(startMin), fim: toHHMM(endMin) },
+      ],
+    });
   }
 
   function handleDeleteTerm() {
@@ -1244,8 +1312,8 @@ export default function ScheduleBuilderPage() {
           courseTerm={pendingTerm.courseTerm}
           offerTerm={pendingTerm.offerTerm}
           initialShift={pendingTerm.shiftVal}
-          ofertaS1={offer1Json}
-          ofertaS2={offer2Json}
+          ofertaS1={mergedOffer1}
+          ofertaS2={mergedOffer2}
           onConfirm={handleConfirmTerm}
           onCancel={() => setPendingTerm(null)}
         />
@@ -1273,7 +1341,11 @@ export default function ScheduleBuilderPage() {
                 (r) => String(r?.semestre_curso ?? "").trim() === activeTab,
               );
               const so2 = scRows[0]?.semestre_oferta;
-              return so2 === "1" ? offer1Json : so2 === "2" ? offer2Json : null;
+              return so2 === "1"
+                ? mergedOffer1
+                : so2 === "2"
+                  ? mergedOffer2
+                  : null;
             })(),
             turno: "dia",
             courseTerm: Number(activeTab),
@@ -1357,6 +1429,104 @@ export default function ScheduleBuilderPage() {
             setPickingSection(null);
           }}
           onFechar={() => setPickingSection(null)}
+        />
+      )}
+      {addingCustomSection && (
+        <AddSectionModal
+          semestre={addingCustomSection.semestre}
+          courseSuggestions={courseSuggestions}
+          initialSchedules={addingCustomSection.initialSchedules}
+          onConfirm={({ semestre, courseCode, section }) => {
+            setAddingCustomSection(null);
+
+            // 1) Persist to customOffer so it survives re-enrichment
+            const currentOffer =
+              (planning?.customOffer ?? {})[semestre] ?? null;
+            const ppcCourse = ppcJson?.courses?.[courseCode] ?? {};
+            const suggestedName =
+              courseSuggestions.find((s) => s.codigo === courseCode)?.nome ??
+              "";
+            const courseName =
+              String(ppcCourse?.name ?? "").trim() ||
+              suggestedName ||
+              courseCode;
+            setCustomOffer(
+              semestre,
+              upsertCustomSection(
+                currentOffer,
+                semestre,
+                courseCode,
+                section,
+                courseName,
+              ),
+            );
+
+            // 2) Also inject the new turma directly into the active term's rows
+            // so it shows up immediately without waiting for a re-generation.
+            // If the course doesn't exist in the active term (e.g. prerequisites
+            // not met), create a new row for it — the user is explicitly asking
+            // to add it regardless.
+            upsertRows((currentRows) => {
+              const newTurma = {
+                codigo: section.turma,
+                horarios: section.horarios,
+                docente: section.docente ?? "",
+              };
+
+              const existingRow = currentRows.find(
+                (r) =>
+                  String(r?.semestre_curso ?? "").trim() === activeTab &&
+                  String(r?.codigo ?? "").trim() === courseCode,
+              );
+
+              if (existingRow) {
+                // Row exists — append turma if not already present
+                return currentRows.map((row) => {
+                  if (
+                    String(row?.semestre_curso ?? "").trim() !== activeTab ||
+                    String(row?.codigo ?? "").trim() !== courseCode
+                  )
+                    return row;
+
+                  const existingCodes = new Set(
+                    (row.turmas ?? []).map((t) =>
+                      String(t?.turma ?? t?.codigo ?? "").trim(),
+                    ),
+                  );
+                  if (existingCodes.has(section.turma)) return row;
+
+                  return {
+                    ...row,
+                    turmas: [...(row.turmas ?? []), newTurma],
+                  };
+                });
+              }
+
+              // Row doesn't exist — create it, bypassing prerequisite checks.
+              // courseName and ppcCourse are already computed in the outer scope.
+              const activeScRows = currentRows.filter(
+                (r) => String(r?.semestre_curso ?? "").trim() === activeTab,
+              );
+              const offerTermStr =
+                activeScRows[0]?.semestre_oferta ?? String(semestre);
+
+              const newRow = {
+                semestre_curso: activeTab,
+                ano: activeScRows[0]?.ano ?? String(ANO_INICIO),
+                semestre_oferta: offerTermStr,
+                codigo: courseCode,
+                nome: courseName,
+                periodo: "",
+                carga_horaria: "",
+                pre_requisitos: ppcCourse?.prereq ?? [],
+                co_requisitos: ppcCourse?.coreq ?? [],
+                turmas: [newTurma],
+              };
+
+              return [...currentRows, newRow];
+            });
+          }}
+          onCancel={() => setAddingCustomSection(null)}
         />
       )}
       {conflict && (
@@ -1583,6 +1753,9 @@ export default function ScheduleBuilderPage() {
                 }
                 return null;
               })()}
+              onEmptyClick={
+                isEditable(activeTab) ? handleEmptyClick : undefined
+              }
               onResolverConflito={
                 isEditable(activeTab) ? handleConflictClick : undefined
               }

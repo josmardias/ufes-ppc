@@ -268,7 +268,10 @@ function CourseSectionCard({
   return (
     <div
       title={tooltip}
-      onClick={handleClick}
+      onClick={(e) => {
+        e.stopPropagation();
+        handleClick();
+      }}
       style={{
         position: "absolute",
         top,
@@ -327,6 +330,7 @@ export default function WeekCalendar({
   onMultiSectionClick,
   onRemoverClick,
   focusedSections,
+  onEmptyClick,
 }) {
   const colorMap = buildColorMap(rows);
   const allCourseSections = rowsToCourseSections(rows);
@@ -416,11 +420,33 @@ export default function WeekCalendar({
                               dia === DAYS[DAYS.length - 1]
                                 ? ""
                                 : "border-r border-gray-300"
-                            }`}
+                            } ${onEmptyClick ? "cursor-cell" : ""}`}
                             style={{
                               position: "relative",
                               height: totalHeight,
                             }}
+                            onClick={
+                              onEmptyClick
+                                ? (e) => {
+                                    // Only fire when clicking the cell background,
+                                    // not a card (cards call stopPropagation).
+                                    const rect =
+                                      e.currentTarget.getBoundingClientRect();
+                                    const relY = e.clientY - rect.top;
+                                    const rawMin =
+                                      hourStart * 60 +
+                                      Math.floor(
+                                        (relY / totalHeight) *
+                                          (visibleHours.length * 60),
+                                      );
+                                    // Snap to the nearest 30-min boundary
+                                    const startMin =
+                                      Math.floor(rawMin / 30) * 30;
+                                    const endMin = startMin + 120;
+                                    onEmptyClick(dia, startMin, endMin);
+                                  }
+                                : undefined
+                            }
                           >
                             {/* Linhas de hora sobrepostas */}
                             {visibleHours.map((hh, hhi) => (

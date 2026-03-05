@@ -10,6 +10,7 @@
  *   inferNextSemester(rows, anoInicio)           -> { courseTerm, ano, offerTerm }
  *   generateSemester(params)                        -> { newRows, courseTerm, ano, offerTerm }
  *   enrichRowsWithOffer(rows, s1, s2, turno)    -> PlanningRow[]  (fills turma horarios from offer)
+ *   mergeOffers(systemOffer, customOffer)        -> object         (merges custom sections into system offer)
  *   upsertSemester(rows, sc, newRows)            -> PlanningRow[]
  *   groupUnique(rows)                            -> PlanningRow[]
  */
@@ -554,6 +555,79 @@ export function calcAvailableToAdd({
   });
 
   return disponiveis;
+}
+
+/**
+ * Merges a custom offer into a system offer JSON.
+ *
+ * The custom offer has the same shape as the system offer JSON:
+ *   { semestre: 1|2, disciplinas: [ { codigo, nome, carga_horaria, turmas: [ { turma, horarios, docente } ] } ] }
+ *
+ * Merge rules:
+ * - If the course already exists in the system offer: custom sections are
+ *   appended (duplicates by turma code are skipped).
+ * - If the course does not exist in the system offer: a new entry is created.
+ * - System sections are never removed.
+ *
+ * @param {object} systemOffer  — JSON from processar-oferta.mjs
+ * @param {object} customOffer  — user-defined custom offer (same shape)
+ * @returns {object}            — merged offer with same shape as systemOffer
+ */
+export function mergeOffers(systemOffer, customOffer) {
+  if (!customOffer || !Array.isArray(customOffer.disciplinas))
+    return systemOffer ?? {};
+
+  const semestre = systemOffer?.semestre ?? customOffer.semestre ?? 1;
+
+  // Build a mutable map of disciplinas by codigo from the system offer
+  const byCode = new Map();
+  for (const d of Array.isArray(systemOffer?.disciplinas)
+    ? systemOffer.disciplinas
+    : []) {
+    const codigo = String(d?.codigo ?? "").trim();
+    if (!codigo) continue;
+    byCode.set(codigo, {
+      ...d,
+      turmas: Array.isArray(d.turmas) ? [...d.turmas] : [],
+    });
+  }
+
+  // Merge custom disciplinas
+  for (const d of customOffer.disciplinas) {
+    const codigo = String(d?.codigo ?? "").trim();
+    if (!codigo) continue;
+
+    if (!byCode.has(codigo)) {
+      // New course not in system offer — add it wholesale
+      byCode.set(codigo, {
+        semestre,
+        periodo: d.periodo ?? "",
+        codigo,
+        nome: String(d?.nome ?? "").trim(),
+        carga_horaria: d?.carga_horaria ?? null,
+        turmas: Array.isArray(d.turmas) ? [...d.turmas] : [],
+      });
+    } else {
+      // Course exists — append custom sections not already present
+      const existing = byCode.get(codigo);
+      const existingCodes = new Set(
+        existing.turmas.map((t) => String(t?.turma ?? t?.codigo ?? "").trim()),
+      );
+      for (const t of Array.isArray(d.turmas) ? d.turmas : []) {
+        const tCode = String(t?.turma ?? t?.codigo ?? "").trim();
+        if (tCode && !existingCodes.has(tCode)) {
+          existing.turmas.push(t);
+          existingCodes.add(tCode);
+        }
+      }
+    }
+  }
+
+  return {
+    ...systemOffer,
+    semestre,
+    disciplinas: Array.from(byCode.values()),
+  };
 }
 
 /**
