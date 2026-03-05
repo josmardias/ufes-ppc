@@ -17,10 +17,12 @@ ufes-ppc/
 ├── scripts/
 │   ├── input/                  ← input files (D2, PDFs)
 │   ├── processar-ppc.mjs       ← permanent: D2 → src/data/ppc-2022.json
+│   ├── processar-equivalencias.mjs ← permanent: PDF → src/data/equivalencias.json
 │   └── processar-oferta.mjs    ← permanent: PDF → src/data/oferta-semestre-N.json
 ├── src/
 │   ├── data/                   ← JSON files bundled into the webapp
 │   │   ├── ppc-2022.json
+│   │   ├── equivalencias.json
 │   │   ├── oferta-semestre-1.json
 │   │   └── oferta-semestre-2.json
 │   ├── domain/                 ← pure domain logic (no React, no Node)
@@ -79,7 +81,12 @@ Run these when the PPC or offer PDFs change:
 node scripts/processar-ppc.mjs scripts/input/eletrica-obrigatorias.d2
 # fixed output: src/data/ppc-2022.json
 
-# Generate offer JSON from PDFs
+# Extract legacy→current code equivalences from the UFES equivalences PDF
+node scripts/processar-equivalencias.mjs
+# fixed output: src/data/equivalencias.json
+# Run this whenever EquivalenciasporCurso.pdf is updated.
+
+# Generate offer JSON from PDFs (uses equivalencias.json automatically)
 node scripts/processar-oferta.mjs --pdf scripts/input/<offer-1st-semester>.pdf --semestre 1
 node scripts/processar-oferta.mjs --pdf scripts/input/<offer-2nd-semester>.pdf --semestre 2
 # fixed output: src/data/oferta-semestre-1.json, src/data/oferta-semestre-2.json
@@ -93,6 +100,7 @@ node scripts/processar-oferta.mjs --pdf scripts/input/<offer-2nd-semester>.pdf -
 |---|---|
 | **Planning storage** | `localStorage` per student profile (`ppc_alunos`) |
 | **PPC + offer data** | Bundled JSON in `src/data/` — part of the build |
+| **Code aliases** | `src/data/equivalencias.json` — legacy offer codes mapped to current PPC codes; loaded automatically by `processar-oferta.mjs`. Only 1-to-1 aliases are applied; 1-to-many are skipped (require manual handling via custom offer). |
 | **Semester generation** | Always uses PPC only (semOferta: true); offer used only for turma enrichment |
 | **State management** | `useState` + `useContext` only — no Redux/Zustand |
 | **Routing** | Simple tab state — no React Router |

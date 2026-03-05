@@ -22,7 +22,14 @@ import { AddSectionModal, upsertCustomSection } from "./CustomOfferPage.jsx";
 import ppcJson from "../data/ppc-2022.json";
 import offer1Json from "../data/oferta-semestre-1.json";
 import offer2Json from "../data/oferta-semestre-2.json";
+import equivalenciasJson from "../data/equivalencias.json";
 import WeekCalendar from "../components/WeekCalendar.jsx";
+
+// Set of legacy (old curriculum) codes that have a PPC 2022 equivalent.
+// Used to hide old-grade disciplines by default in period/add modals.
+const LEGACY_CODES = new Set(
+  Object.values(equivalenciasJson.equivalencias).flat(),
+);
 
 // ---------------------------------------------------------------------------
 // useActiveOffer — returns system offer merged with the profile's custom offer.
@@ -162,6 +169,7 @@ function ModalAdicionarDisciplinas({
   const [selecionados, setSelecionados] = useState(new Set());
   const [turno, setTurno] = useState("dia");
   const [onlyAccessible, setOnlyAccessible] = useState(true);
+  const [showLegacy, setShowLegacy] = useState(false);
   const [search, setSearch] = useState("");
 
   const normalize = (s) =>
@@ -170,7 +178,9 @@ function ModalAdicionarDisciplinas({
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "");
 
-  const baseCourses = onlyAccessible ? available : allCourses;
+  const baseCourses = (onlyAccessible ? available : allCourses).filter(
+    (r) => showLegacy || !LEGACY_CODES.has(r.codigo),
+  );
   const displayCourses = search.trim()
     ? baseCourses.filter((r) => {
         const q = normalize(search.trim());
@@ -214,17 +224,30 @@ function ModalAdicionarDisciplinas({
             placeholder="Buscar por código ou nome…"
             className="mt-3 w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
           />
-          <label className="flex items-center gap-2 mt-3 cursor-pointer select-none w-fit">
-            <input
-              type="checkbox"
-              checked={onlyAccessible}
-              onChange={(e) => setOnlyAccessible(e.target.checked)}
-              className="accent-blue-600 w-4 h-4"
-            />
-            <span className="text-xs text-gray-600">
-              Só disciplinas com pré-requisitos satisfeitos
-            </span>
-          </label>
+          <div className="flex items-center gap-4 mt-3 flex-wrap">
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={onlyAccessible}
+                onChange={(e) => setOnlyAccessible(e.target.checked)}
+                className="accent-blue-600 w-4 h-4"
+              />
+              <span className="text-xs text-gray-600">
+                Só disciplinas com pré-requisitos satisfeitos
+              </span>
+            </label>
+            <label className="flex items-center gap-1.5 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={showLegacy}
+                onChange={(e) => setShowLegacy(e.target.checked)}
+                className="accent-blue-600 w-3.5 h-3.5"
+              />
+              <span className="text-xs text-gray-500">
+                Incluir PPC antigo
+              </span>
+            </label>
+          </div>
         </div>
 
         <div className="overflow-y-auto flex-1 px-4 py-2">
@@ -607,7 +630,12 @@ function ModalConfirmarPeriodo({
   const [turno, setTurno] = useState(initialShift ?? "dia");
 
   // Ao mudar turno: seleciona todas as visíveis
-  const visibleRows = newRows.filter((r) => isCourseVisible(r, turno));
+  const [showLegacy, setShowLegacy] = useState(false);
+
+  const visibleRows = newRows.filter(
+    (r) =>
+      isCourseVisible(r, turno) && (showLegacy || !LEGACY_CODES.has(r.codigo)),
+  );
 
   const [selecionados, setSelecionados] = useState(
     () => new Set(visibleRows.map((r) => r.codigo)),
@@ -616,7 +644,19 @@ function ModalConfirmarPeriodo({
   function handleShiftChange(newShift) {
     setTurno(newShift);
     // Seleciona todas as disciplinas visíveis no novo turno
-    const visiveis = newRows.filter((r) => isCourseVisible(r, newShift));
+    const visiveis = newRows.filter(
+      (r) =>
+        isCourseVisible(r, newShift) &&
+        (showLegacy || !LEGACY_CODES.has(r.codigo)),
+    );
+    setSelecionados(new Set(visiveis.map((r) => r.codigo)));
+  }
+
+  function handleShowLegacyChange(val) {
+    setShowLegacy(val);
+    const visiveis = newRows.filter(
+      (r) => isCourseVisible(r, turno) && (val || !LEGACY_CODES.has(r.codigo)),
+    );
     setSelecionados(new Set(visiveis.map((r) => r.codigo)));
   }
 
@@ -661,35 +701,50 @@ function ModalConfirmarPeriodo({
             {visibleRows.length !== 1 ? "is" : "l"} neste turno. Desmarque as
             que não deseja incluir.
           </p>
-          {/* Turno */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-medium text-gray-500">Turno:</span>
-            <div className="flex rounded-lg border border-gray-300 overflow-hidden">
-              {TURNO_OPCOES.map(({ id, label }) => {
-                const count = newRows.filter((r) =>
-                  isCourseVisible(r, id),
-                ).length;
-                return (
-                  <button
-                    key={id}
-                    onClick={() => handleShiftChange(id)}
-                    className={[
-                      "px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer flex flex-col items-center leading-tight",
-                      turno === id
-                        ? "bg-blue-600 text-white"
-                        : "bg-white text-gray-600 hover:bg-gray-50",
-                    ].join(" ")}
-                  >
-                    <span>{label}</span>
-                    <span
-                      className={`text-xs ${turno === id ? "text-blue-200" : "text-gray-400"}`}
+          {/* Turno + legacy toggle */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-gray-500">Turno:</span>
+              <div className="flex rounded-lg border border-gray-300 overflow-hidden">
+                {TURNO_OPCOES.map(({ id, label }) => {
+                  const count = newRows.filter(
+                    (r) =>
+                      isCourseVisible(r, id) &&
+                      (showLegacy || !LEGACY_CODES.has(r.codigo)),
+                  ).length;
+                  return (
+                    <button
+                      key={id}
+                      onClick={() => handleShiftChange(id)}
+                      className={[
+                        "px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer flex flex-col items-center leading-tight",
+                        turno === id
+                          ? "bg-blue-600 text-white"
+                          : "bg-white text-gray-600 hover:bg-gray-50",
+                      ].join(" ")}
                     >
-                      {count}
-                    </span>
-                  </button>
-                );
-              })}
+                      <span>{label}</span>
+                      <span
+                        className={`text-xs ${turno === id ? "text-blue-200" : "text-gray-400"}`}
+                      >
+                        {count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
+            <label className="flex items-center gap-1.5 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={showLegacy}
+                onChange={(e) => handleShowLegacyChange(e.target.checked)}
+                className="accent-blue-600 w-3.5 h-3.5"
+              />
+              <span className="text-xs text-gray-500">
+                Incluir PPC antigo
+              </span>
+            </label>
           </div>
         </div>
 
@@ -1088,6 +1143,7 @@ export default function ScheduleBuilderPage() {
       entryTerm,
       anoInicio: ANO_INICIO,
       scInicio: SC_INICIO,
+      equivalenciasJson,
     });
     return new Set(available.map((r) => r.codigo));
   }, [activeTab, planning?.rows, mergedOffer1, mergedOffer2, entryTerm]);
@@ -1172,17 +1228,20 @@ export default function ScheduleBuilderPage() {
           return inf;
         })();
 
-        // Gera sempre sem filtro de turno — todas as disciplinas elegíveis
-        // pelo PPC. A modal cuidará de habilitar/desabilitar pelo turno.
+        // Use the offer for the computed offerTerm so only disciplines
+        // actually offered this semester are shown. turno: "dia" so all
+        // sections are included — the modal handles shift filtering.
+        const offerJsonForTerm = offerTerm === 1 ? mergedOffer1 : mergedOffer2;
         const { newRows } = generateSemester({
           rows: currentRows,
           ppcJson,
-          offerJson: null,
+          offerJson: offerJsonForTerm,
           turno: "dia",
-          semOferta: true,
+          semOferta: false,
           anoInicio: ANO_INICIO,
           scInicio: SC_INICIO,
           entryTerm: semestreIngressoVal,
+          equivalenciasJson,
         });
 
         if (newRows.length === 0) {
@@ -1220,6 +1279,7 @@ export default function ScheduleBuilderPage() {
         mergedOffer1,
         mergedOffer2,
         shiftVal,
+        equivalenciasJson,
       );
 
       if (isFirst) {
@@ -1441,6 +1501,7 @@ export default function ScheduleBuilderPage() {
             entryTerm,
             anoInicio: ANO_INICIO,
             scInicio: SC_INICIO,
+            equivalenciasJson,
           })}
           onConfirm={(rowsParaAdicionar) => {
             if (rowsParaAdicionar.length === 0) {
@@ -1464,6 +1525,7 @@ export default function ScheduleBuilderPage() {
               mergedOffer1,
               mergedOffer2,
               "dia",
+              equivalenciasJson,
             ).map((r) => ({ ...r, semestre_oferta: offerTermForTab }));
 
             upsertRows((currentRows) => {

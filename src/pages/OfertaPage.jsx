@@ -2,12 +2,19 @@ import { useState, useMemo } from "react";
 import ofertaS1 from "../data/oferta-semestre-1.json";
 import ofertaS2 from "../data/oferta-semestre-2.json";
 import ppcJson from "../data/ppc-2022.json";
+import equivalenciasJson from "../data/equivalencias.json";
 
 // Mapa codigo -> suggestedSemester do PPC
 const PPC_PERIODO = new Map(
   Object.values(ppcJson.courses)
     .filter((c) => c.suggestedSemester != null)
     .map((c) => [c.code, c.suggestedSemester]),
+);
+
+// Set of all legacy (old) codes that have a PPC 2022 equivalent.
+// These are the offer codes that belong to the old curriculum.
+const LEGACY_CODES = new Set(
+  Object.values(equivalenciasJson.equivalencias).flat(),
 );
 
 const SEMESTRES = [
@@ -147,18 +154,22 @@ function PeriodoSection({ disciplinas }) {
 export default function OfertaPage() {
   const [activeSemestre, setActiveSemestre] = useState(1);
   const [search, setSearch] = useState("");
+  const [showLegacy, setShowLegacy] = useState(false);
 
   const ofertaData = SEMESTRES.find((s) => s.id === activeSemestre)?.data;
   const disciplinas = ofertaData?.disciplinas ?? [];
 
   const filtered = useMemo(() => {
-    if (!search.trim()) return disciplinas;
+    const base = showLegacy
+      ? disciplinas
+      : disciplinas.filter((d) => !LEGACY_CODES.has(d.codigo));
+    if (!search.trim()) return base;
     const q = search.trim().toLowerCase();
-    return disciplinas.filter(
+    return base.filter(
       (d) =>
         d.codigo.toLowerCase().includes(q) || d.nome.toLowerCase().includes(q),
     );
-  }, [disciplinas, search]);
+  }, [disciplinas, search, showLegacy]);
 
   const totalTurmas = filtered.reduce(
     (acc, d) => acc + (d.turmas?.length ?? 0),
@@ -197,6 +208,15 @@ export default function OfertaPage() {
           placeholder="Buscar disciplina..."
           className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
+        <label className="flex items-center gap-1.5 cursor-pointer select-none flex-shrink-0">
+          <input
+            type="checkbox"
+            checked={showLegacy}
+            onChange={(e) => setShowLegacy(e.target.checked)}
+            className="accent-blue-600 w-3.5 h-3.5"
+          />
+          <span className="text-xs text-gray-500">Incluir PPC antigo</span>
+        </label>
         <span className="text-xs text-gray-400 flex-shrink-0">
           {filtered.length} disciplina{filtered.length !== 1 ? "s" : ""} ·{" "}
           {totalTurmas} turma{totalTurmas !== 1 ? "s" : ""}
