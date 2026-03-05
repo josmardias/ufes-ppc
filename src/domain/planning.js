@@ -336,6 +336,14 @@ export function generateSemester({
       return { ok: false, reason: "already planned in another semester" };
     }
 
+    // Don't select disciplines suggested for more than 2 semesters ahead —
+    // prevents disciplines from distant PPC semesters flooding an early term
+    // just because their prereqs happen to be met early.
+    const suggested = suggestedSemester.get(codigo);
+    if (suggested != null && suggested > courseTerm + 2) {
+      return { ok: false, reason: "suggested semester too far ahead" };
+    }
+
     const missPre = missingPrereqs(codigo);
     if (missPre.length > 0) {
       return {

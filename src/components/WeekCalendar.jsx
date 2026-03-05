@@ -503,6 +503,8 @@ export default function WeekCalendar({
                                     ev.turma,
                                     allCourseSections,
                                     dia,
+                                    ev.startMin,
+                                    ev.endMin,
                                   )}
                                   onConflictClick={onConflictClick}
                                   onMultiTurmaClick={onMultiSectionClick}

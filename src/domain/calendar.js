@@ -199,18 +199,45 @@ export function courseSectionHasConflict(section, allCourseSections) {
 
 /**
  * Returns true if this course section conflicts with any other section
- * on the given day.
+ * within the rendered card's block interval [blockStart, blockEnd) on the
+ * given day.
  *
- * Used by the calendar card renderer so that a multi-day section only shows
- * red on the days where the actual slot overlap occurs.
+ * blockStart/blockEnd are the pixel-block bounds of the specific card being
+ * rendered. A section with non-contiguous slots on the same day produces
+ * multiple cards; each card is only red when its own time range actually
+ * overlaps another section — not because a different fragment of the same
+ * section conflicts elsewhere on that day.
+ *
+ * When blockStart/blockEnd are omitted the full section interval is used
+ * (backward-compatible).
  *
  * @param {CourseSection} section
  * @param {CourseSection[]} allCourseSections
- * @param {string} dia — e.g. "Qua"
+ * @param {string} dia        — e.g. "Qua"
+ * @param {number} [blockStart] — card start in minutes since 00:00
+ * @param {number} [blockEnd]   — card end in minutes since 00:00
  * @returns {boolean}
  */
-export function courseSectionHasConflictOnDay(section, allCourseSections, dia) {
-  const mySlotsOnDay = courseSectionSlots(section).filter((s) => s.dia === dia);
+export function courseSectionHasConflictOnDay(
+  section,
+  allCourseSections,
+  dia,
+  blockStart,
+  blockEnd,
+) {
+  const allSlotsOnDay = courseSectionSlots(section).filter(
+    (s) => s.dia === dia,
+  );
+  if (allSlotsOnDay.length === 0) return false;
+
+  // If block bounds are provided, restrict to slots within that block.
+  const mySlotsOnDay =
+    blockStart != null && blockEnd != null
+      ? allSlotsOnDay.filter(
+          (s) => s.startMin < blockEnd && s.endMin > blockStart,
+        )
+      : allSlotsOnDay;
+
   if (mySlotsOnDay.length === 0) return false;
 
   const others = (

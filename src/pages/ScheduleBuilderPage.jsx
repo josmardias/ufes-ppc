@@ -243,9 +243,7 @@ function ModalAdicionarDisciplinas({
                 onChange={(e) => setShowLegacy(e.target.checked)}
                 className="accent-blue-600 w-3.5 h-3.5"
               />
-              <span className="text-xs text-gray-500">
-                Incluir PPC antigo
-              </span>
+              <span className="text-xs text-gray-500">Incluir PPC antigo</span>
             </label>
           </div>
         </div>
@@ -431,16 +429,27 @@ function ModalRemoverDisciplina({
   );
 }
 
-function ModalEscolherTurma({ row, onEscolher, onFechar }) {
+function ModalEscolherTurma({ row, onEscolher, onRemoverTurma, onFechar }) {
   useEscKey(onFechar);
   const [pending, setPendente] = useState(row._pendenteInicial ?? null);
+  const [pendingRemove, setPendingRemove] = useState(null);
   const turmas = Array.isArray(row.turmas) ? row.turmas : [];
 
   function handleClick(sectionCode) {
+    setPendingRemove(null);
     if (pending === sectionCode) {
       onEscolher(row.codigo, sectionCode);
     } else {
       setPendente(sectionCode);
+    }
+  }
+
+  function handleRemoveClick(sectionCode) {
+    setPendente(null);
+    if (pendingRemove === sectionCode) {
+      onRemoverTurma(row.codigo, sectionCode);
+    } else {
+      setPendingRemove(sectionCode);
     }
   }
 
@@ -462,43 +471,59 @@ function ModalEscolherTurma({ row, onEscolher, onFechar }) {
         <div className="flex flex-col gap-2">
           {turmas.map((t) => {
             const isPendente = pending === t.codigo;
+            const isPendingRemove = pendingRemove === t.codigo;
             const horarios = Array.isArray(t.horarios) ? t.horarios : [];
             return (
-              <button
-                key={t.codigo}
-                onClick={() => handleClick(t.codigo)}
-                className={[
-                  "w-full text-left px-4 py-3 rounded-xl border-2 transition-colors cursor-pointer",
-                  isPendente
-                    ? "border-blue-500 bg-blue-50"
-                    : "border-gray-200 hover:border-blue-400 hover:bg-blue-50",
-                ].join(" ")}
-              >
-                <div className="flex items-baseline justify-between gap-2">
-                  <span
-                    className={`text-sm font-semibold ${isPendente ? "text-blue-700" : "text-gray-800"}`}
-                  >
-                    Turma {t.codigo}
-                  </span>
-                  {isPendente && (
-                    <span className="text-xs font-semibold text-blue-600">
-                      Clique para confirmar
+              <div key={t.codigo} className="flex gap-2 items-stretch">
+                <button
+                  onClick={() => handleClick(t.codigo)}
+                  className={[
+                    "flex-1 text-left px-4 py-3 rounded-xl border-2 transition-colors cursor-pointer",
+                    isPendente
+                      ? "border-blue-500 bg-blue-50"
+                      : "border-gray-200 hover:border-blue-400 hover:bg-blue-50",
+                  ].join(" ")}
+                >
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span
+                      className={`text-sm font-semibold ${isPendente ? "text-blue-700" : "text-gray-800"}`}
+                    >
+                      Turma {t.codigo}
                     </span>
-                  )}
-                </div>
-                {t.docente && (
-                  <p className="text-xs text-gray-400 mt-0.5">{t.docente}</p>
-                )}
-                {horarios.length > 0 && (
-                  <div className="flex flex-wrap gap-x-3 mt-0.5">
-                    {horarios.map((h, i) => (
-                      <span key={i} className="text-xs text-gray-400">
-                        {h.dia} {h.inicio}–{h.fim}
+                    {isPendente && (
+                      <span className="text-xs font-semibold text-blue-600">
+                        Clique para confirmar
                       </span>
-                    ))}
+                    )}
                   </div>
+                  {t.docente && (
+                    <p className="text-xs text-gray-400 mt-0.5">{t.docente}</p>
+                  )}
+                  {horarios.length > 0 && (
+                    <div className="flex flex-wrap gap-x-3 mt-0.5">
+                      {horarios.map((h, i) => (
+                        <span key={i} className="text-xs text-gray-400">
+                          {h.dia} {h.inicio}–{h.fim}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </button>
+                {onRemoverTurma && (
+                  <button
+                    onClick={() => handleRemoveClick(t.codigo)}
+                    title="Remover esta turma"
+                    className={[
+                      "flex-shrink-0 px-3 rounded-xl border-2 text-xs font-medium transition-colors cursor-pointer",
+                      isPendingRemove
+                        ? "border-red-500 bg-red-600 text-white hover:bg-red-700"
+                        : "border-gray-200 text-red-400 hover:border-red-400 hover:bg-red-50",
+                    ].join(" ")}
+                  >
+                    {isPendingRemove ? "Confirmar" : "✕"}
+                  </button>
                 )}
-              </button>
+              </div>
             );
           })}
         </div>
@@ -741,9 +766,7 @@ function ModalConfirmarPeriodo({
                 onChange={(e) => handleShowLegacyChange(e.target.checked)}
                 className="accent-blue-600 w-3.5 h-3.5"
               />
-              <span className="text-xs text-gray-500">
-                Incluir PPC antigo
-              </span>
+              <span className="text-xs text-gray-500">Incluir PPC antigo</span>
             </label>
           </div>
         </div>
@@ -869,13 +892,16 @@ function ModalResolverConflito({
   candidates,
   initialPending,
   onEscolher,
+  onRemoverTurma,
   onFechar,
 }) {
   useEscKey(onFechar);
   const [pending, setPendente] = useState(initialPending ?? null);
+  const [pendingRemove, setPendingRemove] = useState(null);
   const horaLabel = `${String(Math.floor(horaInicio / 60)).padStart(2, "0")}:00`;
 
   function handleClick(c) {
+    setPendingRemove(null);
     const key = `${c.courseCode}-${c.sectionCode}`;
     const pendenteKey = pending
       ? `${pending.courseCode}-${pending.sectionCode}`
@@ -885,6 +911,20 @@ function ModalResolverConflito({
       onEscolher(c.courseCode, c.sectionCode);
     } else {
       setPendente(c);
+    }
+  }
+
+  function handleRemoveClick(c) {
+    setPendente(null);
+    const key = `${c.courseCode}-${c.sectionCode}`;
+    const pendingRemoveKey = pendingRemove
+      ? `${pendingRemove.courseCode}-${pendingRemove.sectionCode}`
+      : null;
+
+    if (pendingRemoveKey === key) {
+      onRemoverTurma(c.courseCode, c.sectionCode);
+    } else {
+      setPendingRemove(c);
     }
   }
 
@@ -909,49 +949,68 @@ function ModalResolverConflito({
             const key = `${c.courseCode}-${c.sectionCode}`;
             const isPendente =
               pending && `${pending.courseCode}-${pending.sectionCode}` === key;
+            const isPendingRemove =
+              pendingRemove &&
+              `${pendingRemove.courseCode}-${pendingRemove.sectionCode}` ===
+                key;
             return (
-              <button
-                key={key}
-                onClick={() => handleClick(c)}
-                className={[
-                  "w-full text-left px-4 py-3 rounded-xl border-2 transition-colors cursor-pointer",
-                  isPendente
-                    ? "border-blue-500 bg-blue-50"
-                    : "border-gray-200 hover:border-blue-400 hover:bg-blue-50",
-                ].join(" ")}
-              >
-                <div className="flex items-baseline justify-between gap-2 mb-1">
-                  <div className="flex flex-col gap-0">
-                    <span className="font-semibold text-sm text-gray-800">
-                      {c.courseName || c.courseCode}
-                    </span>
-                    <div className="flex items-baseline gap-2">
-                      <span className="font-mono text-xs text-gray-400">
-                        {c.courseCode}
+              <div key={key} className="flex gap-2 items-stretch">
+                <button
+                  onClick={() => handleClick(c)}
+                  className={[
+                    "flex-1 text-left px-4 py-3 rounded-xl border-2 transition-colors cursor-pointer",
+                    isPendente
+                      ? "border-blue-500 bg-blue-50"
+                      : "border-gray-200 hover:border-blue-400 hover:bg-blue-50",
+                  ].join(" ")}
+                >
+                  <div className="flex items-baseline justify-between gap-2 mb-1">
+                    <div className="flex flex-col gap-0">
+                      <span className="font-semibold text-sm text-gray-800">
+                        {c.courseName || c.courseCode}
                       </span>
-                      {c.sectionCode && (
-                        <span className="text-xs text-gray-500">
-                          Turma {c.sectionCode}
+                      <div className="flex items-baseline gap-2">
+                        <span className="font-mono text-xs text-gray-400">
+                          {c.courseCode}
                         </span>
-                      )}
+                        {c.sectionCode && (
+                          <span className="text-xs text-gray-500">
+                            Turma {c.sectionCode}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                  {isPendente && (
-                    <span className="text-xs font-semibold text-blue-600 flex-shrink-0">
-                      Clique para confirmar
-                    </span>
-                  )}
-                </div>
-                {c.horarios?.length > 0 && (
-                  <div className="flex flex-wrap gap-x-3 gap-y-0.5">
-                    {c.horarios.map((h, i) => (
-                      <span key={i} className="text-xs text-gray-400">
-                        {h.dia} {h.inicio}–{h.fim}
+                    {isPendente && (
+                      <span className="text-xs font-semibold text-blue-600 flex-shrink-0">
+                        Clique para confirmar
                       </span>
-                    ))}
+                    )}
                   </div>
+                  {c.horarios?.length > 0 && (
+                    <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+                      {c.horarios.map((h, i) => (
+                        <span key={i} className="text-xs text-gray-400">
+                          {h.dia} {h.inicio}–{h.fim}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </button>
+                {onRemoverTurma && (
+                  <button
+                    onClick={() => handleRemoveClick(c)}
+                    title="Remover esta turma"
+                    className={[
+                      "flex-shrink-0 px-3 rounded-xl border-2 text-xs font-medium transition-colors cursor-pointer",
+                      isPendingRemove
+                        ? "border-red-500 bg-red-600 text-white hover:bg-red-700"
+                        : "border-gray-200 text-red-400 hover:border-red-400 hover:bg-red-50",
+                    ].join(" ")}
+                  >
+                    {isPendingRemove ? "Confirmar" : "✕"}
+                  </button>
                 )}
-              </button>
+              </div>
             );
           })}
         </div>
@@ -1594,6 +1653,26 @@ export default function ScheduleBuilderPage() {
             setRows([...outras, ...resolvidas]);
             setPickingSection(null);
           }}
+          onRemoverTurma={(courseCode, sectionCode) => {
+            upsertRows((currentRows) =>
+              currentRows.map((r) => {
+                if (
+                  String(r?.semestre_curso ?? "").trim() !== activeTab ||
+                  String(r?.codigo ?? "").trim() !== courseCode
+                )
+                  return r;
+                return {
+                  ...r,
+                  turmas: (r.turmas ?? []).filter(
+                    (t) =>
+                      String(t?.turma ?? t?.codigo ?? "").trim() !==
+                      sectionCode,
+                  ),
+                };
+              }),
+            );
+            setPickingSection(null);
+          }}
           onFechar={() => setPickingSection(null)}
         />
       )}
@@ -1728,6 +1807,26 @@ export default function ScheduleBuilderPage() {
           candidates={conflict.candidates}
           initialPending={conflict.initialPending}
           onEscolher={handlePickWinner}
+          onRemoverTurma={(courseCode, sectionCode) => {
+            upsertRows((currentRows) =>
+              currentRows.map((r) => {
+                if (
+                  String(r?.semestre_curso ?? "").trim() !== activeTab ||
+                  String(r?.codigo ?? "").trim() !== courseCode
+                )
+                  return r;
+                return {
+                  ...r,
+                  turmas: (r.turmas ?? []).filter(
+                    (t) =>
+                      String(t?.turma ?? t?.codigo ?? "").trim() !==
+                      sectionCode,
+                  ),
+                };
+              }),
+            );
+            setConflict(null);
+          }}
           onFechar={() => setConflict(null)}
         />
       )}
