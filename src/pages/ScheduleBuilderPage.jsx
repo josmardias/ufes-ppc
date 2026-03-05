@@ -152,6 +152,7 @@ function Badge({ children, color = "gray" }) {
 
 function ModalAdicionarDisciplinas({
   available,
+  allCourses,
   courseTerm,
   existingSections,
   onConfirm,
@@ -160,6 +161,24 @@ function ModalAdicionarDisciplinas({
   useEscKey(onCancel);
   const [selecionados, setSelecionados] = useState(new Set());
   const [turno, setTurno] = useState("dia");
+  const [onlyAccessible, setOnlyAccessible] = useState(true);
+  const [search, setSearch] = useState("");
+
+  const normalize = (s) =>
+    s
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+
+  const baseCourses = onlyAccessible ? available : allCourses;
+  const displayCourses = search.trim()
+    ? baseCourses.filter((r) => {
+        const q = normalize(search.trim());
+        return (
+          normalize(r.codigo).includes(q) || normalize(r.nome ?? "").includes(q)
+        );
+      })
+    : baseCourses;
 
   function toggle(codigo) {
     setSelecionados((prev) => {
@@ -187,15 +206,34 @@ function ModalAdicionarDisciplinas({
             Disciplinas disponíveis para o {courseTerm}º período. Selecione as
             que deseja adicionar.
           </p>
+          <input
+            autoFocus
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar por código ou nome…"
+            className="mt-3 w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+          />
+          <label className="flex items-center gap-2 mt-3 cursor-pointer select-none w-fit">
+            <input
+              type="checkbox"
+              checked={onlyAccessible}
+              onChange={(e) => setOnlyAccessible(e.target.checked)}
+              className="accent-blue-600 w-4 h-4"
+            />
+            <span className="text-xs text-gray-600">
+              Só disciplinas com pré-requisitos satisfeitos
+            </span>
+          </label>
         </div>
 
         <div className="overflow-y-auto flex-1 px-4 py-2">
-          {available.length === 0 ? (
+          {displayCourses.length === 0 ? (
             <p className="text-sm text-gray-400 text-center py-8">
               Nenhuma disciplina disponível para adicionar.
             </p>
           ) : (
-            available.map((r) => {
+            displayCourses.map((r) => {
               const checked = selecionados.has(r.codigo);
               const allTurmas = Array.isArray(r.turmas) ? r.turmas : [];
               // Verifica se há turmas disponíveis no turno selecionado
@@ -300,7 +338,9 @@ function ModalAdicionarDisciplinas({
         <div className="px-6 py-4 border-t border-gray-100 flex gap-2">
           <button
             onClick={() =>
-              onConfirm(available.filter((r) => selecionados.has(r.codigo)))
+              onConfirm(
+                displayCourses.filter((r) => selecionados.has(r.codigo)),
+              )
             }
             disabled={selecionados.size === 0}
             className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-bold rounded-xl transition-colors cursor-pointer"
@@ -967,7 +1007,7 @@ export default function ScheduleBuilderPage() {
 
   const [mergedOffer1, mergedOffer2] = useActiveOffer(planning);
 
-  // Course suggestions for AddSectionModal — PPC + both system offers, deduplicated
+  // All course suggestions — PPC + both system offers, deduplicated, no prereq filter
   const courseSuggestions = useMemo(() => {
     const map = new Map();
     for (const [key, v] of Object.entries(ppcJson?.courses ?? {})) {
@@ -1025,6 +1065,32 @@ export default function ScheduleBuilderPage() {
     SC_INICIO,
     entryTerm,
   );
+
+  // Codes accessible in the active term (prereqs satisfied) — used for the
+  // "only accessible" toggle in AddSectionModal and ModalAdicionarDisciplinas.
+  const accessibleCodes = useMemo(() => {
+    if (!activeTab) return new Set();
+    const rows = (planning?.rows ?? []).filter(
+      (r) => String(r?.semestre_curso ?? "").trim() !== activeTab,
+    );
+    const scRows = (planning?.rows ?? []).filter(
+      (r) => String(r?.semestre_curso ?? "").trim() === activeTab,
+    );
+    const so2 = scRows[0]?.semestre_oferta;
+    const offerJson =
+      so2 === "1" ? mergedOffer1 : so2 === "2" ? mergedOffer2 : null;
+    const available = calcAvailableToAdd({
+      rows,
+      ppcJson,
+      offerJson,
+      turno: "dia",
+      courseTerm: Number(activeTab),
+      entryTerm,
+      anoInicio: ANO_INICIO,
+      scInicio: SC_INICIO,
+    });
+    return new Set(available.map((r) => r.codigo));
+  }, [activeTab, planning?.rows, mergedOffer1, mergedOffer2, entryTerm]);
 
   // Agrupa rows por semestre_curso
   const { grouped, sortedKeys, lastTerm } = useMemo(() => {
@@ -1211,6 +1277,7 @@ export default function ScheduleBuilderPage() {
       initialSchedules: [
         { dia, inicio: toHHMM(startMin), fim: toHHMM(endMin) },
       ],
+      accessibleCodes,
     });
   }
 
@@ -1328,6 +1395,28 @@ export default function ScheduleBuilderPage() {
               )
               .map((r) => [r.codigo, r.turmas ?? []]),
           )}
+          allCourses={(() => {
+            // All PPC courses as rows, regardless of prereqs, for the "show all" toggle
+            const scRows = (planning?.rows ?? []).filter(
+              (r) => String(r?.semestre_curso ?? "").trim() === activeTab,
+            );
+            const offerTermStr = scRows[0]?.semestre_oferta ?? "1";
+            return courseSuggestions.map(({ codigo, nome }) => {
+              const ppcCourse = ppcJson?.courses?.[codigo] ?? {};
+              return {
+                semestre_curso: activeTab,
+                ano: scRows[0]?.ano ?? String(ANO_INICIO),
+                semestre_oferta: offerTermStr,
+                codigo,
+                nome,
+                periodo: "",
+                carga_horaria: "",
+                pre_requisitos: ppcCourse?.prereq ?? [],
+                co_requisitos: ppcCourse?.coreq ?? [],
+                turmas: [],
+              };
+            });
+          })()}
           available={calcAvailableToAdd({
             // Pass rows WITHOUT the current term — same behavior as generating
             // the term from scratch: courses in the current term are not
@@ -1360,6 +1449,23 @@ export default function ScheduleBuilderPage() {
             }
             // Use activeTab so adding works for both lastTerm and editingTerm
             const targetTerm = activeTab;
+
+            // Enrich the incoming rows with turmas from the merged offer so
+            // they show up in the calendar immediately. Rows that already have
+            // turmas (from calcAvailableToAdd with an offerJson) are untouched.
+            const offerTermForTab = (() => {
+              const scRows = (planning?.rows ?? []).filter(
+                (r) => String(r?.semestre_curso ?? "").trim() === targetTerm,
+              );
+              return scRows[0]?.semestre_oferta ?? "1";
+            })();
+            const enriched = enrichRowsWithOffer(
+              rowsParaAdicionar,
+              mergedOffer1,
+              mergedOffer2,
+              "dia",
+            ).map((r) => ({ ...r, semestre_oferta: offerTermForTab }));
+
             upsertRows((currentRows) => {
               const outras = currentRows.filter(
                 (r) => String(r?.semestre_curso ?? "").trim() !== targetTerm,
@@ -1369,9 +1475,7 @@ export default function ScheduleBuilderPage() {
               );
               const atuaisPorCodigo = new Map(atuais.map((r) => [r.codigo, r]));
               const mescladas = atuais.map((row) => {
-                const nova = rowsParaAdicionar.find(
-                  (r) => r.codigo === row.codigo,
-                );
+                const nova = enriched.find((r) => r.codigo === row.codigo);
                 if (!nova) return row;
                 const turmasExistentes = new Set(
                   (row.turmas ?? []).map((t) => String(t?.codigo ?? "").trim()),
@@ -1385,7 +1489,7 @@ export default function ScheduleBuilderPage() {
                   turmas: [...(row.turmas ?? []), ...turmasNovas],
                 };
               });
-              const novas = rowsParaAdicionar.filter(
+              const novas = enriched.filter(
                 (r) => !atuaisPorCodigo.has(r.codigo),
               );
               return groupUnique([...outras, ...mescladas, ...novas]);
@@ -1436,6 +1540,7 @@ export default function ScheduleBuilderPage() {
           semestre={addingCustomSection.semestre}
           courseSuggestions={courseSuggestions}
           initialSchedules={addingCustomSection.initialSchedules}
+          accessibleCodes={addingCustomSection.accessibleCodes ?? null}
           onConfirm={({ semestre, courseCode, section }) => {
             setAddingCustomSection(null);
 
@@ -1493,7 +1598,32 @@ export default function ScheduleBuilderPage() {
                       String(t?.turma ?? t?.codigo ?? "").trim(),
                     ),
                   );
-                  if (existingCodes.has(section.turma)) return row;
+                  if (existingCodes.has(section.turma)) {
+                    // Section already exists — append new horarios (dedup by dia+inicio+fim)
+                    return {
+                      ...row,
+                      turmas: (row.turmas ?? []).map((t) => {
+                        if (
+                          String(t?.turma ?? t?.codigo ?? "").trim() !==
+                          section.turma
+                        )
+                          return t;
+                        const existingKeys = new Set(
+                          (t.horarios ?? []).map(
+                            (h) => `${h.dia}|${h.inicio}|${h.fim}`,
+                          ),
+                        );
+                        const newHorarios = (section.horarios ?? []).filter(
+                          (h) =>
+                            !existingKeys.has(`${h.dia}|${h.inicio}|${h.fim}`),
+                        );
+                        return {
+                          ...t,
+                          horarios: [...(t.horarios ?? []), ...newHorarios],
+                        };
+                      }),
+                    };
+                  }
 
                   return {
                     ...row,

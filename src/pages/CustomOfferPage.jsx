@@ -88,18 +88,27 @@ export function upsertCustomSection(
     const alreadyHas = existing.turmas.some(
       (t) => (t.turma ?? t.codigo) === section.turma,
     );
-    if (alreadyHas) return current; // no-op
-    newDisciplinas = current.disciplinas.map((d) =>
-      d.codigo === courseCode
-        ? {
-            ...d,
-            // Update nome if we now have a better value than just the code
-            nome:
-              d.nome && d.nome !== courseCode ? d.nome : courseName || d.nome,
-            turmas: [...d.turmas, section],
-          }
-        : d,
-    );
+    newDisciplinas = current.disciplinas.map((d) => {
+      if (d.codigo !== courseCode) return d;
+      const updatedTurmas = alreadyHas
+        ? // Section exists — append new horarios (dedup by dia+inicio+fim)
+          d.turmas.map((t) => {
+            if ((t.turma ?? t.codigo) !== section.turma) return t;
+            const existingKeys = new Set(
+              (t.horarios ?? []).map((h) => `${h.dia}|${h.inicio}|${h.fim}`),
+            );
+            const newHorarios = (section.horarios ?? []).filter(
+              (h) => !existingKeys.has(`${h.dia}|${h.inicio}|${h.fim}`),
+            );
+            return { ...t, horarios: [...(t.horarios ?? []), ...newHorarios] };
+          })
+        : [...d.turmas, section];
+      return {
+        ...d,
+        nome: d.nome && d.nome !== courseCode ? d.nome : courseName || d.nome,
+        turmas: updatedTurmas,
+      };
+    });
   } else {
     newDisciplinas = [
       ...current.disciplinas,
@@ -407,6 +416,7 @@ function CourseCombobox({ value, onChange, suggestions, placeholder }) {
 export function AddSectionModal({
   semestre,
   courseSuggestions,
+  accessibleCodes,
   initialSchedules,
   onConfirm,
   onCancel,
@@ -414,6 +424,7 @@ export function AddSectionModal({
   useEscKey(onCancel);
   const [courseCode, setCourseCode] = useState("");
   const [sectionCode, setSectionCode] = useState("");
+  const [onlyAccessible, setOnlyAccessible] = useState(accessibleCodes != null);
   const [schedules, setSchedules] = useState(
     initialSchedules && initialSchedules.length > 0
       ? initialSchedules
@@ -478,16 +489,33 @@ export function AddSectionModal({
 
         {/* Course code */}
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-gray-500">
-            Código da disciplina
-          </label>
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-medium text-gray-500">
+              Código da disciplina
+            </label>
+            {accessibleCodes != null && (
+              <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={onlyAccessible}
+                  onChange={(e) => setOnlyAccessible(e.target.checked)}
+                  className="accent-blue-600 w-3.5 h-3.5"
+                />
+                <span className="text-xs text-gray-500">Só acessíveis</span>
+              </label>
+            )}
+          </div>
           <CourseCombobox
             value={courseCode}
             onChange={(v) => {
               setCourseCode(v);
               setError("");
             }}
-            suggestions={courseSuggestions}
+            suggestions={
+              onlyAccessible && accessibleCodes != null
+                ? courseSuggestions.filter((s) => accessibleCodes.has(s.codigo))
+                : courseSuggestions
+            }
             placeholder="ex: ELE15940 ou nome da disciplina"
           />
         </div>
