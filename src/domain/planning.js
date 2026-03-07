@@ -622,6 +622,32 @@ export function calcAvailableToAdd({
     });
   }
 
+  // Also include disciplines from the offer that are NOT in the PPC nodes
+  // (e.g. custom offer sections added by the user for disciplines outside the PPC).
+  // These have no prereq/coreq constraints — they are always available.
+  const offerTermStr = String(
+    ((entryTerm - 1 + (courseTerm - scInicio)) % 2) + 1,
+  );
+  for (const [offerCodigo, oferta] of offerByCode) {
+    if (!isDisciplinaCodigo(offerCodigo)) continue;
+    if (nodes.has(offerCodigo)) continue; // already handled above
+    if (currentPeriodCodes.has(offerCodigo)) continue;
+    if (alreadyPlanned.has(offerCodigo)) continue;
+
+    disponiveis.push({
+      semestre_curso: String(courseTerm),
+      ano: String(anoInicio + Math.floor((courseTerm - scInicio) / 2)),
+      semestre_oferta: offerTermStr,
+      codigo: oferta.codigo,
+      nome: oferta.nome || offerCodigo,
+      periodo: oferta.periodo || "",
+      carga_horaria: oferta.carga_horaria || "",
+      pre_requisitos: [],
+      co_requisitos: [],
+      turmas: Array.isArray(oferta.turmas) ? oferta.turmas : [],
+    });
+  }
+
   // Sort by suggested semester in the PPC
   disponiveis.sort((a, b) => {
     const sa = suggestedSemester.get(a.codigo) ?? 9999;
