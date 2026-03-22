@@ -8,24 +8,24 @@
  * - Cards in the same slot sit side by side (conflict columns)
  *
  * Props:
- *   rows               — PlanningRow[] for the period
- *   onConflictClick    — optional: (dia, horaInicio) => void
- *   onMultiSectionClick — optional: (courseCode) => void
+ *   semester            — CurriculumSemester for the period
+ *   onConflictClick     — optional: (dia, blockStart, blockEnd, courseCode, sectionCode) => void
+ *   onMultiSectionClick — optional: (courseCode, sectionCode) => void
  *   onRemoverClick      — optional: (courseCode, sectionCode) => void
  *   focusedSections     — optional: Set<"courseCode::sectionCode"> — highlighted course sections
- *   (turno removed — calendar always shows all shifts)
+ *   onEmptyClick        — optional: (dia, startMin, endMin) => void
  */
 
 import {
   HOUR_START,
   HOUR_END,
-  rowsToCourseSections,
+  semesterToCourseSections,
   courseSectionSlots,
   courseSectionHasConflictOnDay,
 } from "../domain/calendar.js";
 
 // ---------------------------------------------------------------------------
-// Color palette — identical to the original imprimir-periodo.mjs script
+// Color palette
 // ---------------------------------------------------------------------------
 
 const FIXED_COLORS = [
@@ -43,23 +43,13 @@ const FIXED_COLORS = [
   { bg: "#ecebfb", border: "#7f7fce" },
 ];
 
-function hashStringToInt(str) {
-  let h = 0x811c9dc5;
-  for (let i = 0; i < str.length; i++) {
-    h ^= str.charCodeAt(i);
-    h = Math.imul(h, 0x01000193);
-  }
-  return h >>> 0;
-}
-
-function buildColorMap(rows) {
-  // Assigns colors by order of course appearance — no collisions guaranteed up to 12 courses.
-  const map = new Map(); // courseCode -> FIXED_COLORS entry
+function buildColorMap(semester) {
+  const map = new Map();
   let idx = 0;
-  for (const row of Array.isArray(rows) ? rows : []) {
-    const codigo = String(row?.codigo ?? "").trim();
-    if (!codigo || map.has(codigo)) continue;
-    map.set(codigo, FIXED_COLORS[idx % FIXED_COLORS.length]);
+  for (const cls of semester?.classes ?? []) {
+    const subjectCode = String(cls?.subjectCode ?? "").trim();
+    if (!subjectCode || map.has(subjectCode)) continue;
+    map.set(subjectCode, FIXED_COLORS[idx % FIXED_COLORS.length]);
     idx++;
   }
   return map;
@@ -81,9 +71,6 @@ const DAY_LABELS = {
 
 const ROW_HEIGHT = 54; // px per hour
 
-/**
- * Returns all hours from HOUR_START to HOUR_END, always visible.
- */
 function calcVisibleHours() {
   return Array.from(
     { length: HOUR_END - HOUR_START },
@@ -97,39 +84,27 @@ function minToY(min, hourStart) {
 
 // ---------------------------------------------------------------------------
 // buildDayEvents
-//
-// For each day, returns a list of events with calculated position and column.
-// Overlapping events are placed side by side in columns.
 // ---------------------------------------------------------------------------
 
 function buildDayEvents(allCourseSections, dia) {
-  // Collect blocks: a section may have multiple schedules on the same day —
-  // group them into a single contiguous block (startMin → endMin).
   const blocks = [];
 
   for (const section of allCourseSections) {
-    let startMin = null;
-    let endMin = null;
-
-    // Collect slots for the day and group into contiguous blocks
-    // (adjacent or overlapping slots merge into one block)
     const daySlots = courseSectionSlots(section)
       .filter((s) => s.dia === dia)
       .sort((a, b) => a.startMin - b.startMin);
 
     if (daySlots.length === 0) continue;
 
-    // Group contiguous slots (end of one == start of next)
+    // Merge contiguous/overlapping slots into groups
     const groups = [];
     let groupStart = daySlots[0].startMin;
     let groupEnd = daySlots[0].endMin;
     for (let i = 1; i < daySlots.length; i++) {
       const s = daySlots[i];
       if (s.startMin <= groupEnd) {
-        // contiguous or overlapping — extend the group
         groupEnd = Math.max(groupEnd, s.endMin);
       } else {
-        // gap — close the current group and open a new one
         groups.push({ startMin: groupStart, endMin: groupEnd });
         groupStart = s.startMin;
         groupEnd = s.endMin;
@@ -138,18 +113,15 @@ function buildDayEvents(allCourseSections, dia) {
     groups.push({ startMin: groupStart, endMin: groupEnd });
 
     for (const g of groups) {
-      startMin = Math.max(g.startMin, HOUR_START * 60);
-      endMin = Math.min(g.endMin, HOUR_END * 60);
+      const startMin = Math.max(g.startMin, HOUR_START * 60);
+      const endMin = Math.min(g.endMin, HOUR_END * 60);
       if (endMin <= startMin) continue;
-      blocks.push({ turma: section, startMin, endMin });
+      blocks.push({ section, startMin, endMin });
     }
   }
 
-  // Sort by start time
   blocks.sort((a, b) => a.startMin - b.startMin || a.endMin - b.endMin);
 
-  // Assign blocks to columns (greedy) — overlapping blocks go into different columns
-  // columns[i] = endMin of the last block in column i
   const columns = [];
   const laid = blocks.map((bloco) => {
     let col = columns.findIndex((endMin) => endMin <= bloco.startMin);
@@ -162,7 +134,6 @@ function buildDayEvents(allCourseSections, dia) {
     return { ...bloco, col };
   });
 
-  // For each block, compute how many columns exist within its time interval
   const laidWithCols = laid.map((bloco) => {
     const concurrent = laid.filter(
       (other) => other.startMin < bloco.endMin && other.endMin > bloco.startMin,
@@ -179,7 +150,7 @@ function buildDayEvents(allCourseSections, dia) {
 // ---------------------------------------------------------------------------
 
 function CourseSectionCard({
-  turma,
+  section,
   top,
   height,
   col,
@@ -191,8 +162,12 @@ function CourseSectionCard({
   onConflictClick,
   onMultiTurmaClick,
   onRemoverClick,
+  // Rendering context injected by WeekCalendar
+  _dia,
+  _startMin,
+  _endMin,
+  _allCourseSections,
 }) {
-  // Schedule conflict (red) takes precedence over multiple sections (yellow)
   const bgColor = hasConflict
     ? "#fee2e2"
     : hasMultiTurma
@@ -213,12 +188,11 @@ function CourseSectionCard({
   const widthPct = 100 / totalCols;
   const leftPct = col * widthPct;
 
-  const slots = courseSectionSlots(turma);
+  const slots = courseSectionSlots(section);
   const fmt = (mins) =>
     `${String(Math.floor(mins / 60)).padStart(2, "0")}:${String(mins % 60).padStart(2, "0")}`;
 
-  // Get the slot for this day to build the time label
-  const daySlots = slots.filter((s) => s.dia === turma._dia);
+  const daySlots = slots.filter((s) => s.dia === _dia);
   let timeLabel = "";
   if (daySlots.length > 0) {
     const rawStart = Math.min(...daySlots.map((s) => s.rawStart));
@@ -237,31 +211,21 @@ function CourseSectionCard({
       : onRemoverClick
         ? "Clique para remover — "
         : "";
-  const tooltip = `${tooltipPrefix}${turma.courseName}${turma.codigo ? ` (${turma.codigo})` : ""} — ${timeLabel}`;
+  const tooltip = `${tooltipPrefix}${section.courseName}${section.sectionCode ? ` (${section.sectionCode})` : ""} — ${timeLabel}`;
 
   function handleClick() {
-    // Schedule conflict takes precedence
     if (hasConflict && onConflictClick) {
-      // Pass the card's exact block bounds so handleConflictClick can collect
-      // only the sections that overlap THIS card's rendered interval, not the
-      // full section interval across the whole day.
-      const blockStart = turma._startMin ?? 0;
-      const blockEnd = turma._endMin ?? blockStart + 60;
-      onConflictClick(
-        turma._dia,
-        blockStart,
-        blockEnd,
-        turma.courseCode,
-        turma.codigo,
-      );
+      const blockStart = _startMin ?? 0;
+      const blockEnd = _endMin ?? blockStart + 60;
+      onConflictClick(_dia, blockStart, blockEnd, section.courseCode, section.sectionCode);
       return;
     }
     if (hasMultiTurma && onMultiTurmaClick) {
-      onMultiTurmaClick(turma.courseCode, turma.codigo);
+      onMultiTurmaClick(section.courseCode, section.sectionCode);
       return;
     }
     if (onRemoverClick) {
-      onRemoverClick(turma.courseCode, turma.codigo);
+      onRemoverClick(section.courseCode, section.sectionCode);
     }
   }
 
@@ -292,22 +256,22 @@ function CourseSectionCard({
         style={{ color: textColor }}
         className="text-xs font-bold leading-snug truncate"
       >
-        {turma.courseCode}
+        {section.courseCode}
       </p>
       <p
         style={{ color: textColor }}
         className="text-xs leading-snug truncate opacity-80 mt-0.5"
       >
-        {turma.courseName !== turma.courseCode
-          ? turma.courseName
-          : turma.codigo}
+        {section.courseName !== section.courseCode
+          ? section.courseName
+          : section.sectionCode}
       </p>
-      {turma.codigo && turma.courseName !== turma.courseCode && (
+      {section.sectionCode && section.courseName !== section.courseCode && (
         <p
           style={{ color: textColor }}
           className="text-xs leading-snug truncate opacity-60 mt-0.5"
         >
-          {turma.codigo}
+          {section.sectionCode}
         </p>
       )}
       <p
@@ -325,27 +289,35 @@ function CourseSectionCard({
 // ---------------------------------------------------------------------------
 
 export default function WeekCalendar({
-  rows,
+  semester,
   onConflictClick,
   onMultiSectionClick,
   onRemoverClick,
   focusedSections,
   onEmptyClick,
 }) {
-  const colorMap = buildColorMap(rows);
-  const allCourseSections = rowsToCourseSections(rows);
+  const colorMap = buildColorMap(semester);
+  const allCourseSections = semesterToCourseSections(semester);
   const hasEvents = allCourseSections.some(
-    (t) => courseSectionSlots(t).length > 0,
+    (s) => courseSectionSlots(s).length > 0,
   );
 
-  // Pre-compute events per day
   const eventsByDay = Object.fromEntries(
     DAYS.map((dia) => [dia, buildDayEvents(allCourseSections, dia)]),
   );
 
-  // Courses with multiple sections
+  // A subject has multiple candidate sections when two or more Classes share
+  // the same subjectCode in the semester. Build a set of such subjectCodes.
+  const subjectCodeCounts = new Map();
+  for (const cls of semester?.classes ?? []) {
+    const sc = String(cls?.subjectCode ?? "").trim();
+    if (!sc) continue;
+    subjectCodeCounts.set(sc, (subjectCodeCounts.get(sc) ?? 0) + 1);
+  }
   const multiSectionSet = new Set(
-    rows.filter((r) => (r.turmas?.length ?? 0) > 1).map((r) => r.codigo),
+    [...subjectCodeCounts.entries()]
+      .filter(([, count]) => count > 1)
+      .map(([sc]) => sc),
   );
 
   const visibleHours = calcVisibleHours();
@@ -368,7 +340,6 @@ export default function WeekCalendar({
               ))}
             </colgroup>
 
-            {/* Fixed header */}
             <thead className="sticky top-0 z-20">
               <tr>
                 <th className="bg-gray-50 border-b border-r border-gray-200" />
@@ -388,7 +359,6 @@ export default function WeekCalendar({
             </thead>
 
             <tbody>
-              {/* Uma linha por hora — apenas para o grid de fundo */}
               {visibleHours.map((h, hi) => {
                 const is13h = h === 13 || h === 19;
                 const borderTop = is13h
@@ -398,19 +368,19 @@ export default function WeekCalendar({
                     : "1px solid #e5e7eb";
                 return (
                   <tr key={h} style={{ height: ROW_HEIGHT }}>
-                    {/* Calha de hora */}
+                    {/* Hour gutter */}
                     <td
                       className="bg-gray-50 border-r border-gray-200 pr-2 pt-1 align-top text-right"
                       style={{ borderTop }}
                     >
                       <span
-                        className={`text-xs font-mono ${is13h || h === 19 ? "text-blue-500 font-bold" : "text-gray-500"}`}
+                        className={`text-xs font-mono ${is13h ? "text-blue-500 font-bold" : "text-gray-500"}`}
                       >
                         {String(h).padStart(2, "0")}:00
                       </span>
                     </td>
 
-                    {/* Day cells — only on the first row, with full rowspan */}
+                    {/* Day cells — full rowspan on first row only */}
                     {hi === 0
                       ? DAYS.map((dia) => (
                           <td
@@ -428,8 +398,6 @@ export default function WeekCalendar({
                             onClick={
                               onEmptyClick
                                 ? (e) => {
-                                    // Only fire when clicking the cell background,
-                                    // not a card (cards call stopPropagation).
                                     const rect =
                                       e.currentTarget.getBoundingClientRect();
                                     const relY = e.clientY - rect.top;
@@ -439,7 +407,6 @@ export default function WeekCalendar({
                                         (relY / totalHeight) *
                                           (visibleHours.length * 60),
                                       );
-                                    // Snap to the nearest 30-min boundary
                                     const startMin =
                                       Math.floor(rawMin / 30) * 30;
                                     const endMin = startMin + 120;
@@ -448,7 +415,7 @@ export default function WeekCalendar({
                                 : undefined
                             }
                           >
-                            {/* Linhas de hora sobrepostas */}
+                            {/* Hour grid lines */}
                             {visibleHours.map((hh, hhi) => (
                               <div
                                 key={hh}
@@ -467,40 +434,33 @@ export default function WeekCalendar({
                               />
                             ))}
 
-                            {/* Cards posicionados absolutamente */}
+                            {/* Absolutely-positioned cards */}
                             {eventsByDay[dia].map((ev, i) => {
                               const top = minToY(ev.startMin, hourStart);
-                              const height = minToY(ev.endMin, hourStart) - top;
-                              // Inject _dia and _startMin into the section for use in CourseSectionCard
-                              const sectionWithDay = {
-                                ...ev.turma,
-                                _dia: dia,
-                                _startMin: ev.startMin,
-                                _endMin: ev.endMin,
-                                _allCourseSections: allCourseSections,
-                              };
+                              const height =
+                                minToY(ev.endMin, hourStart) - top;
                               return (
                                 <CourseSectionCard
-                                  key={`${ev.turma.courseCode}-${ev.turma.codigo}-${i}`}
-                                  turma={sectionWithDay}
+                                  key={`${ev.section.courseCode}-${ev.section.sectionCode}-${i}`}
+                                  section={ev.section}
                                   top={top}
                                   height={height}
                                   col={ev.col}
                                   totalCols={ev.totalCols}
                                   hasMultiTurma={multiSectionSet.has(
-                                    ev.turma.courseCode,
+                                    ev.section.courseCode,
                                   )}
                                   color={
-                                    colorMap.get(ev.turma.courseCode) ??
+                                    colorMap.get(ev.section.courseCode) ??
                                     FIXED_COLORS[0]
                                   }
                                   isFocused={
                                     focusedSections?.has(
-                                      `${ev.turma.courseCode}::${ev.turma.codigo}`,
+                                      `${ev.section.courseCode}::${ev.section.sectionCode}`,
                                     ) ?? false
                                   }
                                   hasConflict={courseSectionHasConflictOnDay(
-                                    ev.turma,
+                                    ev.section,
                                     allCourseSections,
                                     dia,
                                     ev.startMin,
@@ -509,6 +469,10 @@ export default function WeekCalendar({
                                   onConflictClick={onConflictClick}
                                   onMultiTurmaClick={onMultiSectionClick}
                                   onRemoverClick={onRemoverClick}
+                                  _dia={dia}
+                                  _startMin={ev.startMin}
+                                  _endMin={ev.endMin}
+                                  _allCourseSections={allCourseSections}
                                 />
                               );
                             })}

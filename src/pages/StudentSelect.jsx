@@ -3,13 +3,13 @@ import { usePlanningContext } from "../App.jsx";
 
 export default function StudentSelect() {
   const {
-    alunos,
-    selectAluno,
-    createAluno,
-    deleteAluno,
-    cloneAluno,
-    exportAluno,
-    importAluno,
+    profiles,
+    selectProfile,
+    createNewProfile,
+    deleteProfile,
+    cloneNamedProfile,
+    exportProfile,
+    importProfileFromFile,
   } = usePlanningContext();
 
   const [newName, setNewName] = useState("");
@@ -24,7 +24,7 @@ export default function StudentSelect() {
   function handleCreate(e) {
     e.preventDefault();
     setError("");
-    const result = createAluno(newName);
+    const result = createNewProfile(newName);
     if (!result.ok) {
       setError(result.error);
     } else {
@@ -37,12 +37,12 @@ export default function StudentSelect() {
       setConfirmDelete(nome);
       return;
     }
-    deleteAluno(nome);
+    deleteProfile(nome);
     setConfirmDelete(null);
   }
 
   function handleExport(nome) {
-    const json = exportAluno(nome);
+    const json = exportProfile(nome);
     if (!json) return;
     const blob = new Blob([json], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -56,7 +56,7 @@ export default function StudentSelect() {
   function handleCloneSubmit(e) {
     e.preventDefault();
     setCloneError("");
-    const result = cloneAluno(cloningNome, cloneName);
+    const result = cloneNamedProfile(cloningNome, cloneName);
     if (!result.ok) {
       setCloneError(result.error);
     } else {
@@ -72,7 +72,7 @@ export default function StudentSelect() {
     const name = file.name.replace(/\.json$/i, "").replace(/^schedule_/, "");
     const reader = new FileReader();
     reader.onload = (ev) => {
-      const result = importAluno(name, ev.target.result);
+      const result = importProfileFromFile(name, ev.target.result);
       if (!result.ok) setImportError(result.error);
     };
     reader.readAsText(file);
@@ -115,13 +115,13 @@ export default function StudentSelect() {
           </div>
 
           {/* Lista de alunos existentes */}
-          {alunos.length > 0 && (
+          {profiles.length > 0 && (
             <div className="mb-6">
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-1">
                 Alunos cadastrados
               </p>
               <ul className="flex flex-col gap-2">
-                {alunos.map((nome) => (
+                {profiles.map((nome) => (
                   <li key={nome} className="flex flex-col gap-1">
                     <div className="flex items-center gap-2">
                       {/* Botão principal — selecionar */}
@@ -129,7 +129,7 @@ export default function StudentSelect() {
                         onClick={() => {
                           setConfirmDelete(null);
                           setCloningNome(null);
-                          selectAluno(nome);
+                          selectProfile(nome);
                         }}
                         className="flex-1 flex items-center gap-3 bg-white border border-gray-200 hover:border-blue-400 hover:bg-blue-50 transition-colors rounded-xl px-4 py-3 text-left cursor-pointer group"
                       >
@@ -251,7 +251,7 @@ export default function StudentSelect() {
                   setError("");
                 }}
                 placeholder="Digite seu nome"
-                autoFocus={alunos.length === 0}
+                autoFocus={profiles.length === 0}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
               {error && <p className="text-xs text-red-600">{error}</p>}

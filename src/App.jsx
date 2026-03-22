@@ -26,12 +26,12 @@ const TABS = [
 export default function App() {
   const [activeTab, setActiveTab] = useState("schedule-builder");
   const planningApi = usePlanning();
-  const { alunoAtivo, logout } = planningApi;
+  const { activeProfile, logout } = planningApi;
 
   const ActivePage = TABS.find((t) => t.id === activeTab)?.component ?? null;
 
   // No active student → show selection screen
-  if (!alunoAtivo) {
+  if (!activeProfile) {
     return (
       <PlanningContext.Provider value={planningApi}>
         <StudentSelect />
@@ -53,9 +53,9 @@ export default function App() {
             title="Trocar aluno"
           >
             <span className="w-7 h-7 rounded-full bg-blue-100 text-blue-700 text-xs font-bold flex items-center justify-center group-hover:bg-blue-200 transition-colors">
-              {alunoAtivo.charAt(0).toUpperCase()}
+              {activeProfile.charAt(0).toUpperCase()}
             </span>
-            <span className="hidden sm:inline font-medium">{alunoAtivo}</span>
+            <span className="hidden sm:inline font-medium">{activeProfile}</span>
             <svg
               className="w-4 h-4 text-gray-400 group-hover:text-gray-600"
               fill="none"
