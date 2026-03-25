@@ -1,7 +1,7 @@
 import { useState, createContext, useContext } from "react";
 import ScheduleBuilderPage from "./pages/ScheduleBuilderPage";
 import PpcPage from "./pages/PpcPage";
-import OfertaPage from "./pages/OfertaPage";
+import OfferPage from "./pages/OfferPage";
 import CustomOfferPage from "./pages/CustomOfferPage";
 import StudentSelect from "./pages/StudentSelect";
 import { usePlanning } from "./hooks/usePlanning.js";
@@ -21,7 +21,7 @@ const TABS = [
     component: ScheduleBuilderPage,
   },
   { id: "ppc", label: "PPC", component: PpcPage },
-  { id: "oferta", label: "Oferta", component: OfertaPage },
+  { id: "oferta", label: "Oferta", component: OfferPage },
   { id: "custom-offer", label: "Oferta Custom", component: CustomOfferPage },
 ];
 

@@ -13,14 +13,14 @@
  *   <CODE NAME>                      e.g. "DEA04772 SISTEMA DE ABASTECIMENTO DE ÁGUAS"
  *   "CH Total Disciplina:"
  *   <credit_hours>                   e.g. "60"
- *   "Turma" "Curso" "Escopo" ...    column headers — skipped
+ *   "Turma" "Curso" "Escopo" ...    column headers — skipped (pt-BR PDF header)
  *
  *   Then one or more section blocks, each shaped as:
  *
  *   <instructor>                     UPPERCASE words (or "PROFESSOR NÃO DEFINIDO")
  *   <vagas_aumentadas>               integer, usually "0"
  *   <vagas_ofertadas>                integer
- *   <turma_id>                       e.g. "01", "06.1", "08-1", "12B"
+ *   <section_id>                     e.g. "01", "06.1", "08-1", "12B"
  *   <course_name>                    e.g. "07 - Engenharia Ambiental"
  *   <escopo>                         integer
  *   <status>                         single letter: M S A H L I
@@ -115,10 +115,10 @@ function parseArgs(argv) {
 }
 
 // ---------------------------------------------------------------------------
-// Period inference
+// Year/semester inference
 // ---------------------------------------------------------------------------
 
-function inferPeriod(lines) {
+function inferYearSemester(lines) {
   const sample = lines.slice(0, 40);
   for (const line of sample) {
     // "2026/1º Semestre"
@@ -199,7 +199,7 @@ function parseSubjectLine(s) {
  * Must NOT match a plain single-digit escopo or a CH value — we distinguish
  * by context in the state machine, but the pattern itself is permissive.
  */
-function isTurmaToken(s) {
+function isSectionToken(s) {
   return typeof s === "string" && /^\d[\w.\-]*$/.test(s.trim());
 }
 
@@ -312,7 +312,7 @@ function parseOffer(toks, dbg) {
   let currentCode = null;
   let currentName = null;
   let currentCH   = 0;
-  // sections for current subject, keyed by turma id
+  // sections for current subject, keyed by section id
   let currentClasses = new Map();
 
   // ---- helpers ----
@@ -344,11 +344,11 @@ function parseOffer(toks, dbg) {
     currentClasses = new Map();
   }
 
-  function ensureClass(turmaId) {
-    if (!currentClasses.has(turmaId)) {
-      currentClasses.set(turmaId, { id: turmaId, targetCourseCode: null, targetCourseName: null, instructor: null, schedules: [] });
+  function ensureClass(sectionId) {
+    if (!currentClasses.has(sectionId)) {
+      currentClasses.set(sectionId, { id: sectionId, targetCourseCode: null, targetCourseName: null, instructor: null, schedules: [] });
     }
-    return currentClasses.get(turmaId);
+    return currentClasses.get(sectionId);
   }
 
   // ---- scan ----
@@ -387,10 +387,10 @@ function parseOffer(toks, dbg) {
       // vagas_ofertadas — skip
       if (i < n && isIntegerLike(toks[i])) i++;
 
-      // turma_id
-      let turmaId = "1";
-      if (i < n && isTurmaToken(toks[i]) && !isCourseLine(toks[i])) {
-        turmaId = toks[i].replace(/^0+(?=\d)/, "") || toks[i]; // strip leading zeros from pure-numeric ids
+      // section_id
+      let sectionId = "1";
+      if (i < n && isSectionToken(toks[i]) && !isCourseLine(toks[i])) {
+        sectionId = toks[i].replace(/^0+(?=\d)/, "") || toks[i]; // strip leading zeros from pure-numeric ids
         i++;
       }
 
@@ -412,7 +412,7 @@ function parseOffer(toks, dbg) {
       // disponíveis — skip
       if (i < n && isIntegerLike(toks[i])) i++;
 
-      const sec = ensureClass(turmaId);
+      const sec = ensureClass(sectionId);
       if (targetCourseCode && !sec.targetCourseCode) sec.targetCourseCode = targetCourseCode;
       if (targetCourseName && !sec.targetCourseName) sec.targetCourseName = targetCourseName;
       if (instructor && !sec.instructor) sec.instructor = instructor;
@@ -428,7 +428,7 @@ function parseOffer(toks, dbg) {
         if (start && end) sec.schedules.push({ day, start, end });
       }
 
-      dbg(`  class ${turmaId} instructor=${instructor ?? "null"} schedules=${sec.schedules.length}`);
+      dbg(`  section ${sectionId} instructor=${instructor ?? "null"} schedules=${sec.schedules.length}`);
       continue;
     }
 
@@ -463,7 +463,7 @@ async function main() {
 
   // Resolve year + semester
   if (args.year === null || args.semester === null) {
-    const inferred = inferPeriod(rawLines);
+    const inferred = inferYearSemester(rawLines);
     if (!inferred && (args.year === null || args.semester === null)) {
       console.error(
         "Could not infer year/semester from PDF. " +

@@ -3,17 +3,17 @@ import { ppcJson } from "../data/index.js";
 import OfferCourseCard from "./OfferCourseCard.jsx";
 
 // Map: code -> suggestedSemester from the PPC data
-const PPC_PERIOD = new Map(
+const PPC_SUGGESTED_SEMESTER = new Map(
   Object.values(ppcJson.courses)
     .filter((c) => c.suggestedSemester != null)
     .map((c) => [c.code, c.suggestedSemester]),
 );
 
-export default function PeriodSection({ subjects }) {
+export default function SubjectsBySemester({ subjects }) {
   const grouped = useMemo(() => {
     const map = new Map();
     for (const s of subjects) {
-      const key = PPC_PERIOD.get(s.code) ?? 0;
+      const key = PPC_SUGGESTED_SEMESTER.get(s.code) ?? 0;
       if (!map.has(key)) map.set(key, []);
       map.get(key).push(s);
     }
@@ -26,17 +26,17 @@ export default function PeriodSection({ subjects }) {
 
   return (
     <div className="space-y-6">
-      {grouped.map(([period, periodSubjects]) => (
-        <div key={period}>
+      {grouped.map(([semester, semesterSubjects]) => (
+        <div key={semester}>
           <div className="flex items-center gap-3 mb-2">
             <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider">
-              {period === 0 ? "Fora do PPC" : `${period}º período`}
+              {semester === 0 ? "Fora do PPC" : `${semester}º período`}
             </h4>
             <div className="flex-1 h-px bg-gray-100" />
-            <span className="text-xs text-gray-400">{periodSubjects.length}</span>
+            <span className="text-xs text-gray-400">{semesterSubjects.length}</span>
           </div>
           <div className="space-y-1.5">
-            {periodSubjects
+            {semesterSubjects
               .sort((a, b) => a.code.localeCompare(b.code))
               .map((s) => (
                 <OfferCourseCard key={s.code} subject={s} />

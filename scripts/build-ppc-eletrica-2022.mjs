@@ -81,12 +81,12 @@ function isSubjectCode(s) {
  * Parse a code+period token like "ELE159231º", "ELE1597010º", "INF16014-".
  * Returns { code, semester } where semester is null for optativas ("-").
  */
-function parseCodePeriod(token) {
+function parseCodeSemesterToken(token) {
   // UFES subject codes are always exactly 3 uppercase letters + 5 digits (e.g. ELE15923, MAT09590).
-  // The period (semester ordinal) follows immediately: "ELE159231º", "ELE1597010º", "INF16014-".
-  // We must be precise about the code length to avoid consuming digits from the period number.
+  // The suggested semester ordinal follows immediately: "ELE159231º", "ELE1597010º", "INF16014-".
+  // We must be precise about the code length to avoid consuming digits from the semester number.
 
-  // Try "CODE(3 letters + 5 digits) + period(1-2 digits) + º"
+  // Try "CODE(3 letters + 5 digits) + semester(1-2 digits) + º"
   const m = token.match(/^([A-Z]{3}[0-9]{5})(\d{1,2})º$/);
   if (m) return { code: m[1], semester: parseInt(m[2], 10) };
 
@@ -308,7 +308,7 @@ function parseCurriculumSection(sectionText) {
         // Try to identify the start of an entry: a code+period token.
         // In the raw PDF the code and ordinal are concatenated without spaces,
         // e.g. "ELE159231º" or "INF16014-".
-        const parsed = parseCodePeriod(line);
+        const parsed = parseCodeSemesterToken(line);
         if (parsed) {
           flush();
           cur = {
@@ -432,7 +432,7 @@ function parseCurriculumSection(sectionText) {
         }
 
         // New entry started? (pdf sometimes runs entries together)
-        const parsed = parseCodePeriod(line);
+        const parsed = parseCodeSemesterToken(line);
         if (parsed) {
           // flush current without having seen a type line
           flush();

@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { offer1Json, offer2Json, equivalences } from "../data/index.js";
-import PeriodSection from "../components/PeriodSection.jsx";
+import SubjectsBySemester from "../components/SubjectsBySemester.jsx";
 
 // Set of all legacy (old) codes that have a PPC 2022 equivalent.
 // These are the offer codes that belong to the old curriculum.
@@ -13,7 +13,7 @@ const SEMESTERS = [
   { id: 2, label: "2º semestre", data: offer2Json },
 ];
 
-export default function OfertaPage() {
+export default function OfferPage() {
   const [activeSemester, setActiveSemester] = useState(1);
   const [search, setSearch] = useState("");
   const [showLegacy, setShowLegacy] = useState(false);
@@ -90,7 +90,7 @@ export default function OfertaPage() {
           Nenhuma disciplina encontrada.
         </div>
       ) : (
-        <PeriodSection subjects={filtered} />
+        <SubjectsBySemester subjects={filtered} />
       )}
     </div>
   );

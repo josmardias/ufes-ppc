@@ -239,7 +239,7 @@ function CourseSectionCard({
   col,
   totalCols,
   hasConflict,
-  hasMultiTurma,
+  hasMultiSection,
   color,
   isFocused,
   onConflictClick,
@@ -253,17 +253,17 @@ function CourseSectionCard({
 }) {
   const bgColor = hasConflict
     ? "#fee2e2"
-    : hasMultiTurma
+    : hasMultiSection
       ? "#fefce8"
       : color.bg;
   const borderColor = hasConflict
     ? "#ef4444"
-    : hasMultiTurma
+    : hasMultiSection
       ? "#eab308"
       : color.border;
   const textColor = hasConflict
     ? "#991b1b"
-    : hasMultiTurma
+    : hasMultiSection
       ? "#854d0e"
       : color.border;
   const focusRing = isFocused ? "ring-2 ring-offset-1 ring-blue-500 z-10" : "";
@@ -285,11 +285,11 @@ function CourseSectionCard({
 
   const isClickable =
     (hasConflict && onConflictClick) ||
-    (hasMultiTurma && onMultiSectionClick) ||
+    (hasMultiSection && onMultiSectionClick) ||
     !!onRemoveCourseClick;
   const tooltipPrefix = hasConflict
     ? "Clique para resolver conflito de horário — "
-    : hasMultiTurma
+    : hasMultiSection
     ? "Clique para escolher turma — "
     : onRemoveCourseClick
       ? "Clique para remover — "
@@ -303,7 +303,7 @@ function CourseSectionCard({
       onConflictClick(_dia, blockStart, blockEnd, section.courseCode, section.sectionCode);
       return;
     }
-    if (hasMultiTurma && onMultiSectionClick) {
+    if (hasMultiSection && onMultiSectionClick) {
       onMultiSectionClick(section.courseCode, section.sectionCode);
       return;
     }
@@ -530,7 +530,7 @@ export default function WeekCalendar({
                                   height={height}
                                   col={ev.col}
                                   totalCols={ev.totalCols}
-                                  hasMultiTurma={multiSectionSet.has(
+                                  hasMultiSection={multiSectionSet.has(
                                     ev.section.courseCode,
                                   )}
                                   color={
