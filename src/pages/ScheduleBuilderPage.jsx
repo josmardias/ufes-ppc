@@ -100,6 +100,7 @@ export default function ScheduleBuilderPage() {
   const [error, setError] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [conflict, setConflict] = useState(null);
+  const [choosingSection, setChoosingSection] = useState(null);
   const [pendingTerm, setPendingTerm] = useState(null);
   const [addingCourses, setAddingCourses] = useState(false);
   const [removingCourse, setRemovingCourse] = useState(null);
@@ -485,6 +486,27 @@ export default function ScheduleBuilderPage() {
           onCancel={() => setAddingCustomSection(null)}
         />
       )}
+      {choosingSection && (
+        <ModalResolveConflict
+          title="Escolher turma"
+          subtitle="Escolha qual turma deseja manter. As demais serão removidas."
+          candidates={choosingSection.candidates}
+          initialPending={choosingSection.initialPending}
+          onChoose={(courseCode, sectionCode) => {
+            updatePlanning((record) => {
+              const sem = (record.semesters ?? [])[activeTabIndex];
+              if (!sem) return record;
+              const resolved = resolveWinningSection(courseCode, sectionCode, sem);
+              return {
+                ...record,
+                semesters: replaceSemester(record.semesters, activeTabIndex, resolved),
+              };
+            });
+            setChoosingSection(null);
+          }}
+          onClose={() => setChoosingSection(null)}
+        />
+      )}
       {conflict && (
         <ModalResolveConflict
           day={conflict.day}
@@ -709,24 +731,20 @@ export default function ScheduleBuilderPage() {
               onChooseSection={
                 isEditable(activeTabIndex)
                   ? (courseCode, sectionCode) => {
-                      // Choosing a turma means resolving the winning section —
-                      // reuse handlePickWinner directly.
-                      updatePlanning((record) => {
-                        const sem = (record.semesters ?? [])[activeTabIndex];
-                        if (!sem) return record;
-                        const resolved = resolveWinningSection(
-                          courseCode,
-                          sectionCode,
-                          sem,
-                        );
-                        return {
-                          ...record,
-                          semesters: replaceSemester(
-                            record.semesters,
-                            activeTabIndex,
-                            resolved,
-                          ),
-                        };
+                      if (!activeSemester) return;
+                      // Collect all sections for this subject so the user can
+                      // pick one from a prompt instead of resolving immediately.
+                      const candidates = (activeSemester.classes ?? [])
+                        .filter((c) => c.subjectCode === courseCode)
+                        .map((c) => ({
+                          courseCode: c.subjectCode,
+                          sectionCode: String(c.name ?? "").trim(),
+                          courseName: c.subjectName ?? "",
+                          slots: Array.isArray(c.slots) ? c.slots : [],
+                        }));
+                      setChoosingSection({
+                        candidates,
+                        initialPending: { courseCode, sectionCode },
                       });
                     }
                   : undefined

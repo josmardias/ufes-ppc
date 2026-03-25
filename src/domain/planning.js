@@ -299,11 +299,15 @@ export function generateSemester({
     if (!coreqsOk) continue;
 
     const offerSubject = offerMap.get(code);
-    const subjectName = offerSubject?.name ?? course?.name ?? "";
+    if (!offerSubject) continue; // skip subjects not present in the offer
+
+    const subjectName = offerSubject.name ?? course?.name ?? "";
     const allOfferClasses = offerSubject?.classes ?? [];
     const filteredOfferClasses = allOfferClasses.filter((c) => offerClassMatchesShift(c, shift));
 
     if (filteredOfferClasses.length === 0) {
+      // Subject is in the offer but no class matches the requested shift —
+      // keep as a placeholder so the user can still see and select it.
       classes.push({ name: "", subjectCode: code, subjectName, slots: [] });
     } else {
       for (const offerClass of filteredOfferClasses) {
@@ -504,11 +508,15 @@ export function calcAvailableToAdd({
     if (!coreqsOk) continue;
 
     const offerSubject = offerMap.get(code);
-    const subjectName = offerSubject?.name ?? course?.name ?? "";
+    if (!offerSubject) continue; // skip subjects not present in the offer
+
+    const subjectName = offerSubject.name ?? course?.name ?? "";
     const allOfferClasses = offerSubject?.classes ?? [];
     const filteredOfferClasses = allOfferClasses.filter((c) => offerClassMatchesShift(c, shift));
 
     if (filteredOfferClasses.length === 0) {
+      // Subject is in the offer but no class matches the requested shift —
+      // keep as a placeholder so the user can still see and select it.
       result.push({ name: "", subjectCode: code, subjectName, slots: [] });
     } else {
       for (const offerClass of filteredOfferClasses) {

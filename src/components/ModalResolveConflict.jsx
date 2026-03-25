@@ -9,11 +9,16 @@ export default function ModalResolveConflict({
   onChoose,
   onRemoveSection,
   onClose,
+  title,
+  subtitle,
 }) {
   useEscKey(onClose);
   const [pending, setPending] = useState(initialPending ?? null);
   const [pendingRemove, setPendingRemove] = useState(null);
-  const horaLabel = `${String(Math.floor(blockStart / 60)).padStart(2, "0")}:00`;
+  const horaLabel =
+    blockStart != null
+      ? `${String(Math.floor(blockStart / 60)).padStart(2, "0")}:00`
+      : null;
 
   function handleClick(c) {
     setPendingRemove(null);
@@ -51,11 +56,13 @@ export default function ModalResolveConflict({
         onClick={(e) => e.stopPropagation()}
       >
         <h3 className="text-base font-bold text-gray-900 mb-1">
-          Resolver conflito
+          {title ?? "Resolver conflito"}
         </h3>
         <p className="text-sm text-gray-500 mb-4">
-          {day} {horaLabel} — escolha a turma vencedora. As demais serão
-          removidas deste slot.
+          {subtitle ??
+            (day && horaLabel
+              ? `${day} ${horaLabel} — escolha a turma vencedora. As demais serão removidas deste slot.`
+              : "Escolha a turma vencedora. As demais serão removidas.")}
         </p>
         <div className="flex flex-col gap-2">
           {candidates.map((c) => {
