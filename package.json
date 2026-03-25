@@ -3,6 +3,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "build-data": "node scripts/build-data.mjs",
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
