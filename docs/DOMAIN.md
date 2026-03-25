@@ -26,6 +26,7 @@ A prerequisite or co-requisite is considered satisfied if the student has passed
 
 Within a Course Curriculum, Subjects are classified as:
 - **Required (Obrigatória)** — mandatory for all students in the program.
+- **Optional (Optativa)** — part of the PPC and subject to the same prerequisite, co-requisite, and scope rules as Required Subjects, but the student is not obliged to take it. Optional Subjects count toward the student's curriculum when taken.
 - **Elective (Eletiva)** — taken by a student outside of their own PPC, with no curriculum obligation (consequence of enrolling in a Scope 3 Class).
 
 ### Suggested Semester (Período Sugerido)
