@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import ppcJson from "../data/ppc-2022.json";
+import { ppcJson } from "../data/index.js";
 import Badge from "../components/Badge.jsx";
 import CourseCard from "../components/CourseCard.jsx";
 

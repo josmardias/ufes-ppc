@@ -1,13 +1,12 @@
 import SectionCard from "./SectionCard.jsx";
 
 export default function SemesterPanel({ semester, offer, onAdd, onRemove }) {
-  const disciplinas = offer?.disciplinas ?? [];
-  // Flatten to a list of { courseCode, courseName, section } for display
-  const entries = disciplinas.flatMap((d) =>
-    (d.turmas ?? []).map((t) => ({
-      courseCode: d.codigo,
-      courseName: d.nome ?? "",
-      section: t,
+  const subjects = offer?.subjects ?? [];
+  const entries = subjects.flatMap((s) =>
+    (s.classes ?? []).map((cls) => ({
+      subjectCode: s.code,
+      subjectName: s.name ?? "",
+      cls,
     })),
   );
 
@@ -21,7 +20,7 @@ export default function SemesterPanel({ semester, offer, onAdd, onRemove }) {
           onClick={() => onAdd(semester)}
           className="px-3 py-1.5 text-xs font-medium rounded-lg border border-blue-300 text-blue-600 bg-white hover:border-blue-500 hover:bg-blue-50 transition-colors cursor-pointer"
         >
-          + Turma
+          + Class
         </button>
       </div>
 
@@ -31,13 +30,13 @@ export default function SemesterPanel({ semester, offer, onAdd, onRemove }) {
         </p>
       ) : (
         <div className="flex flex-col gap-2">
-          {entries.map(({ courseCode, courseName, section }, i) => (
+          {entries.map(({ subjectCode, subjectName, cls }, i) => (
             <SectionCard
-              key={`${courseCode}-${section.turma}-${i}`}
-              courseCode={courseCode}
-              courseName={courseName}
-              section={section}
-              onRemove={() => onRemove(semester, courseCode, section.turma)}
+              key={`${subjectCode}-${cls.id}-${i}`}
+              subjectCode={subjectCode}
+              subjectName={subjectName}
+              cls={cls}
+              onRemove={() => onRemove(semester, subjectCode, cls.id)}
             />
           ))}
         </div>

@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { useEscKey } from "../hooks/useEscKey.js";
-import equivalenciasJson from "../data/equivalencias.json";
+import { equivalences } from "../data/index.js";
 import { classMatchesShift, groupClassesBySubject } from "../domain/offer.js";
 
 const LEGACY_CODES = new Set(
-  Object.values(equivalenciasJson.equivalencias).flat(),
+  Object.values(equivalences).flat(),
 );
 
 export const SHIFT_OPTIONS = [
@@ -181,14 +181,14 @@ export default function ModalConfirmTerm({
                   <div className="min-w-0 flex-1">
                     <div className="flex items-baseline gap-2">
                       <p className="text-sm font-medium text-gray-800 leading-snug">
-                        {g.nome || g.subjectCode}
+                        {g.subjectName || g.subjectCode}
                       </p>
                       <span className="text-xs text-gray-400 font-mono flex-shrink-0">
                         {g.subjectCode}
                       </span>
                       {multiSection && (
                         <span className="text-xs font-semibold text-amber-600 flex-shrink-0">
-                          {g.classes.length} turmas
+                          {g.classes.length} classes
                         </span>
                       )}
                     </div>
@@ -206,9 +206,9 @@ export default function ModalConfirmTerm({
                                   {cls.name}
                                 </span>
                               )}
-                              {slots.map((h, j) => (
+                              {slots.map((s, j) => (
                                 <span key={j}>
-                                  {h.dia} {h.inicio}–{h.fim}
+                                  {s.day} {s.start}–{s.end}
                                 </span>
                               ))}
                             </div>

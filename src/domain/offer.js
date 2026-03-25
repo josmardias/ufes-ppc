@@ -7,37 +7,35 @@
  * Operates on the Offer shape used throughout the app:
  *
  *   Offer {
- *     semestre: 1|2,
- *     disciplinas: Disciplina[],
+ *     semester: 1|2,
+ *     subjects: Subject[],
  *   }
  *
- *   Disciplina {
- *     semestre: 1|2,
- *     periodo: string,
- *     codigo: string,
- *     nome: string,
- *     carga_horaria: number|null,
- *     turmas: Turma[],
+ *   Subject {
+ *     code: string,
+ *     name: string,
+ *     creditHours: number|null,
+ *     classes: OfferClass[],
  *   }
  *
- *   Turma {
- *     turma: string,         // section identifier, e.g. "06.1 N"
- *     horarios: Slot[],
- *     docente?: string,
+ *   OfferClass {
+ *     id: string,          // section identifier, e.g. "06.1 N"
+ *     instructor: string|null,
+ *     slots: Slot[],
  *   }
  *
- *   Slot { dia: string, inicio: "HH:MM", fim: "HH:MM" }
+ *   Slot { day: string, start: "HH:MM", end: "HH:MM" }
  *
  *   Class {
- *     name: string,        // turma identifier
+ *     name: string,        // section identifier (from OfferClass.id)
  *     subjectCode: string,
+ *     subjectName: string,
  *     slots: Slot[],
- *     nome?: string,
  *   }
  *
  *   SubjectGroup {
  *     subjectCode: string,
- *     nome: string,
+ *     subjectName: string,
  *     classes: Class[],
  *   }
  */
@@ -56,11 +54,11 @@ const AFTERNOON_CUTOFF_MIN = 13 * 60;
 /**
  * Returns an empty Offer object for the given semester.
  *
- * @param {1|2} semestre
- * @returns {{ semestre: 1|2, disciplinas: [] }}
+ * @param {1|2} semester
+ * @returns {{ semester: 1|2, subjects: [] }}
  */
-export function emptyOffer(semestre) {
-  return { semestre, disciplinas: [] };
+export function emptyOffer(semester) {
+  return { semester, subjects: [] };
 }
 
 /**
@@ -68,11 +66,11 @@ export function emptyOffer(semestre) {
  * Returns an empty offer when the input is absent or malformed.
  *
  * @param {unknown} raw
- * @param {1|2} semestre
- * @returns {{ semestre: 1|2, disciplinas: object[] }}
+ * @param {1|2} semester
+ * @returns {{ semester: 1|2, subjects: object[] }}
  */
-export function normalizeOffer(raw, semestre) {
-  if (!raw || !Array.isArray(raw.disciplinas)) return emptyOffer(semestre);
+export function normalizeOffer(raw, semester) {
+  if (!raw || !Array.isArray(raw.subjects)) return emptyOffer(semester);
   return raw;
 }
 
@@ -82,75 +80,71 @@ export function normalizeOffer(raw, semestre) {
 
 /**
  * Inserts or updates a section inside a custom offer object, creating the
- * discipline entry if it does not exist yet. Returns the updated offer object
+ * subject entry if it does not exist yet. Returns the updated offer object
  * without mutating the original.
  *
- * If the section's turma code already exists for that discipline, new horarios
- * are appended (deduped by dia+inicio+fim). Otherwise the full section is
- * appended as a new turma.
+ * If the section id already exists for that subject, new slots are appended
+ * (deduped by day+start+end). Otherwise the full section is appended as a
+ * new class.
  *
  * @param {object|null} currentOffer  — existing custom offer for the semester (may be null)
- * @param {1|2}         semestre      — 1 or 2
- * @param {string}      courseCode    — subject code, e.g. "ELE15940"
- * @param {{ turma: string, horarios: object[], docente?: string }} section
- * @param {string}      [courseName]  — display name for the discipline
- * @returns {object} Updated offer with the same shape as a system offer JSON.
+ * @param {1|2}         semester      — 1 or 2
+ * @param {string}      subjectCode   — subject code, e.g. "ELE15940"
+ * @param {{ id: string, slots: object[], instructor?: string }} section
+ * @param {string}      [subjectName] — display name for the subject
+ * @returns {object} Updated offer with the same shape as a system offer object.
  */
 export function upsertCustomSection(
   currentOffer,
-  semestre,
-  courseCode,
+  semester,
+  subjectCode,
   section,
-  courseName = "",
+  subjectName = "",
 ) {
-  const current = normalizeOffer(currentOffer, semestre);
-  const existing = current.disciplinas.find((d) => d.codigo === courseCode);
+  const current = normalizeOffer(currentOffer, semester);
+  const existing = current.subjects.find((s) => s.code === subjectCode);
 
-  let newDisciplinas;
+  let newSubjects;
 
   if (existing) {
-    const alreadyHas = existing.turmas.some(
-      (t) => (t.turma ?? t.codigo) === section.turma,
-    );
+    const alreadyHas = existing.classes.some((c) => c.id === section.id);
 
-    newDisciplinas = current.disciplinas.map((d) => {
-      if (d.codigo !== courseCode) return d;
+    newSubjects = current.subjects.map((s) => {
+      if (s.code !== subjectCode) return s;
 
-      const updatedTurmas = alreadyHas
-        ? // Section exists — append new horarios (dedup by dia+inicio+fim)
-          d.turmas.map((t) => {
-            if ((t.turma ?? t.codigo) !== section.turma) return t;
+      const updatedClasses = alreadyHas
+        ? // Section exists — append new slots (dedup by day+start+end)
+          s.classes.map((c) => {
+            if (c.id !== section.id) return c;
             const existingKeys = new Set(
-              (t.horarios ?? []).map((h) => `${h.dia}|${h.inicio}|${h.fim}`),
+              (c.slots ?? []).map((sl) => `${sl.day}|${sl.start}|${sl.end}`),
             );
-            const newHorarios = (section.horarios ?? []).filter(
-              (h) => !existingKeys.has(`${h.dia}|${h.inicio}|${h.fim}`),
+            const newSlots = (section.slots ?? []).filter(
+              (sl) => !existingKeys.has(`${sl.day}|${sl.start}|${sl.end}`),
             );
-            return { ...t, horarios: [...(t.horarios ?? []), ...newHorarios] };
+            return { ...c, slots: [...(c.slots ?? []), ...newSlots] };
           })
-        : [...d.turmas, section];
+        : [...s.classes, section];
 
       return {
-        ...d,
-        nome: d.nome && d.nome !== courseCode ? d.nome : courseName || d.nome,
-        turmas: updatedTurmas,
+        ...s,
+        name: s.name && s.name !== subjectCode ? s.name : subjectName || s.name,
+        classes: updatedClasses,
       };
     });
   } else {
-    newDisciplinas = [
-      ...current.disciplinas,
+    newSubjects = [
+      ...current.subjects,
       {
-        semestre,
-        periodo: "",
-        codigo: courseCode,
-        nome: courseName || courseCode,
-        carga_horaria: null,
-        turmas: [section],
+        code: subjectCode,
+        name: subjectName || subjectCode,
+        creditHours: null,
+        classes: [section],
       },
     ];
   }
 
-  return { ...current, semestre, disciplinas: newDisciplinas };
+  return { ...current, semester, subjects: newSubjects };
 }
 
 // ---------------------------------------------------------------------------
@@ -162,15 +156,15 @@ export function upsertCustomSection(
  * per unique subjectCode. The order of groups follows the first occurrence of
  * each subjectCode in the input array.
  *
- * @param {Array<{ subjectCode: string, nome?: string, [key: string]: unknown }>} classes
- * @returns {Array<{ subjectCode: string, nome: string, classes: object[] }>}
+ * @param {Array<{ subjectCode: string, subjectName?: string, [key: string]: unknown }>} classes
+ * @returns {Array<{ subjectCode: string, subjectName: string, classes: object[] }>}
  */
 export function groupClassesBySubject(classes) {
   const map = new Map();
   for (const cls of Array.isArray(classes) ? classes : []) {
     const code = cls.subjectCode;
     if (!map.has(code)) {
-      map.set(code, { subjectCode: code, nome: cls.nome ?? "", classes: [] });
+      map.set(code, { subjectCode: code, subjectName: cls.subjectName ?? "", classes: [] });
     }
     map.get(code).classes.push(cls);
   }
@@ -187,18 +181,18 @@ export function groupClassesBySubject(classes) {
  *
  * Shift rules:
  *   "dia"   — always true
- *   "manha" — slot inicio before 13:00
- *   "tarde" — slot inicio at or after 13:00
+ *   "manha" — slot start before 13:00
+ *   "tarde" — slot start at or after 13:00
  *
- * @param {{ slots: Array<{ inicio: string }> }} cls
+ * @param {{ slots: Array<{ start: string }> }} cls
  * @param {"dia"|"manha"|"tarde"|string} shift
  * @returns {boolean}
  */
 export function classMatchesShift(cls, shift) {
   if (shift === "dia") return true;
-  return (cls.slots ?? []).some((h) => {
+  return (cls.slots ?? []).some((slot) => {
     const mins =
-      parseInt(String(h.inicio ?? "").split(":")[0] ?? "0", 10) * 60;
+      parseInt(String(slot.start ?? "").split(":")[0] ?? "0", 10) * 60;
     return shift === "manha" ? mins < AFTERNOON_CUTOFF_MIN : mins >= AFTERNOON_CUTOFF_MIN;
   });
 }

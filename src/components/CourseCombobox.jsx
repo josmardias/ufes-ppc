@@ -117,8 +117,8 @@ export default function CourseCombobox({ value, onChange, suggestions, placehold
     // Score each suggestion against both codigo and nome, take the best score
     const scored = suggestions
       .map((s) => {
-        const sc = matchScore(s.codigo, q);
-        const sn = matchScore(s.nome, q);
+        const sc = matchScore(s.code, q);
+        const sn = matchScore(s.name, q);
         const score = Math.max(sc ?? -1, sn ?? -1);
         return { s, score };
       })
@@ -129,8 +129,8 @@ export default function CourseCombobox({ value, onChange, suggestions, placehold
   }, [query, suggestions]);
 
   function select(s) {
-    setQuery(s.codigo);
-    onChange(s.codigo);
+    setQuery(s.code);
+    onChange(s.code);
     setOpen(false);
     setActiveIdx(-1);
     inputRef.current?.focus();
@@ -200,7 +200,7 @@ export default function CourseCombobox({ value, onChange, suggestions, placehold
         >
           {filtered.map((s, i) => (
             <li
-              key={s.codigo}
+              key={s.code}
               onMouseDown={() => select(s)}
               onMouseEnter={() => setActiveIdx(i)}
               className={[
@@ -210,11 +210,11 @@ export default function CourseCombobox({ value, onChange, suggestions, placehold
               ].join(" ")}
             >
               <span className="text-sm font-mono font-semibold text-gray-800">
-                {highlightMatch(s.codigo, query)}
+                {highlightMatch(s.code, query)}
               </span>
-              {s.nome && (
+              {s.name && (
                 <span className="text-xs text-gray-500 truncate">
-                  {highlightMatch(s.nome, query)}
+                  {highlightMatch(s.name, query)}
                 </span>
               )}
             </li>

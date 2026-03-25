@@ -2,8 +2,8 @@ import { useState } from "react";
 import { useEscKey } from "../hooks/useEscKey.js";
 
 export default function ModalResolveConflict({
-  dia,
-  horaInicio,
+  day,
+  blockStart,
   candidates,
   initialPending,
   onChoose,
@@ -13,7 +13,7 @@ export default function ModalResolveConflict({
   useEscKey(onClose);
   const [pending, setPending] = useState(initialPending ?? null);
   const [pendingRemove, setPendingRemove] = useState(null);
-  const horaLabel = `${String(Math.floor(horaInicio / 60)).padStart(2, "0")}:00`;
+  const horaLabel = `${String(Math.floor(blockStart / 60)).padStart(2, "0")}:00`;
 
   function handleClick(c) {
     setPendingRemove(null);
@@ -54,7 +54,7 @@ export default function ModalResolveConflict({
           Resolver conflito
         </h3>
         <p className="text-sm text-gray-500 mb-4">
-          {dia} {horaLabel} — escolha a turma vencedora. As demais serão
+          {day} {horaLabel} — escolha a turma vencedora. As demais serão
           removidas deste slot.
         </p>
         <div className="flex flex-col gap-2">
@@ -98,11 +98,11 @@ export default function ModalResolveConflict({
                       </span>
                     )}
                   </div>
-                  {c.horarios?.length > 0 && (
+                  {c.slots?.length > 0 && (
                     <div className="flex flex-wrap gap-x-3 gap-y-0.5">
-                      {c.horarios.map((h, i) => (
+                      {c.slots.map((s, i) => (
                         <span key={i} className="text-xs text-gray-400">
-                          {h.dia} {h.inicio}–{h.fim}
+                          {s.day} {s.start}–{s.end}
                         </span>
                       ))}
                     </div>

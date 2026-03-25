@@ -6,37 +6,37 @@
  *
  * Operates on:
  *   Class { name: string, subjectCode: string, slots: Slot[] }
- *   Slot  { dia: string, inicio: "HH:MM", fim: "HH:MM" }
+ *   Slot  { day: string, start: "HH:MM", end: "HH:MM" }
  */
 
-import { hhmmToMinutes, overlaps, normalizeDia } from "../lib/time.js";
+import { hhmmToMinutes, overlaps, normalizeDay } from "../lib/time.js";
 
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
 
 /**
- * Converts a raw slot {dia, inicio, fim} into a validated, normalised form.
+ * Converts a raw slot {day, start, end} into a validated, normalised form.
  * Returns null when any field is missing or the interval is invalid.
  *
- * @param {{dia:string, inicio:string, fim:string}} slot
- * @returns {{dia:string, startMin:number, endMin:number, inicio:string, fim:string}|null}
+ * @param {{day:string, start:string, end:string}} slot
+ * @returns {{day:string, startMin:number, endMin:number, start:string, end:string}|null}
  */
 function parseSlot(slot) {
   if (!slot || typeof slot !== "object") return null;
 
-  const dia = normalizeDia(slot.dia);
-  const inicio = String(slot.inicio ?? "").trim();
-  const fim = String(slot.fim ?? "").trim();
+  const day = normalizeDay(slot.day);
+  const start = String(slot.start ?? "").trim();
+  const end = String(slot.end ?? "").trim();
 
-  const startMin = hhmmToMinutes(inicio);
-  const endMin = hhmmToMinutes(fim);
+  const startMin = hhmmToMinutes(start);
+  const endMin = hhmmToMinutes(end);
 
-  if (!dia) return null;
+  if (!day) return null;
   if (startMin === null || endMin === null) return null;
   if (endMin <= startMin) return null;
 
-  return { dia, startMin, endMin, inicio, fim };
+  return { day, startMin, endMin, start, end };
 }
 
 /**
@@ -47,14 +47,14 @@ function parseSlot(slot) {
  * A slot appears in the result once per overlap it participates in, so callers
  * that only need to know *whether* overlap exists should stop at the first hit.
  *
- * @param {Array<{dia:string, inicio:string, fim:string}>} slotsA
- * @param {Array<{dia:string, inicio:string, fim:string}>} slotsB
- * @returns {Array<{dia:string, inicio:string, fim:string}>} Unique overlapping slots from both classes.
+ * @param {Array<{day:string, start:string, end:string}>} slotsA
+ * @param {Array<{day:string, start:string, end:string}>} slotsB
+ * @returns {Array<{day:string, start:string, end:string}>} Unique overlapping slots from both classes.
  */
 function findOverlappingSlots(slotsA, slotsB) {
   /** @type {Set<string>} Keys of slots already added to the result */
   const seen = new Set();
-  /** @type {Array<{dia:string, inicio:string, fim:string}>} */
+  /** @type {Array<{day:string, start:string, end:string}>} */
   const result = [];
 
   for (const rawA of slotsA) {
@@ -66,15 +66,15 @@ function findOverlappingSlots(slotsA, slotsB) {
       if (!b) continue;
 
       // Slots must be on the same weekday to conflict.
-      if (a.dia !== b.dia) continue;
+      if (a.day !== b.day) continue;
 
       if (overlaps(a.startMin, a.endMin, b.startMin, b.endMin)) {
         // Collect the overlapping slots from both sides (deduplicated by key).
         for (const s of [rawA, rawB]) {
-          const key = `${normalizeDia(s.dia)}|${s.inicio}|${s.fim}`;
+          const key = `${normalizeDay(s.day)}|${s.start}|${s.end}`;
           if (!seen.has(key)) {
             seen.add(key);
-            result.push({ dia: normalizeDia(s.dia), inicio: s.inicio, fim: s.fim });
+            result.push({ day: normalizeDay(s.day), start: s.start, end: s.end });
           }
         }
       }
@@ -88,8 +88,8 @@ function findOverlappingSlots(slotsA, slotsB) {
  * Returns true when two classes have at least one pair of sessions on the same
  * day whose time intervals overlap. Short-circuits on the first hit.
  *
- * @param {Array<{dia:string, inicio:string, fim:string}>} slotsA
- * @param {Array<{dia:string, inicio:string, fim:string}>} slotsB
+ * @param {Array<{day:string, start:string, end:string}>} slotsA
+ * @param {Array<{day:string, start:string, end:string}>} slotsB
  * @returns {boolean}
  */
 function anySlotOverlaps(slotsA, slotsB) {
@@ -101,7 +101,7 @@ function anySlotOverlaps(slotsA, slotsB) {
       const b = parseSlot(rawB);
       if (!b) continue;
 
-      if (a.dia !== b.dia) continue;
+      if (a.day !== b.day) continue;
 
       if (overlaps(a.startMin, a.endMin, b.startMin, b.endMin)) {
         return true;
@@ -125,13 +125,13 @@ function anySlotOverlaps(slotsA, slotsB) {
  *
  * Each pair is reported at most once (A vs B, never also B vs A).
  *
- * @param {Array<{subjectCode:string, slots:Array<{dia:string, inicio:string, fim:string}>}>} classes
- * @returns {Array<{a:string, b:string, slots:Array<{dia:string, inicio:string, fim:string}>}>}
+ * @param {Array<{subjectCode:string, slots:Array<{day:string, start:string, end:string}>}>} classes
+ * @returns {Array<{a:string, b:string, slots:Array<{day:string, start:string, end:string}>}>}
  */
 export function detectConflicts(classes) {
   if (!Array.isArray(classes) || classes.length < 2) return [];
 
-  /** @type {Array<{a:string, b:string, slots:Array<{dia:string, inicio:string, fim:string}>}>} */
+  /** @type {Array<{a:string, b:string, slots:Array<{day:string, start:string, end:string}>}>} */
   const conflicts = [];
 
   for (let i = 0; i < classes.length - 1; i++) {
@@ -162,7 +162,7 @@ export function detectConflicts(classes) {
  * conflict. Optimised to short-circuit on the first conflict found without
  * collecting the full set of overlapping slots.
  *
- * @param {Array<{subjectCode:string, slots:Array<{dia:string, inicio:string, fim:string}>}>} classes
+ * @param {Array<{subjectCode:string, slots:Array<{day:string, start:string, end:string}>}>} classes
  * @returns {boolean}
  */
 export function hasConflicts(classes) {

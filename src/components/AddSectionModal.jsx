@@ -9,7 +9,7 @@ import { useEscKey } from "../hooks/useEscKey.js";
 // ---------------------------------------------------------------------------
 
 function emptySchedule() {
-  return { dia: "Seg", inicio: "07:00", fim: "09:00" };
+  return { day: "Mon", start: "07:00", end: "09:00" };
 }
 
 // ---------------------------------------------------------------------------
@@ -55,9 +55,9 @@ export default function AddSectionModal({
 
     // Validate schedules
     for (const s of schedules) {
-      if (s.inicio >= s.fim) {
+      if (s.start >= s.end) {
         return setError(
-          `Horário inválido: ${DAY_LABELS[s.dia]} ${s.inicio} → ${s.fim} (fim deve ser após início).`,
+          `Horário inválido: ${DAY_LABELS[s.day]} ${s.start} → ${s.end} (fim deve ser após início).`,
         );
       }
     }
@@ -66,13 +66,9 @@ export default function AddSectionModal({
       semester,
       courseCode: code,
       section: {
-        turma: sec,
-        horarios: schedules.map((s) => ({
-          dia: s.dia,
-          inicio: s.inicio,
-          fim: s.fim,
-        })),
-        docente: "",
+        id: sec,
+        slots: schedules.map((s) => ({ day: s.day, start: s.start, end: s.end })),
+        instructor: null,
       },
     });
   }
@@ -116,7 +112,7 @@ export default function AddSectionModal({
             }}
             suggestions={
               onlyAccessible && accessibleCodes != null
-                ? courseSuggestions.filter((s) => accessibleCodes.has(s.codigo))
+                ? courseSuggestions.filter((s) => accessibleCodes.has(s.code))
                 : courseSuggestions
             }
             placeholder="ex: ELE15940 ou nome da disciplina"
@@ -127,7 +123,7 @@ export default function AddSectionModal({
         <div className="flex flex-col gap-1">
           <label className="text-xs font-medium text-gray-500">
             Código da turma
-          </label>
+            </label>
           <input
             value={sectionCode}
             onChange={(e) => {

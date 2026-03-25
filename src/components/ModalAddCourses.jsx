@@ -1,10 +1,10 @@
 import { useState } from "react";
-import equivalenciasJson from "../data/equivalencias.json";
+import { equivalences } from "../data/index.js";
 import { groupClassesBySubject } from "../domain/offer.js";
 import { useEscKey } from "../hooks/useEscKey.js";
 
 const LEGACY_CODES = new Set(
-  Object.values(equivalenciasJson.equivalencias).flat(),
+  Object.values(equivalences).flat(),
 );
 
 export default function ModalAddCourses({
@@ -37,7 +37,7 @@ export default function ModalAddCourses({
         const q = normalize(search.trim());
         return (
           normalize(g.subjectCode).includes(q) ||
-          normalize(g.nome).includes(q)
+          normalize(g.subjectName).includes(q)
         );
       })
     : grouped;
@@ -136,7 +136,7 @@ export default function ModalAddCourses({
                   <div className="min-w-0 flex-1">
                     <div className="flex items-baseline gap-2">
                       <p className="text-sm font-medium text-gray-800 leading-snug">
-                        {g.nome || g.subjectCode}
+                        {g.subjectName || g.subjectCode}
                       </p>
                       <span className="text-xs text-gray-400 font-mono flex-shrink-0">
                         {g.subjectCode}
@@ -161,9 +161,9 @@ export default function ModalAddCourses({
                                   {cls.name}
                                 </span>
                               )}
-                              {slots.map((h, j) => (
+                              {slots.map((s, j) => (
                                 <span key={j}>
-                                  {h.dia} {h.inicio}–{h.fim}
+                                  {s.day} {s.start}–{s.end}
                                 </span>
                               ))}
                             </div>

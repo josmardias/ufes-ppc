@@ -8,40 +8,40 @@ import { detectConflicts, hasConflicts } from "./schedule.js";
 /** A class whose single session is Monday 08:00–10:00 */
 const classA = {
   subjectCode: "A",
-  slots: [{ dia: "Seg", inicio: "08:00", fim: "10:00" }],
+  slots: [{ day: "Mon", start: "08:00", end: "10:00" }],
 };
 
 /** A class whose single session is Monday 09:00–11:00 — overlaps with classA */
 const classB_overlaps = {
   subjectCode: "B",
-  slots: [{ dia: "Seg", inicio: "09:00", fim: "11:00" }],
+  slots: [{ day: "Mon", start: "09:00", end: "11:00" }],
 };
 
 /** A class whose single session is Monday 10:00–12:00 — adjacent but NOT overlapping with classA */
 const classB_adjacent = {
   subjectCode: "B",
-  slots: [{ dia: "Seg", inicio: "10:00", fim: "12:00" }],
+  slots: [{ day: "Mon", start: "10:00", end: "12:00" }],
 };
 
 /** A class whose single session is Tuesday 08:00–10:00 — different day, no conflict with classA */
 const classB_different_day = {
   subjectCode: "B",
-  slots: [{ dia: "Ter", inicio: "08:00", fim: "10:00" }],
+  slots: [{ day: "Tue", start: "08:00", end: "10:00" }],
 };
 
 /** A class with two sessions: Tuesday 08:00–10:00 (no conflict) and Monday 09:00–11:00 (overlaps classA) */
 const classC_multi_slot = {
   subjectCode: "C",
   slots: [
-    { dia: "Ter", inicio: "08:00", fim: "10:00" },
-    { dia: "Seg", inicio: "09:00", fim: "11:00" },
+    { day: "Tue", start: "08:00", end: "10:00" },
+    { day: "Mon", start: "09:00", end: "11:00" },
   ],
 };
 
 /** A class on Wednesday — conflicts with nobody in the fixtures above */
 const classD_no_conflict = {
   subjectCode: "D",
-  slots: [{ dia: "Qua", inicio: "14:00", fim: "16:00" }],
+  slots: [{ day: "Wed", start: "14:00", end: "16:00" }],
 };
 
 // ---------------------------------------------------------------------------
@@ -69,7 +69,7 @@ describe("detectConflicts", () => {
   it("returns [] when two classes are on the same day but times do not overlap (gap)", () => {
     const classE = {
       subjectCode: "E",
-      slots: [{ dia: "Seg", inicio: "11:00", fim: "13:00" }],
+      slots: [{ day: "Mon", start: "11:00", end: "13:00" }],
     };
     expect(detectConflicts([classA, classE])).toEqual([]);
   });
@@ -83,14 +83,14 @@ describe("detectConflicts", () => {
     // The overlapping slots from both classes must be present
     expect(result[0].slots).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ dia: "Seg", inicio: "08:00", fim: "10:00" }),
-        expect.objectContaining({ dia: "Seg", inicio: "09:00", fim: "11:00" }),
+        expect.objectContaining({ day: "Mon", start: "08:00", end: "10:00" }),
+        expect.objectContaining({ day: "Mon", start: "09:00", end: "11:00" }),
       ])
     );
   });
 
   it("detects a conflict when one class has multiple slots and only one slot overlaps", () => {
-    // classC_multi_slot has Ter 08:00–10:00 (no conflict) and Seg 09:00–11:00 (conflicts with classA)
+    // classC_multi_slot has Tue 08:00–10:00 (no conflict) and Mon 09:00–11:00 (conflicts with classA)
     const result = detectConflicts([classA, classC_multi_slot]);
 
     expect(result).toHaveLength(1);
@@ -99,12 +99,12 @@ describe("detectConflicts", () => {
     // The Monday slots that overlap must appear; the Tuesday slot must not
     expect(result[0].slots).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ dia: "Seg", inicio: "08:00", fim: "10:00" }),
-        expect.objectContaining({ dia: "Seg", inicio: "09:00", fim: "11:00" }),
+        expect.objectContaining({ day: "Mon", start: "08:00", end: "10:00" }),
+        expect.objectContaining({ day: "Mon", start: "09:00", end: "11:00" }),
       ])
     );
-    const dias = result[0].slots.map((s) => s.dia);
-    expect(dias).not.toContain("Ter");
+    const days = result[0].slots.map((s) => s.day);
+    expect(days).not.toContain("Tue");
   });
 
   it("returns only the conflicting pair when three classes are present but only two conflict", () => {
@@ -125,8 +125,8 @@ describe("detectConflicts", () => {
   });
 
   it("detects overlap when the same subjectCode appears twice and its slots overlap", () => {
-    const dup1 = { subjectCode: "X", slots: [{ dia: "Seg", inicio: "08:00", fim: "10:00" }] };
-    const dup2 = { subjectCode: "X", slots: [{ dia: "Seg", inicio: "09:00", fim: "11:00" }] };
+    const dup1 = { subjectCode: "X", slots: [{ day: "Mon", start: "08:00", end: "10:00" }] };
+    const dup2 = { subjectCode: "X", slots: [{ day: "Mon", start: "09:00", end: "11:00" }] };
 
     const result = detectConflicts([dup1, dup2]);
 
@@ -136,8 +136,8 @@ describe("detectConflicts", () => {
   });
 
   it("returns [] when the same subjectCode appears twice but its slots do not overlap", () => {
-    const dup1 = { subjectCode: "X", slots: [{ dia: "Seg", inicio: "08:00", fim: "10:00" }] };
-    const dup2 = { subjectCode: "X", slots: [{ dia: "Ter", inicio: "08:00", fim: "10:00" }] };
+    const dup1 = { subjectCode: "X", slots: [{ day: "Mon", start: "08:00", end: "10:00" }] };
+    const dup2 = { subjectCode: "X", slots: [{ day: "Tue", start: "08:00", end: "10:00" }] };
 
     expect(detectConflicts([dup1, dup2])).toEqual([]);
   });
@@ -148,16 +148,16 @@ describe("detectConflicts", () => {
   });
 
   it("handles classes with invalid slot data gracefully (does not throw)", () => {
-    const bad = { subjectCode: "BAD", slots: [{ dia: "", inicio: "not-a-time", fim: "also-bad" }] };
+    const bad = { subjectCode: "BAD", slots: [{ day: "", start: "not-a-time", end: "also-bad" }] };
     expect(() => detectConflicts([classA, bad])).not.toThrow();
     expect(detectConflicts([classA, bad])).toEqual([]);
   });
 
   it("correctly detects all three pairs when three classes all conflict with each other", () => {
     // Each pair shares Monday with overlapping times
-    const c1 = { subjectCode: "C1", slots: [{ dia: "Seg", inicio: "08:00", fim: "12:00" }] };
-    const c2 = { subjectCode: "C2", slots: [{ dia: "Seg", inicio: "09:00", fim: "11:00" }] };
-    const c3 = { subjectCode: "C3", slots: [{ dia: "Seg", inicio: "10:00", fim: "13:00" }] };
+    const c1 = { subjectCode: "C1", slots: [{ day: "Mon", start: "08:00", end: "12:00" }] };
+    const c2 = { subjectCode: "C2", slots: [{ day: "Mon", start: "09:00", end: "11:00" }] };
+    const c3 = { subjectCode: "C3", slots: [{ day: "Mon", start: "10:00", end: "13:00" }] };
 
     const result = detectConflicts([c1, c2, c3]);
 
@@ -175,11 +175,11 @@ describe("detectConflicts", () => {
   it("normalises weekday names before comparing (full name vs abbreviation)", () => {
     const classMonFull = {
       subjectCode: "M1",
-      slots: [{ dia: "Segunda-feira", inicio: "08:00", fim: "10:00" }],
+      slots: [{ day: "monday", start: "08:00", end: "10:00" }],
     };
     const classMonAbbrev = {
       subjectCode: "M2",
-      slots: [{ dia: "Seg", inicio: "09:00", fim: "11:00" }],
+      slots: [{ day: "Mon", start: "09:00", end: "11:00" }],
     };
 
     const result = detectConflicts([classMonFull, classMonAbbrev]);
@@ -189,14 +189,14 @@ describe("detectConflicts", () => {
     expect(result[0].b).toBe("M2");
   });
 
-  it("returns slots with normalised dia values", () => {
+  it("normalises pt-BR weekday names (segunda-feira → Mon)", () => {
     const classMonFull = {
       subjectCode: "N1",
-      slots: [{ dia: "segunda", inicio: "08:00", fim: "10:00" }],
+      slots: [{ day: "segunda-feira", start: "08:00", end: "10:00" }],
     };
     const classMonAbbrev = {
       subjectCode: "N2",
-      slots: [{ dia: "Seg", inicio: "09:00", fim: "11:00" }],
+      slots: [{ day: "Mon", start: "09:00", end: "11:00" }],
     };
 
     const result = detectConflicts([classMonFull, classMonAbbrev]);
@@ -204,7 +204,7 @@ describe("detectConflicts", () => {
     expect(result).toHaveLength(1);
     // Every slot in the result must carry the canonical abbreviation
     for (const slot of result[0].slots) {
-      expect(slot.dia).toBe("Seg");
+      expect(slot.day).toBe("Mon");
     }
   });
 });
@@ -248,7 +248,7 @@ describe("hasConflicts", () => {
     // even when there are many non-conflicting classes after the first conflict.
     const many = Array.from({ length: 50 }, (_, i) => ({
       subjectCode: `NC${i}`,
-      slots: [{ dia: "Dom", inicio: `${String(i % 24).padStart(2, "0")}:00`, fim: `${String((i % 24) + 1).padStart(2, "0")}:00` }],
+      slots: [{ day: "Sun", start: `${String(i % 24).padStart(2, "0")}:00`, end: `${String((i % 24) + 1).padStart(2, "0")}:00` }],
     }));
     // Place a conflict at the very beginning
     const classes = [classA, classB_overlaps, ...many];

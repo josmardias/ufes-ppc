@@ -8,6 +8,7 @@
  * - Time strings: "HH:MM" (24h)
  * - Minutes: integer 0..1439
  * - Intervals: half-open [startMin, endMin)
+ * - Canonical weekday abbreviations: "Mon" | "Tue" | "Wed" | "Thu" | "Fri" | "Sat" | "Sun"
  */
 
 /**
@@ -57,55 +58,77 @@ export function overlaps(aStart, aEnd, bStart, bEnd) {
 }
 
 /**
- * Normalizes a weekday name (pt-BR) to the canonical abbreviation.
+ * Normalizes any weekday name or abbreviation (English or pt-BR) to the
+ * canonical English three-letter abbreviation.
+ *
+ * Accepts:
+ *   English full names  — "monday", "tuesday", …
+ *   English abbrevs     — "mon", "tue", "wed", "thu", "fri", "sat", "sun"
+ *   pt-BR full names    — "segunda-feira", "terça-feira", …
+ *   pt-BR abbrevs       — "seg", "ter", "qua", "qui", "sex", "sab", "dom"
+ *
+ * Returns one of: "Mon" | "Tue" | "Wed" | "Thu" | "Fri" | "Sat" | "Sun"
+ * Returns "" for unrecognized input.
  *
  * @param {string} raw
- * @returns {"Seg"|"Ter"|"Qua"|"Qui"|"Sex"|"Sab"|"Dom"|string}
+ * @returns {"Mon"|"Tue"|"Wed"|"Thu"|"Fri"|"Sat"|"Sun"|""}
  */
-export function normalizeDia(raw) {
+export function normalizeDay(raw) {
   const t = String(raw ?? "")
     .trim()
     .toLowerCase();
 
-  if (t === "seg" || t === "segunda" || t === "segunda-feira") return "Seg";
+  if (t === "mon" || t === "monday" || t === "seg" || t === "segunda" || t === "segunda-feira")
+    return "Mon";
   if (
+    t === "tue" ||
+    t === "tuesday" ||
     t === "ter" ||
     t === "terça" ||
     t === "terca" ||
     t === "terça-feira" ||
     t === "terca-feira"
   )
-    return "Ter";
-  if (t === "qua" || t === "quarta" || t === "quarta-feira") return "Qua";
-  if (t === "qui" || t === "quinta" || t === "quinta-feira") return "Qui";
-  if (t === "sex" || t === "sexta" || t === "sexta-feira") return "Sex";
-  if (t === "sáb" || t === "sab" || t === "sábado" || t === "sabado")
-    return "Sab";
-  if (t === "dom" || t === "domingo") return "Dom";
+    return "Tue";
+  if (t === "wed" || t === "wednesday" || t === "qua" || t === "quarta" || t === "quarta-feira")
+    return "Wed";
+  if (t === "thu" || t === "thursday" || t === "qui" || t === "quinta" || t === "quinta-feira")
+    return "Thu";
+  if (t === "fri" || t === "friday" || t === "sex" || t === "sexta" || t === "sexta-feira")
+    return "Fri";
+  if (
+    t === "sat" ||
+    t === "saturday" ||
+    t === "sáb" ||
+    t === "sab" ||
+    t === "sábado" ||
+    t === "sabado"
+  )
+    return "Sat";
+  if (t === "sun" || t === "sunday" || t === "dom" || t === "domingo") return "Sun";
 
-  if (!t) return "";
-  return t.slice(0, 1).toUpperCase() + t.slice(1);
+  return "";
 }
 
 /**
- * Converts a slot {dia, inicio, fim} to a validated minute interval.
+ * Converts a slot {day, start, end} to a validated minute interval.
  * Returns null if invalid.
  *
- * @param {{dia:string, inicio:string, fim:string}} slot
- * @returns {{dia:string, startMin:number, endMin:number, inicio:string, fim:string}|null}
+ * @param {{day:string, start:string, end:string}} slot
+ * @returns {{day:string, startMin:number, endMin:number, start:string, end:string}|null}
  */
 export function slotToInterval(slot) {
-  const dia = normalizeDia(slot?.dia);
-  const inicio = String(slot?.inicio ?? "").trim();
-  const fim = String(slot?.fim ?? "").trim();
+  const day = normalizeDay(slot?.day);
+  const start = String(slot?.start ?? "").trim();
+  const end = String(slot?.end ?? "").trim();
 
-  const startMin = hhmmToMinutes(inicio);
-  const endMin = hhmmToMinutes(fim);
+  const startMin = hhmmToMinutes(start);
+  const endMin = hhmmToMinutes(end);
 
-  if (!dia || startMin === null || endMin === null) return null;
+  if (!day || startMin === null || endMin === null) return null;
   if (endMin <= startMin) return null;
 
-  return { dia, startMin, endMin, inicio, fim };
+  return { day, startMin, endMin, start, end };
 }
 
 /**

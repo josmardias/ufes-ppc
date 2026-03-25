@@ -16,7 +16,7 @@
  *   onEmptyClick        — optional: (dia, startMin, endMin) => void
  */
 
-import { hhmmToMinutes, overlaps, normalizeDia } from "../lib/time.js";
+import { hhmmToMinutes, overlaps, normalizeDay } from "../lib/time.js";
 
 // ---------------------------------------------------------------------------
 // Grid display constants
@@ -42,9 +42,9 @@ const HOUR_END = 23;
  *
  * CourseSection shape:
  *   courseCode  — class.subjectCode
- *   courseName  — class.name  (turma identifier, e.g. "06.1 N")
- *   sectionCode — class.name  (same — kept for calendar API compatibility)
- *   horarios    — class.slots (raw slot array)
+ *   courseName  — class.subjectName
+ *   sectionCode — class.name  (section identifier, e.g. "06.1 N")
+ *   slots       — class.slots (raw slot array)
  */
 function semesterToCourseSections(semester) {
   const classes = Array.isArray(semester?.classes)
@@ -52,9 +52,9 @@ function semesterToCourseSections(semester) {
     : [];
   return classes.map((cls) => ({
     courseCode: String(cls?.subjectCode ?? "").trim(),
-    courseName: String(cls?.name ?? "").trim(),
+    courseName: String(cls?.subjectName ?? "").trim(),
     sectionCode: String(cls?.name ?? "").trim(),
-    horarios: Array.isArray(cls?.slots) ? cls.slots : [],
+    slots: Array.isArray(cls?.slots) ? cls.slots : [],
   }));
 }
 
@@ -63,14 +63,14 @@ function semesterToCourseSections(semester) {
  * Each entry: { dia, startMin, endMin, rawStart, rawEnd }
  */
 function courseSectionSlots(section) {
-  const horarios = Array.isArray(section?.horarios) ? section.horarios : [];
+  const slots = Array.isArray(section?.slots) ? section.slots : [];
   const result = [];
-  for (const h of horarios) {
-    const dia = normalizeDia(h?.dia);
-    const startMin = hhmmToMinutes(String(h?.inicio ?? "").trim());
-    const endMin = hhmmToMinutes(String(h?.fim ?? "").trim());
-    if (!dia || startMin === null || endMin === null || endMin <= startMin) continue;
-    result.push({ dia, startMin, endMin, rawStart: startMin, rawEnd: endMin });
+  for (const slot of slots) {
+    const day = normalizeDay(slot?.day);
+    const startMin = hhmmToMinutes(String(slot?.start ?? "").trim());
+    const endMin = hhmmToMinutes(String(slot?.end ?? "").trim());
+    if (!day || startMin === null || endMin === null || endMin <= startMin) continue;
+    result.push({ day, startMin, endMin, rawStart: startMin, rawEnd: endMin });
   }
   return result;
 }
@@ -81,11 +81,11 @@ function courseSectionSlots(section) {
  * on the given weekday.
  */
 function courseSectionHasConflictOnDay(section, allSections, dia, blockStart, blockEnd) {
-  const normalDay = normalizeDia(dia);
+  const normalDay = normalizeDay(dia);
 
   const ownSlots = courseSectionSlots(section);
   const ownInBlock = ownSlots.some(
-    (s) => s.dia === normalDay && overlaps(s.startMin, s.endMin, blockStart, blockEnd),
+    (s) => s.day === normalDay && overlaps(s.startMin, s.endMin, blockStart, blockEnd),
   );
   if (!ownInBlock) return false;
 
@@ -99,7 +99,7 @@ function courseSectionHasConflictOnDay(section, allSections, dia, blockStart, bl
     }
     const otherSlots = courseSectionSlots(other);
     const otherInBlock = otherSlots.some(
-      (s) => s.dia === normalDay && overlaps(s.startMin, s.endMin, blockStart, blockEnd),
+      (s) => s.day === normalDay && overlaps(s.startMin, s.endMin, blockStart, blockEnd),
     );
     if (otherInBlock) return true;
   }
@@ -142,14 +142,14 @@ function buildColorMap(semester) {
 // Constants
 // ---------------------------------------------------------------------------
 
-const DAYS = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sab"];
+const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const DAY_LABELS = {
-  Seg: "Segunda",
-  Ter: "Terça",
-  Qua: "Quarta",
-  Qui: "Quinta",
-  Sex: "Sexta",
-  Sab: "Sábado",
+  Mon: "Segunda",
+  Tue: "Terça",
+  Wed: "Quarta",
+  Thu: "Quinta",
+  Fri: "Sexta",
+  Sat: "Sábado",
 };
 
 const ROW_HEIGHT = 54; // px per hour
@@ -169,12 +169,12 @@ function minToY(min, hourStart) {
 // buildDayEvents
 // ---------------------------------------------------------------------------
 
-function buildDayEvents(allCourseSections, dia) {
+function buildDayEvents(allCourseSections, day) {
   const blocks = [];
 
   for (const section of allCourseSections) {
     const daySlots = courseSectionSlots(section)
-      .filter((s) => s.dia === dia)
+      .filter((s) => s.day === day)
       .sort((a, b) => a.startMin - b.startMin);
 
     if (daySlots.length === 0) continue;
@@ -275,7 +275,7 @@ function CourseSectionCard({
   const fmt = (mins) =>
     `${String(Math.floor(mins / 60)).padStart(2, "0")}:${String(mins % 60).padStart(2, "0")}`;
 
-  const daySlots = slots.filter((s) => s.dia === _dia);
+  const daySlots = slots.filter((s) => s.day === _dia);
   let timeLabel = "";
   if (daySlots.length > 0) {
     const rawStart = Math.min(...daySlots.map((s) => s.rawStart));
@@ -386,7 +386,7 @@ export default function WeekCalendar({
   );
 
   const eventsByDay = Object.fromEntries(
-    DAYS.map((dia) => [dia, buildDayEvents(allCourseSections, dia)]),
+    DAYS.map((day) => [day, buildDayEvents(allCourseSections, day)]),
   );
 
   // A subject has multiple candidate sections when two or more Classes share

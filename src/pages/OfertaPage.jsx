@@ -1,18 +1,16 @@
 import { useState, useMemo } from "react";
-import ofertaS1 from "../data/oferta-semestre-1.json";
-import ofertaS2 from "../data/oferta-semestre-2.json";
-import equivalenciasJson from "../data/equivalencias.json";
+import { offer1Json, offer2Json, equivalences } from "../data/index.js";
 import PeriodSection from "../components/PeriodSection.jsx";
 
 // Set of all legacy (old) codes that have a PPC 2022 equivalent.
 // These are the offer codes that belong to the old curriculum.
 const LEGACY_CODES = new Set(
-  Object.values(equivalenciasJson.equivalencias).flat(),
+  Object.values(equivalences).flat(),
 );
 
 const SEMESTERS = [
-  { id: 1, label: "1º semestre", data: ofertaS1 },
-  { id: 2, label: "2º semestre", data: ofertaS2 },
+  { id: 1, label: "1º semestre", data: offer1Json },
+  { id: 2, label: "2º semestre", data: offer2Json },
 ];
 
 export default function OfertaPage() {
@@ -21,22 +19,22 @@ export default function OfertaPage() {
   const [showLegacy, setShowLegacy] = useState(false);
 
   const ofertaData = SEMESTERS.find((s) => s.id === activeSemester)?.data;
-  const disciplinas = ofertaData?.disciplinas ?? [];
+  const subjects = ofertaData?.subjects ?? [];
 
   const filtered = useMemo(() => {
     const base = showLegacy
-      ? disciplinas
-      : disciplinas.filter((d) => !LEGACY_CODES.has(d.codigo));
+      ? subjects
+      : subjects.filter((s) => !LEGACY_CODES.has(s.code));
     if (!search.trim()) return base;
     const q = search.trim().toLowerCase();
     return base.filter(
-      (d) =>
-        d.codigo.toLowerCase().includes(q) || d.nome.toLowerCase().includes(q),
+      (s) =>
+        s.code.toLowerCase().includes(q) || s.name.toLowerCase().includes(q),
     );
-  }, [disciplinas, search, showLegacy]);
+  }, [subjects, search, showLegacy]);
 
-  const totalTurmas = filtered.reduce(
-    (acc, d) => acc + (d.turmas?.length ?? 0),
+  const totalClasses = filtered.reduce(
+    (acc, s) => acc + (s.classes?.length ?? 0),
     0,
   );
 
@@ -83,24 +81,16 @@ export default function OfertaPage() {
         </label>
         <span className="text-xs text-gray-400 flex-shrink-0">
           {filtered.length} disciplina{filtered.length !== 1 ? "s" : ""} ·{" "}
-          {totalTurmas} turma{totalTurmas !== 1 ? "s" : ""}
+          {totalClasses} turma{totalClasses !== 1 ? "s" : ""}
         </span>
       </div>
-
-      {/* fonte_pdf + gerado_em */}
-      {ofertaData && (
-        <p className="text-xs text-gray-300 mb-5">
-          Fonte: {ofertaData.fonte_pdf} —{" "}
-          {new Date(ofertaData.gerado_em).toLocaleDateString("pt-BR")}
-        </p>
-      )}
 
       {filtered.length === 0 ? (
         <div className="text-center py-12 text-gray-400 text-sm">
           Nenhuma disciplina encontrada.
         </div>
       ) : (
-        <PeriodSection disciplinas={filtered} />
+        <PeriodSection subjects={filtered} />
       )}
     </div>
   );

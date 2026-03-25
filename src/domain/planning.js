@@ -17,20 +17,41 @@
  *   }
  *
  *   CurriculumSemester {
- *     label: string,          // e.g. "2024/1" — derived from ingress info
- *     offerSemester: 1|2,     // which Year Semester's offer applies here
+ *     label: string,        // e.g. "2024/1" — derived from ingress info
+ *     offerSemester: 1|2,   // which Year Semester's offer applies here
  *     classes: Class[],
  *   }
  *
  *   Class {
- *     name: string,        // turma identifier, e.g. "06.1 N"
- *     subjectCode: string, // subject code, e.g. "ELE15923"
- *     slots: Slot[],       // schedule entries
+ *     name: string,         // section identifier, e.g. "06.1 N"
+ *     subjectCode: string,  // subject code, e.g. "ELE15923"
+ *     subjectName: string,  // subject display name
+ *     slots: Slot[],        // weekly schedule entries
  *   }
  *
- *   Slot { dia: string, inicio: "HH:MM", fim: "HH:MM" }
+ *   Slot { day: string, start: "HH:MM", end: "HH:MM" }
  *
  *   CreditEntry { subjectCode: string, grantPosition: number }
+ *
+ *   Offer {
+ *     semester: 1|2,
+ *     subjects: Subject[],
+ *   }
+ *
+ *   Subject {
+ *     code: string,
+ *     name: string,
+ *     creditHours: number|null,
+ *     classes: OfferClass[],
+ *   }
+ *
+ *   OfferClass {
+ *     id: string,
+ *     instructor: string|null,
+ *     slots: Slot[],
+ *   }
+ *
+ *   Equivalences { [currentCode: string]: string[] }
  */
 
 import { hhmmToMinutes } from "../lib/time.js";
@@ -41,15 +62,15 @@ import { hhmmToMinutes } from "../lib/time.js";
 
 /**
  * Returns all codes that can satisfy a given target code — the target itself
- * plus every code listed in equivalencias[target].
+ * plus every code listed in equivalences[target].
  *
  * @param {string} targetCode
- * @param {Object.<string, string[]>} equivalencias
+ * @param {Object.<string, string[]>} equivalences
  * @returns {Set<string>}
  */
-function equivalentCodes(targetCode, equivalencias) {
+function equivalentCodes(targetCode, equivalences) {
   const set = new Set([targetCode]);
-  const extras = equivalencias?.[targetCode];
+  const extras = equivalences?.[targetCode];
   if (Array.isArray(extras)) {
     for (const c of extras) set.add(c);
   }
@@ -62,11 +83,11 @@ function equivalentCodes(targetCode, equivalencias) {
  *
  * @param {string} targetCode
  * @param {Set<string>} passedCodes
- * @param {Object.<string, string[]>} equivalencias
+ * @param {Object.<string, string[]>} equivalences
  * @returns {boolean}
  */
-function isSatisfied(targetCode, passedCodes, equivalencias) {
-  for (const c of equivalentCodes(targetCode, equivalencias)) {
+function isSatisfied(targetCode, passedCodes, equivalences) {
+  for (const c of equivalentCodes(targetCode, equivalences)) {
     if (passedCodes.has(c)) return true;
   }
   return false;
@@ -95,7 +116,6 @@ function buildCompletedBefore(semesters, creditEntries, semesterIndex) {
     if (k === 0) {
       set.add(entry.subjectCode);
     } else if (semesterIndex >= k) {
-      // Credit becomes available after semester k ends (1-based k)
       set.add(entry.subjectCode);
     }
   }
@@ -104,59 +124,44 @@ function buildCompletedBefore(semesters, creditEntries, semesterIndex) {
 }
 
 /**
- * Builds a lookup map from an offer JSON object: subject code → disciplina.
+ * Builds a lookup map from an offer object: subject code → Subject.
  *
- * @param {object|null} offerJson
+ * @param {object|null} offer
  * @returns {Map<string, object>}
  */
-function buildOfferMap(offerJson) {
+function buildOfferMap(offer) {
   const map = new Map();
-  for (const d of offerJson?.disciplinas ?? []) {
-    if (d?.codigo) map.set(d.codigo, d);
+  for (const subject of offer?.subjects ?? []) {
+    if (subject?.code) map.set(subject.code, subject);
   }
   return map;
 }
 
 /**
- * Returns true when a turma (from the offer JSON) belongs to the requested shift.
+ * Returns true when an offer class belongs to the requested shift.
  *
  * Shift rules:
- *   "dia"   — all turmas pass
- *   "manha" — at least one horario starts before 12:00
- *   "tarde" — at least one horario starts at 12:00 or later
+ *   "dia"   — all classes pass
+ *   "manha" — at least one slot starts before 12:00
+ *   "tarde" — at least one slot starts at 12:00 or later
  *
- * @param {object} turma  — offer JSON turma object with horarios
- * @param {string} turno  — "dia" | "manha" | "tarde"
+ * @param {object} offerClass — OfferClass with slots
+ * @param {string} shift      — "dia" | "manha" | "tarde"
  * @returns {boolean}
  */
-function offerTurmaMatchesShift(turma, turno) {
-  if (!turno || turno === "dia") return true;
-  const horarios = turma?.horarios;
-  if (!Array.isArray(horarios) || horarios.length === 0) return false;
+function offerClassMatchesShift(offerClass, shift) {
+  if (!shift || shift === "dia") return true;
+  const slots = offerClass?.slots;
+  if (!Array.isArray(slots) || slots.length === 0) return false;
 
   const NOON = 12 * 60;
-  for (const h of horarios) {
-    const mins = hhmmToMinutes(h?.inicio);
+  for (const slot of slots) {
+    const mins = hhmmToMinutes(slot?.start);
     if (mins === null) continue;
-    if (turno === "manha" && mins < NOON) return true;
-    if (turno === "tarde" && mins >= NOON) return true;
+    if (shift === "manha" && mins < NOON) return true;
+    if (shift === "tarde" && mins >= NOON) return true;
   }
   return false;
-}
-
-/**
- * Converts an offer-JSON turma entry into a Class object.
- *
- * @param {object} offerTurma  — { turma: string, horarios: Horario[], docente?: string }
- * @param {string} subjectCode — subject code, e.g. "ELE15923"
- * @returns {Class}
- */
-function turmaToClass(offerTurma, subjectCode) {
-  return {
-    name: String(offerTurma?.turma ?? offerTurma?.codigo ?? "").trim(),
-    subjectCode,
-    slots: Array.isArray(offerTurma?.horarios) ? offerTurma.horarios : [],
-  };
 }
 
 // ---------------------------------------------------------------------------
@@ -187,13 +192,11 @@ export function inferNextSemester(
 ) {
   const semesterIndex = (semesters ?? []).length;
 
-  // offerSemester cycles 1→2→1→2… starting from ingressYearSemester (or baseOfferSemester)
   const startSem = ingressYearSemester ?? baseOfferSemester ?? 1;
   const offerSemester = (((startSem - 1) + semesterIndex) % 2) + 1;
 
   let label = null;
   if (ingressYear != null && ingressYearSemester != null) {
-    // Total half-years elapsed since ingress
     const totalHalfYears = (ingressYearSemester - 1) + semesterIndex;
     const year = ingressYear + Math.floor(totalHalfYears / 2);
     const sem = (totalHalfYears % 2) + 1;
@@ -210,21 +213,21 @@ export function inferNextSemester(
 /**
  * Generates the Classes for the next CurriculumSemester.
  *
- * Each eligible Subject produces one Class per Offering turma. Two
- * Classes with the same subjectCode represent two candidate Classes for that
- * Subject. Classes are filtered by shift when turno !== "dia".
+ * Each eligible Subject produces one Class per OfferClass. Two Classes with
+ * the same subjectCode represent two candidate Classes for that Subject.
+ * Classes are filtered by shift when shift !== "dia".
  *
  * @param {{
- *   semesters:        CurriculumSemester[],
- *   creditEntries:    CreditEntry[],
- *   ppcJson:          object,
- *   offerJson:        object|null,
- *   turno:            string,
- *   ingressYear:      number|null,
- *   ingressYearSemester: 1|2|null,
- *   baseYear:         number,
- *   baseOfferSemester: 1|2,
- *   equivalenciasJson: object,
+ *   semesters:            CurriculumSemester[],
+ *   creditEntries:        CreditEntry[],
+ *   ppcJson:              object,
+ *   offer:                object|null,
+ *   shift:                string,
+ *   ingressYear:          number|null,
+ *   ingressYearSemester:  1|2|null,
+ *   baseYear:             number,
+ *   baseOfferSemester:    1|2,
+ *   equivalences:         object,
  * }} opts
  * @returns {{ newSemester: CurriculumSemester, semesterIndex: number, offerSemester: 1|2 }}
  */
@@ -232,13 +235,13 @@ export function generateSemester({
   semesters = [],
   creditEntries = [],
   ppcJson,
-  offerJson,
-  turno = "dia",
+  offer,
+  shift = "dia",
   ingressYear = null,
   ingressYearSemester = null,
   baseYear,
   baseOfferSemester,
-  equivalenciasJson,
+  equivalences,
 } = {}) {
   const { semesterIndex, offerSemester, label } = inferNextSemester(
     semesters,
@@ -248,14 +251,12 @@ export function generateSemester({
     baseOfferSemester,
   );
 
-  const equivalencias = equivalenciasJson?.equivalencias ?? {};
+  const equiv = equivalences ?? {};
   const courses = ppcJson?.courses ?? {};
-  const offerMap = buildOfferMap(offerJson);
+  const offerMap = buildOfferMap(offer);
 
-  // Codes completed in terms strictly before this new semester
   const completedBefore = buildCompletedBefore(semesters, creditEntries, semesterIndex);
 
-  // Codes already planned in any semester (to avoid duplication)
   const alreadyPlanned = new Set();
   for (const sem of semesters) {
     for (const cls of sem.classes ?? []) {
@@ -273,7 +274,7 @@ export function generateSemester({
 
     let prereqsOk = true;
     for (const req of course.prereq ?? []) {
-      if (!isSatisfied(req, completedBefore, equivalencias)) {
+      if (!isSatisfied(req, completedBefore, equiv)) {
         prereqsOk = false;
         break;
       }
@@ -290,23 +291,28 @@ export function generateSemester({
     const coReqPool = new Set([...completedBefore, ...candidateCodes]);
     let coreqsOk = true;
     for (const req of course.coreq ?? []) {
-      if (!isSatisfied(req, coReqPool, equivalencias)) {
+      if (!isSatisfied(req, coReqPool, equiv)) {
         coreqsOk = false;
         break;
       }
     }
     if (!coreqsOk) continue;
 
-    const offerDisciplina = offerMap.get(code);
-    const allTurmas = offerDisciplina?.turmas ?? [];
-    const filteredTurmas = allTurmas.filter((t) => offerTurmaMatchesShift(t, turno));
+    const offerSubject = offerMap.get(code);
+    const subjectName = offerSubject?.name ?? course?.name ?? "";
+    const allOfferClasses = offerSubject?.classes ?? [];
+    const filteredOfferClasses = allOfferClasses.filter((c) => offerClassMatchesShift(c, shift));
 
-    if (filteredTurmas.length === 0) {
-      // Subject has no Offering turmas matching the shift — add a schedule-less Class
-      classes.push({ name: "", subjectCode: code, slots: [] });
+    if (filteredOfferClasses.length === 0) {
+      classes.push({ name: "", subjectCode: code, subjectName, slots: [] });
     } else {
-      for (const t of filteredTurmas) {
-        classes.push(turmaToClass(t, code));
+      for (const offerClass of filteredOfferClasses) {
+        classes.push({
+          name: String(offerClass?.id ?? "").trim(),
+          subjectCode: code,
+          subjectName,
+          slots: Array.isArray(offerClass?.slots) ? offerClass.slots : [],
+        });
       }
     }
   }
@@ -374,10 +380,10 @@ export function replaceSemester(semesters, semesterIndex, updatedSemester) {
 // ---------------------------------------------------------------------------
 
 /**
- * Adds a Class to a Curriculum Semester. Duplicates are detected by both
+ * Adds a Class to a CurriculumSemester. Duplicates are detected by both
  * subjectCode AND name together — the same Class added twice is a no-op.
- * A second Class for the same Subject but a different turma is appended as
- * a separate entry; the student holds two candidate Classes for that Subject.
+ * A second Class for the same Subject but a different section is appended as
+ * a separate entry.
  * Returns a new CurriculumSemester — does not mutate the input.
  *
  * @param {CurriculumSemester} semester
@@ -390,10 +396,7 @@ export function addClass(semester, newClass) {
     (c) => `${c.subjectCode}::${c.name}` === key,
   );
 
-  if (exists) {
-    // Exact duplicate — no-op
-    return semester;
-  }
+  if (exists) return semester;
 
   return {
     ...semester,
@@ -428,18 +431,17 @@ export function removeClass(semester, subjectCode) {
  * Returns the Classes eligible to be added to a specific CurriculumSemester.
  *
  * Eligibility uses the same prereq/coreq rules as generateSemester, but
- * operates on an explicitly provided semesterIndex. Each eligible offer turma
- * becomes one Class entry. Classes already in the target semester are
- * NOT excluded — the caller decides what to do with duplicates.
+ * operates on an explicitly provided semesterIndex. Each eligible OfferClass
+ * becomes one Class entry. Classes already in earlier semesters are excluded.
  *
  * @param {{
- *   semesters:        CurriculumSemester[],
- *   creditEntries:    CreditEntry[],
- *   ppcJson:          object,
- *   offerJson:        object|null,
- *   turno:            string,
- *   semesterIndex:    number,
- *   equivalenciasJson: object,
+ *   semesters:         CurriculumSemester[],
+ *   creditEntries:     CreditEntry[],
+ *   ppcJson:           object,
+ *   offer:             object|null,
+ *   shift:             string,
+ *   semesterIndex:     number,
+ *   equivalences:      object,
  * }} opts
  * @returns {Class[]}
  */
@@ -447,24 +449,21 @@ export function calcAvailableToAdd({
   semesters = [],
   creditEntries = [],
   ppcJson,
-  offerJson,
-  turno = "dia",
+  offer,
+  shift = "dia",
   semesterIndex,
-  equivalenciasJson,
+  equivalences,
 } = {}) {
-  const equivalencias = equivalenciasJson?.equivalencias ?? {};
+  const equiv = equivalences ?? {};
   const courses = ppcJson?.courses ?? {};
-  const offerMap = buildOfferMap(offerJson);
+  const offerMap = buildOfferMap(offer);
 
-  // Codes completed in semesters strictly before semesterIndex
   const completedBefore = buildCompletedBefore(semesters, creditEntries, semesterIndex);
 
-  // Codes already planned in earlier semesters (but NOT in the target semester)
   const alreadyPlanned = new Set();
   for (let i = 0; i < (semesters ?? []).length; i++) {
     if (i === semesterIndex) continue;
     if (i < semesterIndex) {
-      // Earlier semesters: these are "done"
       for (const cls of semesters[i].classes ?? []) {
         if (cls?.subjectCode) alreadyPlanned.add(cls.subjectCode);
       }
@@ -481,7 +480,7 @@ export function calcAvailableToAdd({
 
     let prereqsOk = true;
     for (const req of course.prereq ?? []) {
-      if (!isSatisfied(req, completedBefore, equivalencias)) {
+      if (!isSatisfied(req, completedBefore, equiv)) {
         prereqsOk = false;
         break;
       }
@@ -497,23 +496,28 @@ export function calcAvailableToAdd({
     const coReqPool = new Set([...completedBefore, ...candidateCodes]);
     let coreqsOk = true;
     for (const req of course.coreq ?? []) {
-      if (!isSatisfied(req, coReqPool, equivalencias)) {
+      if (!isSatisfied(req, coReqPool, equiv)) {
         coreqsOk = false;
         break;
       }
     }
     if (!coreqsOk) continue;
 
-    const offerDisciplina = offerMap.get(code);
-    const allTurmas = offerDisciplina?.turmas ?? [];
-    const filteredTurmas = allTurmas.filter((t) => offerTurmaMatchesShift(t, turno));
+    const offerSubject = offerMap.get(code);
+    const subjectName = offerSubject?.name ?? course?.name ?? "";
+    const allOfferClasses = offerSubject?.classes ?? [];
+    const filteredOfferClasses = allOfferClasses.filter((c) => offerClassMatchesShift(c, shift));
 
-    if (filteredTurmas.length === 0) {
-      // Subject has no Offering turmas matching the shift — add a schedule-less Class
-      result.push({ name: "", subjectCode: code, slots: [] });
+    if (filteredOfferClasses.length === 0) {
+      result.push({ name: "", subjectCode: code, subjectName, slots: [] });
     } else {
-      for (const t of filteredTurmas) {
-        result.push(turmaToClass(t, code));
+      for (const offerClass of filteredOfferClasses) {
+        result.push({
+          name: String(offerClass?.id ?? "").trim(),
+          subjectCode: code,
+          subjectName,
+          slots: Array.isArray(offerClass?.slots) ? offerClass.slots : [],
+        });
       }
     }
   }
@@ -530,75 +534,61 @@ export function calcAvailableToAdd({
  *
  * Rules:
  *   - If both are null/undefined, returns a default empty offer shape.
- *   - If one side is null, returns the other (cloned shallowly).
- *   - For each discipline in customOffer:
- *     - If its codigo already exists in systemOffer, its turmas are merged
- *       (union by turma identifier, preferring existing).
- *     - Otherwise, the discipline is appended.
+ *   - If one side is null, returns the other.
+ *   - For each subject in customOffer:
+ *     - If its code already exists in systemOffer, its classes are merged
+ *       (union by id, preferring existing).
+ *     - Otherwise, the subject is appended.
  *
  * @param {object|null} systemOffer
  * @param {object|null} customOffer
  * @returns {object}
  */
 export function mergeOffers(systemOffer, customOffer) {
-  const empty = { semestre: 0, disciplinas: [] };
+  const empty = { semester: 0, subjects: [] };
 
   if (!systemOffer && !customOffer) return empty;
   if (!systemOffer) return { ...empty, ...customOffer };
   if (!customOffer) return systemOffer;
 
-  /**
-   * Returns the canonical key for an offer turma entry.
-   * The offer JSON uses "turma" as the section identifier.
-   *
-   * @param {object} t
-   * @returns {string}
-   */
-  function turmaKey(t) {
-    return String(t?.turma ?? t?.codigo ?? "").trim();
+  function classKey(c) {
+    return String(c?.id ?? "").trim();
   }
 
-  /**
-   * Merges two turma arrays, deduplicating by turma key.
-   *
-   * @param {object[]} base
-   * @param {object[]} incoming
-   * @returns {object[]}
-   */
-  function mergeTurmas(base, incoming) {
-    const seen = new Set((base ?? []).map(turmaKey));
+  function mergeClasses(base, incoming) {
+    const seen = new Set((base ?? []).map(classKey));
     const result = [...(base ?? [])];
-    for (const t of incoming ?? []) {
-      const k = turmaKey(t);
+    for (const c of incoming ?? []) {
+      const k = classKey(c);
       if (k && !seen.has(k)) {
         seen.add(k);
-        result.push(t);
+        result.push(c);
       }
     }
     return result;
   }
 
-  const disciplinaMap = new Map();
-  const disciplinas = [];
+  const subjectMap = new Map();
+  const subjects = [];
 
-  for (const d of systemOffer?.disciplinas ?? []) {
-    if (!d?.codigo) continue;
-    const clone = { ...d, turmas: [...(d.turmas ?? [])] };
-    disciplinaMap.set(d.codigo, clone);
-    disciplinas.push(clone);
+  for (const s of systemOffer?.subjects ?? []) {
+    if (!s?.code) continue;
+    const clone = { ...s, classes: [...(s.classes ?? [])] };
+    subjectMap.set(s.code, clone);
+    subjects.push(clone);
   }
 
-  for (const d of customOffer?.disciplinas ?? []) {
-    if (!d?.codigo) continue;
-    if (disciplinaMap.has(d.codigo)) {
-      const existing = disciplinaMap.get(d.codigo);
-      existing.turmas = mergeTurmas(existing.turmas, d.turmas);
+  for (const s of customOffer?.subjects ?? []) {
+    if (!s?.code) continue;
+    if (subjectMap.has(s.code)) {
+      const existing = subjectMap.get(s.code);
+      existing.classes = mergeClasses(existing.classes, s.classes);
     } else {
-      const clone = { ...d, turmas: [...(d.turmas ?? [])] };
-      disciplinaMap.set(d.codigo, clone);
-      disciplinas.push(clone);
+      const clone = { ...s, classes: [...(s.classes ?? [])] };
+      subjectMap.set(s.code, clone);
+      subjects.push(clone);
     }
   }
 
-  return { ...systemOffer, disciplinas };
+  return { ...systemOffer, subjects };
 }

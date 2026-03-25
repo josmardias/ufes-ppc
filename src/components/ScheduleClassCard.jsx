@@ -11,7 +11,7 @@ export default function ScheduleClassCard({ cls }) {
             <span className="ml-2 text-xs text-gray-500">{cls.name}</span>
           )}
           <p className="font-medium text-gray-900 text-sm leading-snug">
-            {cls.nome || cls.subjectCode}
+            {cls.subjectName || cls.subjectCode}
           </p>
         </div>
       </div>
@@ -19,7 +19,7 @@ export default function ScheduleClassCard({ cls }) {
         <div className="flex flex-wrap gap-x-3 gap-y-0.5">
           {slots.map((h, j) => (
             <span key={j} className="text-xs text-gray-500">
-              {h.dia} {h.inicio}–{h.fim}
+              {h.day} {h.start}–{h.end}
             </span>
           ))}
         </div>

@@ -1,12 +1,12 @@
-export const DAYS = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sab"];
+export const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export const DAY_LABELS = {
-  Seg: "Segunda",
-  Ter: "Terça",
-  Qua: "Quarta",
-  Qui: "Quinta",
-  Sex: "Sexta",
-  Sab: "Sábado",
+  Mon: "Segunda",
+  Tue: "Terça",
+  Wed: "Quarta",
+  Thu: "Quinta",
+  Fri: "Sexta",
+  Sat: "Sábado",
 };
 
 export const HOURS = Array.from({ length: 16 }, (_, i) => {
@@ -18,8 +18,8 @@ export default function ScheduleRow({ schedule, onChange, onRemove, canRemove })
   return (
     <div className="flex items-center gap-2">
       <select
-        value={schedule.dia}
-        onChange={(e) => onChange({ ...schedule, dia: e.target.value })}
+        value={schedule.day}
+        onChange={(e) => onChange({ ...schedule, day: e.target.value })}
         className="border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
       >
         {DAYS.map((d) => (
@@ -29,8 +29,8 @@ export default function ScheduleRow({ schedule, onChange, onRemove, canRemove })
         ))}
       </select>
       <select
-        value={schedule.inicio}
-        onChange={(e) => onChange({ ...schedule, inicio: e.target.value })}
+        value={schedule.start}
+        onChange={(e) => onChange({ ...schedule, start: e.target.value })}
         className="border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
       >
         {HOURS.map((h) => (
@@ -41,8 +41,8 @@ export default function ScheduleRow({ schedule, onChange, onRemove, canRemove })
       </select>
       <span className="text-gray-400 text-sm">→</span>
       <select
-        value={schedule.fim}
-        onChange={(e) => onChange({ ...schedule, fim: e.target.value })}
+        value={schedule.end}
+        onChange={(e) => onChange({ ...schedule, end: e.target.value })}
         className="border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
       >
         {HOURS.map((h) => (

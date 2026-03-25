@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { DAY_LABELS } from "./ScheduleRow.jsx";
 
-export default function SectionCard({ courseCode, courseName, section, onRemove }) {
+export default function SectionCard({ subjectCode, subjectName, cls, onRemove }) {
   const [confirming, setConfirming] = useState(false);
 
   return (
@@ -9,17 +9,17 @@ export default function SectionCard({ courseCode, courseName, section, onRemove 
       <div className="flex flex-col gap-1 min-w-0">
         <div className="flex items-baseline gap-2">
           <span className="font-mono text-sm font-semibold text-gray-800">
-            {courseCode}
+            {subjectCode}
           </span>
-          <span className="text-xs text-gray-500">turma {section.turma}</span>
+          <span className="text-xs text-gray-500">turma {cls.id}</span>
         </div>
-        {courseName && courseName !== courseCode && (
-          <span className="text-xs text-gray-600 truncate">{courseName}</span>
+        {subjectName && subjectName !== subjectCode && (
+          <span className="text-xs text-gray-600 truncate">{subjectName}</span>
         )}
         <div className="flex flex-col gap-0.5">
-          {section.horarios.map((h, i) => (
+          {cls.slots.map((s, i) => (
             <span key={i} className="text-xs text-gray-500">
-              {DAY_LABELS[h.dia] ?? h.dia} {h.inicio}–{h.fim}
+              {DAY_LABELS[s.day] ?? s.day} {s.start}–{s.end}
             </span>
           ))}
         </div>

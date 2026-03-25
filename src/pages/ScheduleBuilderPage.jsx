@@ -20,10 +20,7 @@ import {
 import { usePlanningContext } from "../App.jsx";
 import AddSectionModal from "../components/AddSectionModal.jsx";
 import { upsertCustomSection } from "../domain/offer.js";
-import ppcJson from "../data/ppc-2022.json";
-import offer1Json from "../data/oferta-semestre-1.json";
-import offer2Json from "../data/oferta-semestre-2.json";
-import equivalenciasJson from "../data/equivalencias.json";
+import { ppcJson, offer1Json, offer2Json, equivalences } from "../data/index.js";
 import Badge from "../components/Badge.jsx";
 import CollapsibleBanner from "../components/CollapsibleBanner.jsx";
 import ModalFirstTerm from "../components/ModalFirstTerm.jsx";
@@ -67,20 +64,20 @@ export default function ScheduleBuilderPage() {
   const courseSuggestions = useMemo(() => {
     const map = new Map();
     for (const [key, v] of Object.entries(ppcJson?.courses ?? {})) {
-      const codigo = String(v?.code ?? key).trim();
-      if (!codigo || codigo.startsWith("Carga")) continue;
-      map.set(codigo, String(v?.name ?? "").trim());
+      const code = String(v?.code ?? key).trim();
+      if (!code || code.startsWith("Carga")) continue;
+      map.set(code, String(v?.name ?? "").trim());
     }
     for (const offerJson of [offer1Json, offer2Json]) {
-      for (const d of offerJson?.disciplinas ?? []) {
-        const codigo = String(d?.codigo ?? "").trim();
-        if (!codigo) continue;
-        if (!map.has(codigo)) map.set(codigo, String(d?.nome ?? "").trim());
+      for (const s of offerJson?.subjects ?? []) {
+        const code = String(s?.code ?? "").trim();
+        if (!code) continue;
+        if (!map.has(code)) map.set(code, String(s?.name ?? "").trim());
       }
     }
     return Array.from(map.entries())
-      .map(([codigo, nome]) => ({ codigo, nome }))
-      .sort((a, b) => a.codigo.localeCompare(b.codigo));
+      .map(([code, name]) => ({ code, name }))
+      .sort((a, b) => a.code.localeCompare(b.code));
   }, []);
 
   const semesters = planning?.semesters ?? [];
@@ -96,7 +93,7 @@ export default function ScheduleBuilderPage() {
         : "dia";
 
   // Persisted shift preference (stored on planning for convenience)
-  const turno = planning?.turno ?? defaultShift;
+  const shift = planning?.shift ?? defaultShift;
 
   const [activeTabIndex, setActiveTabIndex] = useState(null);
   const [lastResult, setLastResult] = useState(null);
@@ -142,10 +139,10 @@ export default function ScheduleBuilderPage() {
       semesters: semestersBeforeActive,
       creditEntries: planning?.creditEntries ?? [],
       ppcJson,
-      offerJson,
-      turno: "dia",
+      offer: offerJson,
+      shift: "dia",
       semesterIndex: activeTabIndex,
-      equivalenciasJson,
+      equivalences,
     });
     return new Set(available.map((r) => r.subjectCode));
   }, [activeTabIndex, semesters, mergedOffer1, mergedOffer2, planning?.creditEntries]);
@@ -175,25 +172,25 @@ export default function ScheduleBuilderPage() {
     }
   }, [activeTabIndex, editingIndex]);
 
-  function doGenerate(ingressYearSemesterVal, shiftVal = turno, isFirst = false) {
+  function doGenerate(ingressYearSemesterVal, shiftVal = shift, isFirst = false) {
     setError(null);
     try {
       const offerSemester = next.offerSemester;
       const offerJson = offerSemester === 1 ? mergedOffer1 : mergedOffer2;
 
       const { newSemester, semesterIndex, offerSemester: resolvedOfferSemester } =
-        generateSemester({
-          semesters,
-          creditEntries: planning?.creditEntries ?? [],
-          ppcJson,
-          offerJson,
-          turno: "dia", // include all sections; the modal handles shift filtering
-          ingressYear,
-          ingressYearSemester: ingressYearSemesterVal,
-          baseYear: BASE_YEAR,
-          baseOfferSemester: BASE_OFFER_SEMESTER,
-          equivalenciasJson,
-        });
+      generateSemester({
+        semesters,
+        creditEntries: planning?.creditEntries ?? [],
+        ppcJson,
+        offer: offerJson,
+        shift: "dia", // include all sections; the modal handles shift filtering
+        ingressYear,
+        ingressYearSemester: ingressYearSemesterVal,
+        baseYear: BASE_YEAR,
+        baseOfferSemester: BASE_OFFER_SEMESTER,
+        equivalences,
+      });
 
       if (newSemester.classes.length === 0) {
         setError("Nenhuma disciplina disponível para este período.");
@@ -229,7 +226,7 @@ export default function ScheduleBuilderPage() {
         return {
           ...record,
           semesters: updatedSemesters,
-          turno: shiftVal,
+          shift: shiftVal,
           ...(isFirst
             ? {
                 ingressYearSemester: ingressYearSemesterVal,
@@ -257,11 +254,11 @@ export default function ScheduleBuilderPage() {
 
   function handleConfirmFirstTerm(so) {
     setAskingEntryTerm(false);
-    const defaultShift = so === 1 ? "manha" : "tarde";
-    doGenerate(so, defaultShift, true);
+    const initialShift = so === 1 ? "manha" : "tarde";
+    doGenerate(so, initialShift, true);
   }
 
-  function handleEmptyClick(dia, startMin, endMin) {
+  function handleEmptyClick(day, startMin, endMin) {
     const activeSemester = activeTabIndex !== null ? semesters[activeTabIndex] : null;
     const semester = activeSemester?.offerSemester ?? 1;
     const toHHMM = (mins) =>
@@ -269,7 +266,7 @@ export default function ScheduleBuilderPage() {
 
     setAddingCustomSection({
       semester,
-      initialSchedules: [{ dia, inicio: toHHMM(startMin), fim: toHHMM(endMin) }],
+      initialSchedules: [{ day, start: toHHMM(startMin), end: toHHMM(endMin) }],
       accessibleCodes,
     });
   }
@@ -303,11 +300,11 @@ export default function ScheduleBuilderPage() {
   const activeSemester =
     activeTabIndex !== null ? (semesters[activeTabIndex] ?? null) : null;
 
-  function handleConflictClick(dia, blockStart, blockEnd, clickedDisciplina, clickedTurma) {
+  function handleConflictClick(day, blockStart, blockEnd, clickedDisciplina, clickedTurma) {
     if (!activeSemester) return;
 
     const candidates = conflictCandidatesForBlock(
-      dia,
+      day,
       blockStart,
       blockEnd,
       activeSemester,
@@ -322,13 +319,13 @@ export default function ScheduleBuilderPage() {
           r.subjectCode === c.courseCode &&
           String(r.name ?? "").trim() === c.sectionCode,
       );
-      const horarios = Array.isArray(cls?.slots) ? cls.slots : [];
-      return { ...c, courseName: cls?.nome ?? "", horarios };
+      const slots = Array.isArray(cls?.slots) ? cls.slots : [];
+      return { ...c, courseName: cls?.subjectName ?? "", slots };
     });
 
     setConflict({
-      dia,
-      horaInicio: blockStart,
+      day,
+      blockStart,
       candidates: candidatesWithSchedules,
       initialPending:
         clickedDisciplina && clickedTurma
@@ -376,19 +373,19 @@ export default function ScheduleBuilderPage() {
             semesters: [],
             creditEntries: [],
             ppcJson,
-            offerJson: activeSemester?.offerSemester === 1 ? mergedOffer1 : mergedOffer2,
-            turno: "dia",
+            offer: activeSemester?.offerSemester === 1 ? mergedOffer1 : mergedOffer2,
+            shift: "dia",
             semesterIndex: 0,
-            equivalenciasJson,
+            equivalences,
           })}
           available={calcAvailableToAdd({
             semesters: semesters.filter((_, i) => i !== activeTabIndex),
             creditEntries: planning?.creditEntries ?? [],
             ppcJson,
-            offerJson: activeSemester?.offerSemester === 1 ? mergedOffer1 : mergedOffer2,
-            turno: "dia",
+            offer: activeSemester?.offerSemester === 1 ? mergedOffer1 : mergedOffer2,
+            shift: "dia",
             semesterIndex: activeTabIndex,
-            equivalenciasJson,
+            equivalences,
           })}
           onConfirm={(classesToAdd) => {
             if (classesToAdd.length === 0) {
@@ -449,7 +446,7 @@ export default function ScheduleBuilderPage() {
             const currentOffer = (planning?.customOffer ?? {})[semester] ?? null;
             const ppcCourse = ppcJson?.courses?.[courseCode] ?? {};
             const suggestedName =
-              courseSuggestions.find((s) => s.codigo === courseCode)?.nome ?? "";
+              courseSuggestions.find((s) => s.code === courseCode)?.name ?? "";
             const courseName =
               String(ppcCourse?.name ?? "").trim() || suggestedName || courseCode;
 
@@ -466,11 +463,10 @@ export default function ScheduleBuilderPage() {
 
             // 2) Inject the new Class into the active semester.
             const newCls = {
-              name: section.turma,
+              name: section.id,
               subjectCode: courseCode,
-              slots: section.horarios ?? [],
-              // Keep nome for DisciplinaCard display
-              nome: courseName,
+              slots: section.slots ?? [],
+              subjectName: courseName,
             };
 
             updatePlanning((record) => {
@@ -491,8 +487,8 @@ export default function ScheduleBuilderPage() {
       )}
       {conflict && (
         <ModalResolveConflict
-          dia={conflict.dia}
-          horaInicio={conflict.horaInicio}
+          day={conflict.day}
+          blockStart={conflict.blockStart}
           candidates={conflict.candidates}
           initialPending={conflict.initialPending}
           onChoose={handlePickWinner}
@@ -529,11 +525,11 @@ export default function ScheduleBuilderPage() {
           title={`Conflitos de horário no ${semesters.length}º período`}
         >
           <ul className="list-disc list-inside space-y-0.5">
-            {allScheduleConflicts(lastSemester).map(({ dia, horaInicio, codigos }) => {
-              const hora = `${String(Math.floor(horaInicio / 60)).padStart(2, "0")}:00`;
+            {allScheduleConflicts(lastSemester).map(({ day, blockStart, subjectCodes }) => {
+              const hora = `${String(Math.floor(blockStart / 60)).padStart(2, "0")}:00`;
               return (
-                <li key={`${dia}-${horaInicio}`}>
-                  {dia} {hora} — {codigos.join(" × ")}
+                <li key={`${day}-${blockStart}`}>
+                  {day} {hora} — {subjectCodes.join(" × ")}
                 </li>
               );
             })}

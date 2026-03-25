@@ -1,16 +1,12 @@
 import { useState, useMemo } from "react";
 import { usePlanningContext } from "../App.jsx";
-import ppcJson from "../data/ppc-2022.json";
-import offer1Json from "../data/oferta-semestre-1.json";
-import offer2Json from "../data/oferta-semestre-2.json";
+import { ppcJson, offer1Json, offer2Json } from "../data/index.js";
 import AddSectionModal from "../components/AddSectionModal.jsx";
 import SemesterPanel from "../components/SemesterPanel.jsx";
 import {
   upsertCustomSection,
   normalizeOffer,
 } from "../domain/offer.js";
-
-
 
 // ---------------------------------------------------------------------------
 // CustomOfferPage
@@ -20,30 +16,30 @@ export default function CustomOfferPage() {
   const { planning, setCustomOffer } = usePlanningContext();
   const [adding, setAdding] = useState(null); // semester: 1 | 2 | null
 
-  // Build a deduplicated list of { codigo, nome } from PPC + both system offers,
-  // sorted by PPC suggested semester then code.
+  // Build a deduplicated list of { code, name } from PPC + both system offers,
+  // sorted by code.
   const courseSuggestions = useMemo(() => {
-    const map = new Map(); // codigo -> nome
+    const map = new Map(); // code -> name
 
     // From PPC
     for (const [key, v] of Object.entries(ppcJson?.courses ?? {})) {
-      const codigo = String(v?.code ?? key).trim();
-      if (!codigo || codigo.startsWith("Carga")) continue;
-      map.set(codigo, String(v?.name ?? "").trim());
+      const code = String(v?.code ?? key).trim();
+      if (!code || code.startsWith("Carga")) continue;
+      map.set(code, String(v?.name ?? "").trim());
     }
 
-    // From system offers (may add disciplines not in PPC)
-    for (const offerJson of [offer1Json, offer2Json]) {
-      for (const d of offerJson?.disciplinas ?? []) {
-        const codigo = String(d?.codigo ?? "").trim();
-        if (!codigo) continue;
-        if (!map.has(codigo)) map.set(codigo, String(d?.nome ?? "").trim());
+    // From system offers (may add subjects not in PPC)
+    for (const offer of [offer1Json, offer2Json]) {
+      for (const s of offer?.subjects ?? []) {
+        const code = String(s?.code ?? "").trim();
+        if (!code) continue;
+        if (!map.has(code)) map.set(code, String(s?.name ?? "").trim());
       }
     }
 
     return Array.from(map.entries())
-      .map(([codigo, nome]) => ({ codigo, nome }))
-      .sort((a, b) => a.codigo.localeCompare(b.codigo));
+      .map(([code, name]) => ({ code, name }))
+      .sort((a, b) => a.code.localeCompare(b.code));
   }, []);
 
   const customOffer = planning?.customOffer ?? { 1: null, 2: null };
@@ -56,35 +52,34 @@ export default function CustomOfferPage() {
 
   function handleConfirmAdd({ semester, courseCode, section }) {
     setAdding(null);
-    // Look up the name from suggestions for a well-formed custom offer entry
-    const suggestion = courseSuggestions.find((s) => s.codigo === courseCode);
+    const suggestion = courseSuggestions.find((s) => s.code === courseCode);
     const updated = upsertCustomSection(
       customOffer[semester],
       semester,
       courseCode,
       section,
-      suggestion?.nome ?? "",
+      suggestion?.name ?? "",
     );
     setCustomOffer(semester, updated);
   }
 
-  function handleRemove(semester, courseCode, turmaCode) {
+  function handleRemove(semester, subjectCode, classId) {
     const current = normalizeOffer(customOffer[semester], semester);
 
-    const newDisciplinas = current.disciplinas
-      .map((d) => {
-        if (d.codigo !== courseCode) return d;
+    const newSubjects = current.subjects
+      .map((s) => {
+        if (s.code !== subjectCode) return s;
         return {
-          ...d,
-          turmas: d.turmas.filter((t) => (t.turma ?? t.codigo) !== turmaCode),
+          ...s,
+          classes: s.classes.filter((c) => c.id !== classId),
         };
       })
-      .filter((d) => d.turmas.length > 0); // remove empty discipline entries
+      .filter((s) => s.classes.length > 0);
 
     setCustomOffer(semester, {
       ...current,
-      semestre: semester,
-      disciplinas: newDisciplinas,
+      semester,
+      subjects: newSubjects,
     });
   }
 
@@ -95,7 +90,7 @@ export default function CustomOfferPage() {
           Oferta customizada
         </h2>
         <p className="text-sm text-gray-500 mt-1">
-          Turmas adicionadas aqui são mescladas à oferta do sistema e ficam
+          Classes adicionadas aqui são mescladas à oferta do sistema e ficam
           disponíveis para este perfil.
         </p>
       </div>
