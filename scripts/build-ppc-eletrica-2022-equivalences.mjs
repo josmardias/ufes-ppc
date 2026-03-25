@@ -322,11 +322,6 @@ async function main() {
     `OK: ${Object.keys(equivalencesMap).length} legacy codes, ${totalPairs} pairs`,
   );
   console.log(`JSON written to: ${args.out}`);
-
-  // Print summary to stdout
-  for (const [current, legacy] of Object.entries(equivalencesMap)) {
-    console.log(`  ${legacy.join(", ")} → ${current}`);
-  }
 }
 
 main().catch((err) => {

@@ -119,6 +119,7 @@ import ofertaFisica2026s1 from "./oferta-departamento-fisica-2026-1.json";
 import ofertaInformatica2026s1 from "./oferta-departamento-informatica-2026-1.json";
 import ofertaMatematica2026s1 from "./oferta-departamento-matematica-2026-1.json";
 import ofertaProducao2026s1 from "./oferta-departamento-producao-2026-1.json";
+import ofertaQuimica2026s1 from "./oferta-departamento-quimica-2026-1.json";
 
 // ---------------------------------------------------------------------------
 // Merge helper
@@ -195,4 +196,5 @@ export const offer1Json = mergeAdaptedOffers(1, [
   adaptOffer(ofertaInformatica2026s1),
   adaptOffer(ofertaMatematica2026s1),
   adaptOffer(ofertaProducao2026s1),
+  adaptOffer(ofertaQuimica2026s1),
 ]);
