@@ -45,8 +45,8 @@ export default function SemesterView({
         />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {(semester?.classes ?? []).map((cls, i) => (
-            <ScheduleClassCard key={`${cls.subjectCode}-${cls.name}-${i}`} cls={cls} />
+          {(semester?.sections ?? []).map((sec, i) => (
+            <ScheduleClassCard key={`${sec.subjectCode}-${sec.name}-${i}`} cls={sec} />
           ))}
         </div>
       )}

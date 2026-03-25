@@ -89,7 +89,7 @@ function generate(opts = {}) {
 describe("generateSemester — offer filtering", () => {
   it("only includes subjects that are present in the offer", () => {
     const { newSemester } = generate();
-    const codes = newSemester.classes.map((c) => c.subjectCode);
+    const codes = newSemester.sections.map((s) => s.subjectCode);
 
     // A and C are in the offer → must appear
     expect(codes).toContain("A");
@@ -100,29 +100,29 @@ describe("generateSemester — offer filtering", () => {
     expect(codes).not.toContain("B");
   });
 
-  it("produces one class per offer class for a subject with multiple sections", () => {
+  it("produces one section per offer section for a subject with multiple sections", () => {
     const { newSemester } = generate();
-    const aSections = newSemester.classes.filter((c) => c.subjectCode === "A");
-    // offer has two classes for A → two entries
+    const aSections = newSemester.sections.filter((s) => s.subjectCode === "A");
+    // offer has two sections for A → two entries
     expect(aSections).toHaveLength(2);
     expect(aSections.map((s) => s.name)).toEqual(expect.arrayContaining(["A.1", "A.2"]));
   });
 
-  it("copies slots from the offer class verbatim", () => {
+  it("copies slots from the offer section verbatim", () => {
     const { newSemester } = generate();
-    const a1 = newSemester.classes.find((c) => c.name === "A.1");
+    const a1 = newSemester.sections.find((s) => s.name === "A.1");
     expect(a1.slots).toEqual([{ day: "Mon", start: "08:00", end: "10:00" }]);
   });
 
   it("uses the subject name from the offer", () => {
     const { newSemester } = generate();
-    const a = newSemester.classes.find((c) => c.subjectCode === "A");
+    const a = newSemester.sections.find((s) => s.subjectCode === "A");
     expect(a.subjectName).toBe("Alpha");
   });
 
-  it("returns an empty classes array when the offer is empty", () => {
+  it("returns an empty sections array when the offer is empty", () => {
     const { newSemester } = generate({ offer: emptyOffer });
-    expect(newSemester.classes).toHaveLength(0);
+    expect(newSemester.sections).toHaveLength(0);
   });
 
   it("excludes a subject that is in the PPC but completely absent from the offer", () => {
@@ -139,7 +139,7 @@ describe("generateSemester — offer filtering", () => {
       ],
     };
     const { newSemester } = generate({ offer: partialOffer });
-    const codes = newSemester.classes.map((c) => c.subjectCode);
+    const codes = newSemester.sections.map((s) => s.subjectCode);
     expect(codes).not.toContain("C");
   });
 });
@@ -149,20 +149,20 @@ describe("generateSemester — offer filtering", () => {
 // ---------------------------------------------------------------------------
 
 describe("generateSemester — shift filtering", () => {
-  it("includes all classes when shift is 'dia'", () => {
+  it("includes all sections when shift is 'dia'", () => {
     const { newSemester } = generate({ offer: offerAfternoonOnly, shift: "dia" });
-    expect(newSemester.classes.some((c) => c.subjectCode === "A")).toBe(true);
+    expect(newSemester.sections.some((s) => s.subjectCode === "A")).toBe(true);
   });
 
-  it("includes a class when its slot matches the requested shift (tarde)", () => {
+  it("includes a section when its slot matches the requested shift (tarde)", () => {
     const { newSemester } = generate({ offer: offerAfternoonOnly, shift: "tarde" });
-    expect(newSemester.classes.some((c) => c.subjectCode === "A")).toBe(true);
+    expect(newSemester.sections.some((s) => s.subjectCode === "A")).toBe(true);
   });
 
-  it("emits a placeholder with empty slots when subject is in offer but no class matches shift", () => {
-    // offerAfternoonOnly has A with only an afternoon class; requesting 'manha' yields no match
+  it("emits a placeholder with empty slots when subject is in offer but no section matches shift", () => {
+    // offerAfternoonOnly has A with only an afternoon section; requesting 'manha' yields no match
     const { newSemester } = generate({ offer: offerAfternoonOnly, shift: "manha" });
-    const entry = newSemester.classes.find((c) => c.subjectCode === "A");
+    const entry = newSemester.sections.find((s) => s.subjectCode === "A");
     expect(entry).toBeDefined();
     expect(entry.name).toBe("");
     expect(entry.slots).toEqual([]);
@@ -171,7 +171,7 @@ describe("generateSemester — shift filtering", () => {
   it("does NOT emit a placeholder for a subject entirely absent from the offer", () => {
     // B is absent from offerAfternoonOnly; it must not appear at all, not even as a placeholder
     const { newSemester } = generate({ offer: offerAfternoonOnly, shift: "manha" });
-    expect(newSemester.classes.some((c) => c.subjectCode === "B")).toBe(false);
+    expect(newSemester.sections.some((s) => s.subjectCode === "B")).toBe(false);
   });
 });
 
@@ -200,7 +200,7 @@ describe("generateSemester — prerequisite filtering", () => {
 
   it("excludes B when its prereq A has not been completed", () => {
     const { newSemester } = generate({ offer: offerWithB });
-    const codes = newSemester.classes.map((c) => c.subjectCode);
+    const codes = newSemester.sections.map((s) => s.subjectCode);
     expect(codes).not.toContain("B");
   });
 
@@ -208,7 +208,7 @@ describe("generateSemester — prerequisite filtering", () => {
     const priorSemester = {
       label: "2024/1",
       offerSemester: 1,
-      classes: [{ subjectCode: "A", name: "A.1", subjectName: "Alpha", slots: [] }],
+      sections: [{ subjectCode: "A", name: "A.1", subjectName: "Alpha", slots: [] }],
     };
     const { newSemester } = generateSemester({
       semesters: [priorSemester],
@@ -222,7 +222,7 @@ describe("generateSemester — prerequisite filtering", () => {
       baseOfferSemester: BASE_OFFER_SEMESTER,
       equivalences,
     });
-    const codes = newSemester.classes.map((c) => c.subjectCode);
+    const codes = newSemester.sections.map((s) => s.subjectCode);
     expect(codes).toContain("B");
   });
 
@@ -230,7 +230,7 @@ describe("generateSemester — prerequisite filtering", () => {
     const priorSemester = {
       label: "2024/1",
       offerSemester: 1,
-      classes: [{ subjectCode: "A", name: "A.1", subjectName: "Alpha", slots: [] }],
+      sections: [{ subjectCode: "A", name: "A.1", subjectName: "Alpha", slots: [] }],
     };
     const { newSemester } = generateSemester({
       semesters: [priorSemester],
@@ -244,7 +244,7 @@ describe("generateSemester — prerequisite filtering", () => {
       baseOfferSemester: BASE_OFFER_SEMESTER,
       equivalences,
     });
-    const codes = newSemester.classes.map((c) => c.subjectCode);
+    const codes = newSemester.sections.map((s) => s.subjectCode);
     // A was in the prior semester → must not be re-suggested
     expect(codes).not.toContain("A");
   });
@@ -262,7 +262,7 @@ describe("generateSemester — prerequisite filtering", () => {
       baseOfferSemester: BASE_OFFER_SEMESTER,
       equivalences,
     });
-    const codes = newSemester.classes.map((c) => c.subjectCode);
+    const codes = newSemester.sections.map((s) => s.subjectCode);
     expect(codes).toContain("B");
   });
 });
@@ -278,7 +278,7 @@ describe("generateSemester — metadata", () => {
   });
 
   it("returns semesterIndex 1 for the second generation", () => {
-    const prior = { label: "2024/1", offerSemester: 1, classes: [] };
+    const prior = { label: "2024/1", offerSemester: 1, sections: [] };
     const { semesterIndex } = generateSemester({
       semesters: [prior],
       creditEntries: [],
@@ -336,7 +336,7 @@ describe("calcAvailableToAdd — offer filtering", () => {
       semesterIndex: 0,
       equivalences,
     });
-    const codes = result.map((c) => c.subjectCode);
+    const codes = result.map((s) => s.subjectCode);
     expect(codes).toContain("A");
     expect(codes).toContain("C");
     expect(codes).not.toContain("B");
@@ -355,7 +355,7 @@ describe("calcAvailableToAdd — offer filtering", () => {
     expect(result).toHaveLength(0);
   });
 
-  it("emits a placeholder for a subject in offer but with no matching-shift class", () => {
+  it("emits a placeholder for a subject in offer but with no matching-shift section", () => {
     const result = calcAvailableToAdd({
       semesters: [],
       creditEntries: [],
@@ -365,7 +365,7 @@ describe("calcAvailableToAdd — offer filtering", () => {
       semesterIndex: 0,
       equivalences,
     });
-    const entry = result.find((c) => c.subjectCode === "A");
+    const entry = result.find((s) => s.subjectCode === "A");
     expect(entry).toBeDefined();
     expect(entry.name).toBe("");
     expect(entry.slots).toEqual([]);

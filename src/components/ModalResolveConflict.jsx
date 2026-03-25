@@ -22,12 +22,12 @@ export default function ModalResolveConflict({
 
   function handleClick(c) {
     setPendingRemove(null);
-    const key = `${c.courseCode}-${c.sectionCode}`;
+    const key = `${c.courseCode}-${c.sectionId}`;
     const pendingKey = pending
-      ? `${pending.courseCode}-${pending.sectionCode}`
+      ? `${pending.courseCode}-${pending.sectionId}`
       : null;
     if (pendingKey === key) {
-      onChoose(c.courseCode, c.sectionCode);
+      onChoose(c.courseCode, c.sectionId);
     } else {
       setPending(c);
     }
@@ -35,12 +35,12 @@ export default function ModalResolveConflict({
 
   function handleRemoveClick(c) {
     setPending(null);
-    const key = `${c.courseCode}-${c.sectionCode}`;
+    const key = `${c.courseCode}-${c.sectionId}`;
     const pendingRemoveKey = pendingRemove
-      ? `${pendingRemove.courseCode}-${pendingRemove.sectionCode}`
+      ? `${pendingRemove.courseCode}-${pendingRemove.sectionId}`
       : null;
     if (pendingRemoveKey === key) {
-      onRemoveSection(c.courseCode, c.sectionCode);
+      onRemoveSection(c.courseCode, c.sectionId);
     } else {
       setPendingRemove(c);
     }
@@ -66,12 +66,12 @@ export default function ModalResolveConflict({
         </p>
         <div className="flex flex-col gap-2">
           {candidates.map((c) => {
-            const key = `${c.courseCode}-${c.sectionCode}`;
+            const key = `${c.courseCode}-${c.sectionId}`;
             const isPending =
-              pending && `${pending.courseCode}-${pending.sectionCode}` === key;
+              pending && `${pending.courseCode}-${pending.sectionId}` === key;
             const isPendingRemove =
               pendingRemove &&
-              `${pendingRemove.courseCode}-${pendingRemove.sectionCode}` === key;
+              `${pendingRemove.courseCode}-${pendingRemove.sectionId}` === key;
             return (
               <div key={key} className="flex gap-2 items-stretch">
                 <button
@@ -92,9 +92,9 @@ export default function ModalResolveConflict({
                         <span className="font-mono text-xs text-gray-400">
                           {c.courseCode}
                         </span>
-                        {c.sectionCode && (
+                        {c.sectionId && (
                           <span className="text-xs text-gray-500">
-                            Turma {c.sectionCode}
+                            Turma {c.sectionId}
                           </span>
                         )}
                       </div>

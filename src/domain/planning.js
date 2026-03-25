@@ -19,10 +19,10 @@
  *   CurriculumSemester {
  *     label: string,        // e.g. "2024/1" — derived from ingress info
  *     offerSemester: 1|2,   // which Year Semester's offer applies here
- *     classes: Class[],
+ *     sections: Section[],
  *   }
  *
- *   Class {
+ *   Section {
  *     name: string,         // section identifier, e.g. "06.1 N"
  *     subjectCode: string,  // subject code, e.g. "ELE15923"
  *     subjectName: string,  // subject display name
@@ -42,10 +42,10 @@
  *     code: string,
  *     name: string,
  *     creditHours: number|null,
- *     classes: OfferClass[],
+ *     classes: OfferSection[],
  *   }
  *
- *   OfferClass {
+ *   OfferSection {
  *     id: string,
  *     instructor: string|null,
  *     slots: Slot[],
@@ -106,8 +106,8 @@ function buildCompletedBefore(semesters, creditEntries, semesterIndex) {
   const set = new Set();
 
   for (let i = 0; i < semesterIndex && i < (semesters ?? []).length; i++) {
-    for (const cls of semesters[i].classes ?? []) {
-      if (cls?.subjectCode) set.add(cls.subjectCode);
+    for (const sec of semesters[i].sections ?? []) {
+      if (sec?.subjectCode) set.add(sec.subjectCode);
     }
   }
 
@@ -211,11 +211,11 @@ export function inferNextSemester(
 // ---------------------------------------------------------------------------
 
 /**
- * Generates the Classes for the next CurriculumSemester.
+ * Generates the Sections for the next CurriculumSemester.
  *
- * Each eligible Subject produces one Class per OfferClass. Two Classes with
- * the same subjectCode represent two candidate Classes for that Subject.
- * Classes are filtered by shift when shift !== "dia".
+ * Each eligible Subject produces one Section per OfferSection. Two Sections with
+ * the same subjectCode represent two candidate Sections for that Subject.
+ * Sections are filtered by shift when shift !== "dia".
  *
  * @param {{
  *   semesters:            CurriculumSemester[],
@@ -259,8 +259,8 @@ export function generateSemester({
 
   const alreadyPlanned = new Set();
   for (const sem of semesters) {
-    for (const cls of sem.classes ?? []) {
-      if (cls?.subjectCode) alreadyPlanned.add(cls.subjectCode);
+    for (const sec of sem.sections ?? []) {
+      if (sec?.subjectCode) alreadyPlanned.add(sec.subjectCode);
     }
   }
 
@@ -283,7 +283,7 @@ export function generateSemester({
   }
 
   // Second pass: filter by co-requisites using the full candidate set
-  const classes = [];
+  const sections = [];
   for (const code of candidateCodes) {
     const course = courses[code];
     if (!course) continue;
@@ -302,20 +302,20 @@ export function generateSemester({
     if (!offerSubject) continue; // skip subjects not present in the offer
 
     const subjectName = offerSubject.name ?? course?.name ?? "";
-    const allOfferClasses = offerSubject?.classes ?? [];
-    const filteredOfferClasses = allOfferClasses.filter((c) => offerClassMatchesShift(c, shift));
+    const allOfferSections = offerSubject?.classes ?? [];
+    const filteredOfferSections = allOfferSections.filter((c) => offerClassMatchesShift(c, shift));
 
-    if (filteredOfferClasses.length === 0) {
-      // Subject is in the offer but no class matches the requested shift —
+    if (filteredOfferSections.length === 0) {
+      // Subject is in the offer but no section matches the requested shift —
       // keep as a placeholder so the user can still see and select it.
-      classes.push({ name: "", subjectCode: code, subjectName, slots: [] });
+      sections.push({ name: "", subjectCode: code, subjectName, slots: [] });
     } else {
-      for (const offerClass of filteredOfferClasses) {
-        classes.push({
-          name: String(offerClass?.id ?? "").trim(),
+      for (const offerSection of filteredOfferSections) {
+        sections.push({
+          name: String(offerSection?.id ?? "").trim(),
           subjectCode: code,
           subjectName,
-          slots: Array.isArray(offerClass?.slots) ? offerClass.slots : [],
+          slots: Array.isArray(offerSection?.slots) ? offerSection.slots : [],
         });
       }
     }
@@ -324,7 +324,7 @@ export function generateSemester({
   const newSemester = {
     label: label ?? `${semesterIndex + 1}`,
     offerSemester,
-    classes,
+    sections,
   };
 
   return { newSemester, semesterIndex, offerSemester };
@@ -380,50 +380,50 @@ export function replaceSemester(semesters, semesterIndex, updatedSemester) {
 }
 
 // ---------------------------------------------------------------------------
-// addClass
+// addSection
 // ---------------------------------------------------------------------------
 
 /**
- * Adds a Class to a CurriculumSemester. Duplicates are detected by both
- * subjectCode AND name together — the same Class added twice is a no-op.
- * A second Class for the same Subject but a different section is appended as
- * a separate entry.
+ * Adds a Section to a CurriculumSemester. Duplicates are detected by both
+ * subjectCode AND name together — the same Section added twice is a no-op.
+ * A second Section for the same Subject but a different identifier is appended
+ * as a separate entry.
  * Returns a new CurriculumSemester — does not mutate the input.
  *
  * @param {CurriculumSemester} semester
- * @param {Class} newClass
+ * @param {Section} newSection
  * @returns {CurriculumSemester}
  */
-export function addClass(semester, newClass) {
-  const key = `${newClass.subjectCode}::${newClass.name}`;
-  const exists = (semester.classes ?? []).some(
-    (c) => `${c.subjectCode}::${c.name}` === key,
+export function addSection(semester, newSection) {
+  const key = `${newSection.subjectCode}::${newSection.name}`;
+  const exists = (semester.sections ?? []).some(
+    (s) => `${s.subjectCode}::${s.name}` === key,
   );
 
   if (exists) return semester;
 
   return {
     ...semester,
-    classes: [...(semester.classes ?? []), newClass],
+    sections: [...(semester.sections ?? []), newSection],
   };
 }
 
 // ---------------------------------------------------------------------------
-// removeClass
+// removeSection
 // ---------------------------------------------------------------------------
 
 /**
- * Removes all Classes with the given subjectCode from a CurriculumSemester.
+ * Removes all Sections with the given subjectCode from a CurriculumSemester.
  * Returns a new CurriculumSemester — does not mutate the input.
  *
  * @param {CurriculumSemester} semester
  * @param {string} subjectCode
  * @returns {CurriculumSemester}
  */
-export function removeClass(semester, subjectCode) {
+export function removeSection(semester, subjectCode) {
   return {
     ...semester,
-    classes: (semester.classes ?? []).filter((c) => c.subjectCode !== subjectCode),
+    sections: (semester.sections ?? []).filter((s) => s.subjectCode !== subjectCode),
   };
 }
 
@@ -432,11 +432,11 @@ export function removeClass(semester, subjectCode) {
 // ---------------------------------------------------------------------------
 
 /**
- * Returns the Classes eligible to be added to a specific CurriculumSemester.
+ * Returns the Sections eligible to be added to a specific CurriculumSemester.
  *
  * Eligibility uses the same prereq/coreq rules as generateSemester, but
- * operates on an explicitly provided semesterIndex. Each eligible OfferClass
- * becomes one Class entry. Classes already in earlier semesters are excluded.
+ * operates on an explicitly provided semesterIndex. Each eligible OfferSection
+ * becomes one Section entry. Sections already in earlier semesters are excluded.
  *
  * @param {{
  *   semesters:         CurriculumSemester[],
@@ -447,7 +447,7 @@ export function removeClass(semester, subjectCode) {
  *   semesterIndex:     number,
  *   equivalences:      object,
  * }} opts
- * @returns {Class[]}
+ * @returns {Section[]}
  */
 export function calcAvailableToAdd({
   semesters = [],
@@ -468,8 +468,8 @@ export function calcAvailableToAdd({
   for (let i = 0; i < (semesters ?? []).length; i++) {
     if (i === semesterIndex) continue;
     if (i < semesterIndex) {
-      for (const cls of semesters[i].classes ?? []) {
-        if (cls?.subjectCode) alreadyPlanned.add(cls.subjectCode);
+      for (const sec of semesters[i].sections ?? []) {
+        if (sec?.subjectCode) alreadyPlanned.add(sec.subjectCode);
       }
     }
   }
@@ -511,20 +511,20 @@ export function calcAvailableToAdd({
     if (!offerSubject) continue; // skip subjects not present in the offer
 
     const subjectName = offerSubject.name ?? course?.name ?? "";
-    const allOfferClasses = offerSubject?.classes ?? [];
-    const filteredOfferClasses = allOfferClasses.filter((c) => offerClassMatchesShift(c, shift));
+    const allOfferSections = offerSubject?.classes ?? [];
+    const filteredOfferSections = allOfferSections.filter((c) => offerClassMatchesShift(c, shift));
 
-    if (filteredOfferClasses.length === 0) {
-      // Subject is in the offer but no class matches the requested shift —
+    if (filteredOfferSections.length === 0) {
+      // Subject is in the offer but no section matches the requested shift —
       // keep as a placeholder so the user can still see and select it.
       result.push({ name: "", subjectCode: code, subjectName, slots: [] });
     } else {
-      for (const offerClass of filteredOfferClasses) {
+      for (const offerSection of filteredOfferSections) {
         result.push({
-          name: String(offerClass?.id ?? "").trim(),
+          name: String(offerSection?.id ?? "").trim(),
           subjectCode: code,
           subjectName,
-          slots: Array.isArray(offerClass?.slots) ? offerClass.slots : [],
+          slots: Array.isArray(offerSection?.slots) ? offerSection.slots : [],
         });
       }
     }
@@ -559,15 +559,15 @@ export function mergeOffers(systemOffer, customOffer) {
   if (!systemOffer) return { ...empty, ...customOffer };
   if (!customOffer) return systemOffer;
 
-  function classKey(c) {
+  function sectionKey(c) {
     return String(c?.id ?? "").trim();
   }
 
-  function mergeClasses(base, incoming) {
-    const seen = new Set((base ?? []).map(classKey));
+  function mergeSections(base, incoming) {
+    const seen = new Set((base ?? []).map(sectionKey));
     const result = [...(base ?? [])];
     for (const c of incoming ?? []) {
-      const k = classKey(c);
+      const k = sectionKey(c);
       if (k && !seen.has(k)) {
         seen.add(k);
         result.push(c);
@@ -590,7 +590,7 @@ export function mergeOffers(systemOffer, customOffer) {
     if (!s?.code) continue;
     if (subjectMap.has(s.code)) {
       const existing = subjectMap.get(s.code);
-      existing.classes = mergeClasses(existing.classes, s.classes);
+      existing.classes = mergeSections(existing.classes, s.classes);
     } else {
       const clone = { ...s, classes: [...(s.classes ?? [])] };
       subjectMap.set(s.code, clone);

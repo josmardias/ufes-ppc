@@ -9,10 +9,10 @@
  *
  * Props:
  *   semester            — CurriculumSemester for the period
- *   onConflictClick     — optional: (dia, blockStart, blockEnd, courseCode, sectionCode) => void
- *   onMultiSectionClick — optional: (courseCode, sectionCode) => void
- *   onRemoveCourseClick — optional: (courseCode, sectionCode) => void
- *   focusedSections     — optional: Set<"courseCode::sectionCode"> — highlighted course sections
+ *   onConflictClick      — optional: (dia, blockStart, blockEnd, courseCode, sectionId) => void
+ *   onMultiSectionClick  — optional: (courseCode, sectionId) => void
+ *   onRemoveCourseClick  — optional: (courseCode, sectionId) => void
+ *   focusedSections      — optional: Set<"courseCode::sectionId"> — highlighted sections
  *   onEmptyClick        — optional: (dia, startMin, endMin) => void
  */
 
@@ -36,33 +36,33 @@ const HOUR_END = 23;
 // ---------------------------------------------------------------------------
 
 /**
- * Converts the Classes of a CurriculumSemester into a list of CourseSection
- * objects — one entry per Class. Classes with no slots still produce an entry
+ * Converts the Sections of a CurriculumSemester into a list of SectionEntry
+ * objects — one entry per Section. Sections with no slots still produce an entry
  * (with an empty horarios array) so they can be rendered as placeholders.
  *
- * CourseSection shape:
- *   courseCode  — class.subjectCode
- *   courseName  — class.subjectName
- *   sectionCode — class.name  (section identifier, e.g. "06.1 N")
- *   slots       — class.slots (raw slot array)
+ * SectionEntry shape:
+ *   courseCode — section.subjectCode
+ *   courseName — section.subjectName
+ *   sectionId  — section.name  (section identifier, e.g. "06.1 N")
+ *   slots      — section.slots (raw slot array)
  */
-function semesterToCourseSections(semester) {
-  const classes = Array.isArray(semester?.classes)
-    ? semester.classes.filter(Boolean)
+function semesterToSectionEntries(semester) {
+  const sections = Array.isArray(semester?.sections)
+    ? semester.sections.filter(Boolean)
     : [];
-  return classes.map((cls) => ({
-    courseCode: String(cls?.subjectCode ?? "").trim(),
-    courseName: String(cls?.subjectName ?? "").trim(),
-    sectionCode: String(cls?.name ?? "").trim(),
-    slots: Array.isArray(cls?.slots) ? cls.slots : [],
+  return sections.map((sec) => ({
+    courseCode: String(sec?.subjectCode ?? "").trim(),
+    courseName: String(sec?.subjectName ?? "").trim(),
+    sectionId: String(sec?.name ?? "").trim(),
+    slots: Array.isArray(sec?.slots) ? sec.slots : [],
   }));
 }
 
 /**
- * Returns the parsed schedule intervals for a CourseSection.
+ * Returns the parsed schedule intervals for a SectionEntry.
  * Each entry: { dia, startMin, endMin, rawStart, rawEnd }
  */
-function courseSectionSlots(section) {
+function sectionEntrySlots(section) {
   const slots = Array.isArray(section?.slots) ? section.slots : [];
   const result = [];
   for (const slot of slots) {
@@ -76,14 +76,14 @@ function courseSectionSlots(section) {
 }
 
 /**
- * Returns true when the given CourseSection has a schedule conflict with any
- * OTHER section in allSections within the rendered block [blockStart, blockEnd)
+ * Returns true when the given SectionEntry has a schedule conflict with any
+ * OTHER entry in allEntries within the rendered block [blockStart, blockEnd)
  * on the given weekday.
  */
-function courseSectionHasConflictOnDay(section, allSections, dia, blockStart, blockEnd) {
+function sectionEntryHasConflictOnDay(section, allSections, dia, blockStart, blockEnd) {
   const normalDay = normalizeDay(dia);
 
-  const ownSlots = courseSectionSlots(section);
+  const ownSlots = sectionEntrySlots(section);
   const ownInBlock = ownSlots.some(
     (s) => s.day === normalDay && overlaps(s.startMin, s.endMin, blockStart, blockEnd),
   );
@@ -93,11 +93,11 @@ function courseSectionHasConflictOnDay(section, allSections, dia, blockStart, bl
     if (other === section) continue;
     if (
       other.courseCode === section.courseCode &&
-      other.sectionCode === section.sectionCode
+      other.sectionId === section.sectionId
     ) {
       continue;
     }
-    const otherSlots = courseSectionSlots(other);
+    const otherSlots = sectionEntrySlots(other);
     const otherInBlock = otherSlots.some(
       (s) => s.day === normalDay && overlaps(s.startMin, s.endMin, blockStart, blockEnd),
     );
@@ -169,11 +169,11 @@ function minToY(min, hourStart) {
 // buildDayEvents
 // ---------------------------------------------------------------------------
 
-function buildDayEvents(allCourseSections, day) {
+function buildDayEvents(allSectionEntries, day) {
   const blocks = [];
 
-  for (const section of allCourseSections) {
-    const daySlots = courseSectionSlots(section)
+  for (const section of allSectionEntries) {
+    const daySlots = sectionEntrySlots(section)
       .filter((s) => s.day === day)
       .sort((a, b) => a.startMin - b.startMin);
 
@@ -229,10 +229,10 @@ function buildDayEvents(allCourseSections, day) {
 }
 
 // ---------------------------------------------------------------------------
-// CourseSectionCard
+// SectionEntryCard
 // ---------------------------------------------------------------------------
 
-function CourseSectionCard({
+function SectionEntryCard({
   section,
   top,
   height,
@@ -249,7 +249,7 @@ function CourseSectionCard({
   _dia,
   _startMin,
   _endMin,
-  _allCourseSections,
+  _allSectionEntries,
 }) {
   const bgColor = hasConflict
     ? "#fee2e2"
@@ -271,7 +271,7 @@ function CourseSectionCard({
   const widthPct = 100 / totalCols;
   const leftPct = col * widthPct;
 
-  const slots = courseSectionSlots(section);
+  const slots = sectionEntrySlots(section);
   const fmt = (mins) =>
     `${String(Math.floor(mins / 60)).padStart(2, "0")}:${String(mins % 60).padStart(2, "0")}`;
 
@@ -294,21 +294,21 @@ function CourseSectionCard({
     : onRemoveCourseClick
       ? "Clique para remover — "
       : "";
-  const tooltip = `${tooltipPrefix}${section.courseName}${section.sectionCode ? ` (${section.sectionCode})` : ""} — ${timeLabel}`;
+  const tooltip = `${tooltipPrefix}${section.courseName}${section.sectionId ? ` (${section.sectionId})` : ""} — ${timeLabel}`;
 
   function handleClick() {
     if (hasConflict && onConflictClick) {
       const blockStart = _startMin ?? 0;
       const blockEnd = _endMin ?? blockStart + 60;
-      onConflictClick(_dia, blockStart, blockEnd, section.courseCode, section.sectionCode);
+      onConflictClick(_dia, blockStart, blockEnd, section.courseCode, section.sectionId);
       return;
     }
     if (hasMultiSection && onMultiSectionClick) {
-      onMultiSectionClick(section.courseCode, section.sectionCode);
+      onMultiSectionClick(section.courseCode, section.sectionId);
       return;
     }
     if (onRemoveCourseClick) {
-      onRemoveCourseClick(section.courseCode, section.sectionCode);
+      onRemoveCourseClick(section.courseCode, section.sectionId);
     }
   }
 
@@ -347,14 +347,14 @@ function CourseSectionCard({
       >
         {section.courseName !== section.courseCode
           ? section.courseName
-          : section.sectionCode}
+          : section.sectionId}
       </p>
-      {section.sectionCode && section.courseName !== section.courseCode && (
+      {section.sectionId && section.courseName !== section.courseCode && (
         <p
           style={{ color: textColor }}
           className="text-xs leading-snug truncate opacity-60 mt-0.5"
         >
-          {section.sectionCode}
+          {section.sectionId}
         </p>
       )}
       <p
@@ -380,20 +380,20 @@ export default function WeekCalendar({
   onEmptyClick,
 }) {
   const colorMap = buildColorMap(semester);
-  const allCourseSections = semesterToCourseSections(semester);
-  const hasEvents = allCourseSections.some(
-    (s) => courseSectionSlots(s).length > 0,
+  const allSectionEntries = semesterToSectionEntries(semester);
+  const hasEvents = allSectionEntries.some(
+    (s) => sectionEntrySlots(s).length > 0,
   );
 
   const eventsByDay = Object.fromEntries(
-    DAYS.map((day) => [day, buildDayEvents(allCourseSections, day)]),
+    DAYS.map((day) => [day, buildDayEvents(allSectionEntries, day)]),
   );
 
-  // A subject has multiple candidate sections when two or more Classes share
+  // A subject has multiple candidate sections when two or more Sections share
   // the same subjectCode in the semester. Build a set of such subjectCodes.
   const subjectCodeCounts = new Map();
-  for (const cls of semester?.classes ?? []) {
-    const sc = String(cls?.subjectCode ?? "").trim();
+  for (const sec of semester?.sections ?? []) {
+    const sc = String(sec?.subjectCode ?? "").trim();
     if (!sc) continue;
     subjectCodeCounts.set(sc, (subjectCodeCounts.get(sc) ?? 0) + 1);
   }
@@ -523,8 +523,8 @@ export default function WeekCalendar({
                               const height =
                                 minToY(ev.endMin, hourStart) - top;
                               return (
-                                <CourseSectionCard
-                                  key={`${ev.section.courseCode}-${ev.section.sectionCode}-${i}`}
+                                <SectionEntryCard
+                                  key={`${ev.section.courseCode}-${ev.section.sectionId}-${i}`}
                                   section={ev.section}
                                   top={top}
                                   height={height}
@@ -539,12 +539,12 @@ export default function WeekCalendar({
                                   }
                                   isFocused={
                                     focusedSections?.has(
-                                      `${ev.section.courseCode}::${ev.section.sectionCode}`,
+                                      `${ev.section.courseCode}::${ev.section.sectionId}`,
                                     ) ?? false
                                   }
-                                  hasConflict={courseSectionHasConflictOnDay(
+                                  hasConflict={sectionEntryHasConflictOnDay(
                                     ev.section,
-                                    allCourseSections,
+                                    allSectionEntries,
                                     dia,
                                     ev.startMin,
                                     ev.endMin,
@@ -555,7 +555,7 @@ export default function WeekCalendar({
                                   _dia={dia}
                                   _startMin={ev.startMin}
                                   _endMin={ev.endMin}
-                                  _allCourseSections={allCourseSections}
+                                  _allSectionEntries={allSectionEntries}
                                 />
                               );
                             })}

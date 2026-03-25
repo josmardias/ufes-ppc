@@ -23,8 +23,8 @@ const slotTueMorning = { day: "Tue", start: "08:00", end: "10:00" };
 /** Wed 14:00–16:00 — no conflict with any of the above */
 const slotWedAfternoon = { day: "Wed", start: "14:00", end: "16:00" };
 
-function makeSemester(classes) {
-  return { label: "2024/1", offerSemester: 1, classes };
+function makeSemester(sections) {
+  return { label: "2024/1", offerSemester: 1, sections };
 }
 
 const classA = { subjectCode: "A", name: "A1", subjectName: "Alpha", slots: [slotMonMorning] };
@@ -166,7 +166,7 @@ describe("allScheduleConflicts", () => {
 // ---------------------------------------------------------------------------
 
 describe("sectionsInSlot", () => {
-  it("returns empty when no class falls in the slot", () => {
+  it("returns empty when no section falls in the slot", () => {
     const result = sectionsInSlot("Mon", 13 * 60, 15 * 60, makeSemester([classA]));
     expect(result).toEqual([]);
   });
@@ -175,7 +175,7 @@ describe("sectionsInSlot", () => {
     const result = sectionsInSlot("Mon", 8 * 60, 10 * 60, makeSemester([classA]));
     expect(result).toHaveLength(1);
     expect(result[0].courseCode).toBe("A");
-    expect(result[0].sectionCode).toBe("A1");
+    expect(result[0].sectionId).toBe("A1");
   });
 
   it("returns nothing for a slot on a different day", () => {
@@ -215,42 +215,42 @@ describe("conflictCandidatesForBlock", () => {
 // ---------------------------------------------------------------------------
 
 describe("resolveWinningSection", () => {
-  it("keeps the winning class and removes the other candidate for the same subject", () => {
+  it("keeps the winning section and removes the other candidate for the same subject", () => {
     const sem = makeSemester([classA_sec1, classA_sec2]);
     const result = resolveWinningSection("A", "A1", sem);
 
-    const codes = result.classes.map((c) => c.name);
+    const codes = result.sections.map((s) => s.name);
     expect(codes).toContain("A1");
     expect(codes).not.toContain("A2");
   });
 
-  it("keeps unrelated classes whose slots do not conflict with the winner", () => {
+  it("keeps unrelated sections whose slots do not conflict with the winner", () => {
     const sem = makeSemester([classA_sec1, classA_sec2, classC_no_conflict]);
     const result = resolveWinningSection("A", "A1", sem);
 
-    expect(result.classes.some((c) => c.subjectCode === "C")).toBe(true);
+    expect(result.sections.some((s) => s.subjectCode === "C")).toBe(true);
   });
 
-  it("removes classes of OTHER subjects that overlap with the winning class", () => {
+  it("removes sections of OTHER subjects that overlap with the winning section", () => {
     // classB_conflict overlaps classA_sec1 on Mon
     const sem = makeSemester([classA_sec1, classA_sec2, classB_conflict]);
     const result = resolveWinningSection("A", "A1", sem);
 
-    expect(result.classes.some((c) => c.subjectCode === "B")).toBe(false);
+    expect(result.sections.some((s) => s.subjectCode === "B")).toBe(false);
   });
 
-  it("keeps classes of other subjects that do NOT overlap with the winner", () => {
+  it("keeps sections of other subjects that do NOT overlap with the winner", () => {
     const sem = makeSemester([classA_sec1, classA_sec2, classB_other_day]);
     const result = resolveWinningSection("A", "A1", sem);
 
-    expect(result.classes.some((c) => c.subjectCode === "B")).toBe(true);
+    expect(result.sections.some((s) => s.subjectCode === "B")).toBe(true);
   });
 
   it("does not mutate the input semester", () => {
     const sem = makeSemester([classA_sec1, classA_sec2]);
-    const originalLength = sem.classes.length;
+    const originalLength = sem.sections.length;
     resolveWinningSection("A", "A1", sem);
-    expect(sem.classes).toHaveLength(originalLength);
+    expect(sem.sections).toHaveLength(originalLength);
   });
 
   it("returns a new semester object", () => {
@@ -259,31 +259,31 @@ describe("resolveWinningSection", () => {
     expect(result).not.toBe(sem);
   });
 
-  it("leaves a semester with a single class for a subject unchanged (no other candidates)", () => {
+  it("leaves a semester with a single section for a subject unchanged (no other candidates)", () => {
     const sem = makeSemester([classA_sec1, classC_no_conflict]);
     const result = resolveWinningSection("A", "A1", sem);
-    expect(result.classes).toHaveLength(2);
+    expect(result.sections).toHaveLength(2);
   });
 
-  it("results in an empty class list when the semester only had the two conflicting sections", () => {
-    // A has two sections both on Mon; picking A1 drops A2, no other classes
+  it("results in an empty sections list when the semester only had the two conflicting sections", () => {
+    // A has two sections both on Mon; picking A1 drops A2, no other sections
     const sec1 = { subjectCode: "A", name: "A1", subjectName: "", slots: [slotMonMorning] };
     const sec2 = { subjectCode: "A", name: "A2", subjectName: "", slots: [slotMonMorning] };
     const result = resolveWinningSection("A", "A1", makeSemester([sec1, sec2]));
-    expect(result.classes).toHaveLength(1);
-    expect(result.classes[0].name).toBe("A1");
+    expect(result.sections).toHaveLength(1);
+    expect(result.sections[0].name).toBe("A1");
   });
 
-  it("preserves the winning class's slots unchanged", () => {
+  it("preserves the winning section's slots unchanged", () => {
     const sem = makeSemester([classA_sec1, classA_sec2]);
     const result = resolveWinningSection("A", "A1", sem);
-    const winner = result.classes.find((c) => c.name === "A1");
+    const winner = result.sections.find((s) => s.name === "A1");
     expect(winner.slots).toEqual(classA_sec1.slots);
   });
 
-  it("handles a semester with no classes gracefully", () => {
+  it("handles a semester with no sections gracefully", () => {
     const sem = makeSemester([]);
     const result = resolveWinningSection("A", "A1", sem);
-    expect(result.classes).toEqual([]);
+    expect(result.sections).toEqual([]);
   });
 });

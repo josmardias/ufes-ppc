@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { equivalences } from "../data/index.js";
-import { groupClassesBySubject } from "../domain/offer.js";
+import { groupSectionsBySubject } from "../domain/offer.js";
 import { useEscKey } from "../hooks/useEscKey.js";
 
 const LEGACY_CODES = new Set(
@@ -16,7 +16,7 @@ export default function ModalAddCourses({
   onCancel,
 }) {
   useEscKey(onCancel);
-  // Track selected subject codes (one selection = all classes for that code)
+  // Track selected subject codes (one selection = all sections for that code)
   const [selected, setSelected] = useState(new Set());
   const [onlyAccessible, setOnlyAccessible] = useState(true);
   const [showLegacy, setShowLegacy] = useState(false);
@@ -29,7 +29,7 @@ export default function ModalAddCourses({
       .replace(/[\u0300-\u036f]/g, "");
 
   const sourceList = onlyAccessible ? available : allCourses;
-  const grouped = groupClassesBySubject(
+  const grouped = groupSectionsBySubject(
     sourceList.filter((r) => showLegacy || !LEGACY_CODES.has(r.subjectCode)),
   );
   const displayGroups = search.trim()
@@ -51,10 +51,10 @@ export default function ModalAddCourses({
     });
   }
 
-  // Collect all Class objects for selected subjects to pass to onConfirm
-  function getSelectedClasses() {
-    return (onlyAccessible ? available : allCourses).filter((cls) =>
-      selected.has(cls.subjectCode),
+  // Collect all Section objects for selected subjects to pass to onConfirm
+  function getSelectedSections() {
+    return (onlyAccessible ? available : allCourses).filter((sec) =>
+      selected.has(sec.subjectCode),
     );
   }
 
@@ -147,18 +147,18 @@ export default function ModalAddCourses({
                         </span>
                       )}
                     </div>
-                    {g.classes.length > 0 && (
+                    {g.sections.length > 0 && (
                       <div className="mt-0.5 flex flex-col gap-0.5">
-                        {g.classes.map((cls, i) => {
-                          const slots = Array.isArray(cls.slots) ? cls.slots : [];
+                        {g.sections.map((sec, i) => {
+                          const slots = Array.isArray(sec.slots) ? sec.slots : [];
                           return (
                             <div
                               key={i}
                               className="flex flex-wrap gap-x-2 text-xs text-gray-400"
                             >
-                              {cls.name && (
+                              {sec.name && (
                                 <span className="font-medium text-gray-500">
-                                  {cls.name}
+                                  {sec.name}
                                 </span>
                               )}
                               {slots.map((s, j) => (
@@ -180,7 +180,7 @@ export default function ModalAddCourses({
 
         <div className="px-6 py-4 border-t border-gray-100 flex gap-2">
           <button
-            onClick={() => onConfirm(getSelectedClasses())}
+            onClick={() => onConfirm(getSelectedSections())}
             disabled={selected.size === 0}
             className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-bold rounded-xl transition-colors cursor-pointer"
           >

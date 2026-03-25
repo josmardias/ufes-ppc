@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useEscKey } from "../hooks/useEscKey.js";
 import { equivalences } from "../data/index.js";
-import { classMatchesShift, groupClassesBySubject } from "../domain/offer.js";
+import { sectionMatchesShift, groupSectionsBySubject } from "../domain/offer.js";
 
 const LEGACY_CODES = new Set(
   Object.values(equivalences).flat(),
@@ -14,46 +14,44 @@ export const SHIFT_OPTIONS = [
 ];
 
 export default function ModalConfirmTerm({
-  newClasses,
+  newSections,
   semesterIndex,
+  initialShift = "dia",
   onConfirm,
   onCancel,
 }) {
   useEscKey(onCancel);
 
-  const [shift, setShift] = useState(() => {
-    // Auto-detect shift from the majority of slots
-    return "dia";
-  });
+  const [shift, setShift] = useState(initialShift);
   const [showLegacy, setShowLegacy] = useState(false);
 
-  // Visible classes filtered by shift + legacy toggle
-  function getVisibleClasses(s, legacy) {
-    return newClasses.filter(
-      (cls) =>
-        classMatchesShift(cls, s) &&
-        (legacy || !LEGACY_CODES.has(cls.subjectCode)),
+  // Visible sections filtered by shift + legacy toggle
+  function getVisibleSections(s, legacy) {
+    return newSections.filter(
+      (sec) =>
+        sectionMatchesShift(sec, s) &&
+        (legacy || !LEGACY_CODES.has(sec.subjectCode)),
     );
   }
 
-  // Visible groups (one per unique subjectCode among visible classes)
-  const visibleClasses = getVisibleClasses(shift, showLegacy);
-  const visibleGroups = groupClassesBySubject(visibleClasses);
+  // Visible groups (one per unique subjectCode among visible sections)
+  const visibleSections = getVisibleSections(shift, showLegacy);
+  const visibleGroups = groupSectionsBySubject(visibleSections);
 
-  // Selection is by subjectCode; selecting a subject selects ALL its classes
+  // Selection is by subjectCode; selecting a subject selects ALL its sections
   const [selected, setSelected] = useState(
     () => new Set(visibleGroups.map((g) => g.subjectCode)),
   );
 
   function handleShiftChange(newShift) {
     setShift(newShift);
-    const visible = groupClassesBySubject(getVisibleClasses(newShift, showLegacy));
+    const visible = groupSectionsBySubject(getVisibleSections(newShift, showLegacy));
     setSelected(new Set(visible.map((g) => g.subjectCode)));
   }
 
   function handleShowLegacyChange(val) {
     setShowLegacy(val);
-    const visible = groupClassesBySubject(getVisibleClasses(shift, val));
+    const visible = groupSectionsBySubject(getVisibleSections(shift, val));
     setSelected(new Set(visible.map((g) => g.subjectCode)));
   }
 
@@ -78,9 +76,9 @@ export default function ModalConfirmTerm({
     visibleGroups.length > 0 && selected.size === visibleGroups.length;
   const anySelected = selected.size > 0;
 
-  // Collect the classes to confirm: all classes for selected subjects
-  function getConfirmedClasses() {
-    return newClasses.filter((cls) => selected.has(cls.subjectCode));
+  // Collect the sections to confirm: only shift-visible sections for selected subjects
+  function getConfirmedSections() {
+    return visibleSections.filter((sec) => selected.has(sec.subjectCode));
   }
 
   return (
@@ -107,8 +105,8 @@ export default function ModalConfirmTerm({
               <span className="text-xs font-medium text-gray-500">Turno:</span>
               <div className="flex rounded-lg border border-gray-300 overflow-hidden">
                 {SHIFT_OPTIONS.map(({ id, label }) => {
-                  const count = groupClassesBySubject(
-                    getVisibleClasses(id, showLegacy),
+                  const count = groupSectionsBySubject(
+                    getVisibleSections(id, showLegacy),
                   ).length;
                   return (
                     <button
@@ -161,7 +159,7 @@ export default function ModalConfirmTerm({
           ) : (
             visibleGroups.map((g) => {
               const checked = selected.has(g.subjectCode);
-              const multiSection = g.classes.length > 1;
+              const multiSection = g.sections.length > 1;
               return (
                 <label
                   key={g.subjectCode}
@@ -188,22 +186,22 @@ export default function ModalConfirmTerm({
                       </span>
                       {multiSection && (
                         <span className="text-xs font-semibold text-amber-600 flex-shrink-0">
-                          {g.classes.length} classes
+                          {g.sections.length} turmas
                         </span>
                       )}
                     </div>
-                    {g.classes.length > 0 && (
+                    {g.sections.length > 0 && (
                       <div className="mt-1 flex flex-col gap-0.5">
-                        {g.classes.map((cls, i) => {
-                          const slots = Array.isArray(cls.slots) ? cls.slots : [];
+                        {g.sections.map((sec, i) => {
+                          const slots = Array.isArray(sec.slots) ? sec.slots : [];
                           return (
                             <div
                               key={i}
                               className="flex flex-wrap gap-x-2 text-xs text-gray-500"
                             >
-                              {cls.name && (
+                              {sec.name && (
                                 <span className="font-medium text-gray-600">
-                                  {cls.name}
+                                  {sec.name}
                                 </span>
                               )}
                               {slots.map((s, j) => (
@@ -225,7 +223,7 @@ export default function ModalConfirmTerm({
 
         <div className="px-6 py-4 border-t border-gray-100 flex gap-2">
           <button
-            onClick={() => onConfirm(getConfirmedClasses(), shift)}
+            onClick={() => onConfirm(getConfirmedSections(), shift)}
             disabled={!anySelected}
             className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-bold rounded-xl transition-colors cursor-pointer"
           >

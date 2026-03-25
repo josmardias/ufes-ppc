@@ -26,7 +26,7 @@ export default function AddSectionModal({
 }) {
   useEscKey(onCancel);
   const [courseCode, setCourseCode] = useState("");
-  const [sectionCode, setSectionCode] = useState("");
+  const [sectionId, setSectionId] = useState("");
   const [onlyAccessible, setOnlyAccessible] = useState(accessibleCodes != null);
   const [schedules, setSchedules] = useState(
     initialSchedules && initialSchedules.length > 0
@@ -49,7 +49,7 @@ export default function AddSectionModal({
 
   function handleConfirm() {
     const code = courseCode.trim().toUpperCase();
-    const sec = sectionCode.trim();
+    const sec = sectionId.trim();
     if (!code) return setError("Informe o código da disciplina.");
     if (!sec) return setError("Informe o código da turma.");
 
@@ -125,9 +125,9 @@ export default function AddSectionModal({
             Código da turma
             </label>
           <input
-            value={sectionCode}
+            value={sectionId}
             onChange={(e) => {
-              setSectionCode(e.target.value);
+              setSectionId(e.target.value);
               setError("");
             }}
             placeholder="ex: 06.1 N"

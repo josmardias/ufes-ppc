@@ -4,8 +4,8 @@ import {
   addSemester,
   removeSemester,
   replaceSemester,
-  addClass,
-  removeClass,
+  addSection,
+  removeSection,
   calcAvailableToAdd,
   mergeOffers,
   inferNextSemester,
@@ -145,7 +145,7 @@ export default function ScheduleBuilderPage() {
       semesterIndex: activeTabIndex,
       equivalences,
     });
-    return new Set(available.map((r) => r.subjectCode));
+    return new Set(available.map((s) => s.subjectCode));
   }, [activeTabIndex, semesters, mergedOffer1, mergedOffer2, planning?.creditEntries]);
 
   // Auto-select tab when a new semester is generated
@@ -193,7 +193,7 @@ export default function ScheduleBuilderPage() {
         equivalences,
       });
 
-      if (newSemester.classes.length === 0) {
+      if (newSemester.sections.length === 0) {
         setError("Nenhuma disciplina disponível para este período.");
         return;
       }
@@ -212,15 +212,15 @@ export default function ScheduleBuilderPage() {
   }
 
   const handleConfirmTerm = useCallback(
-    (selectedClasses, turnoEscolhido) => {
+    (selectedSections, turnoEscolhido) => {
       if (!pendingTerm) return;
       const { newSemester, semesterIndex, offerSemester, isFirst, ingressYearSemesterVal } =
         pendingTerm;
       const shiftVal = turnoEscolhido ?? pendingTerm.shiftVal;
 
-      // Classes from generateSemester are already flat (one Class per turma),
+      // Sections from generateSemester are already flat (one Section per turma),
       // no further enrichment needed.
-      const confirmedSemester = { ...newSemester, classes: selectedClasses };
+      const confirmedSemester = { ...newSemester, sections: selectedSections };
 
       updatePlanning((record) => {
         const updatedSemesters = addSemester(record.semesters ?? [], confirmedSemester);
@@ -238,7 +238,7 @@ export default function ScheduleBuilderPage() {
         };
       });
 
-      setLastResult({ semesterIndex, count: selectedClasses.length });
+      setLastResult({ semesterIndex, count: selectedSections.length });
       setPendingTerm(null);
     },
     [pendingTerm, updatePlanning],
@@ -315,13 +315,13 @@ export default function ScheduleBuilderPage() {
 
     // Find by (subjectCode, name).
     const candidatesWithSchedules = candidates.map((c) => {
-      const cls = activeSemester.classes.find(
-        (r) =>
-          r.subjectCode === c.courseCode &&
-          String(r.name ?? "").trim() === c.sectionCode,
+      const sec = activeSemester.sections.find(
+        (s) =>
+          s.subjectCode === c.courseCode &&
+          String(s.name ?? "").trim() === c.sectionId,
       );
-      const slots = Array.isArray(cls?.slots) ? cls.slots : [];
-      return { ...c, courseName: cls?.subjectName ?? "", slots };
+      const slots = Array.isArray(sec?.slots) ? sec.slots : [];
+      return { ...c, courseName: sec?.subjectName ?? "", slots };
     });
 
     setConflict({
@@ -330,17 +330,17 @@ export default function ScheduleBuilderPage() {
       candidates: candidatesWithSchedules,
       initialPending:
         clickedDisciplina && clickedTurma
-          ? { courseCode: clickedDisciplina, sectionCode: clickedTurma }
+          ? { courseCode: clickedDisciplina, sectionId: clickedTurma }
           : null,
     });
   }
 
-  function handlePickWinner(courseCode, sectionCode) {
+  function handlePickWinner(courseCode, sectionId) {
     if (!conflict || activeTabIndex === null) return;
     updatePlanning((record) => {
       const sem = (record.semesters ?? [])[activeTabIndex];
       if (!sem) return record;
-      const resolved = resolveWinningSection(courseCode, sectionCode, sem);
+      const resolved = resolveWinningSection(courseCode, sectionId, sem);
       return {
         ...record,
         semesters: replaceSemester(record.semesters, activeTabIndex, resolved),
@@ -356,8 +356,9 @@ export default function ScheduleBuilderPage() {
       )}
       {pendingTerm && (
         <ModalConfirmTerm
-          newClasses={pendingTerm.newSemester.classes}
+          newSections={pendingTerm.newSemester.sections}
           semesterIndex={pendingTerm.semesterIndex}
+          initialShift={pendingTerm.shiftVal ?? shift}
           onConfirm={handleConfirmTerm}
           onCancel={() => setPendingTerm(null)}
         />
@@ -367,7 +368,7 @@ export default function ScheduleBuilderPage() {
           semesterIndex={activeTabIndex}
           existingSubjectCodes={
             new Set(
-              (activeSemester?.classes ?? []).map((cls) => cls.subjectCode).filter(Boolean),
+              (activeSemester?.sections ?? []).map((sec) => sec.subjectCode).filter(Boolean),
             )
           }
           allCourses={calcAvailableToAdd({
@@ -388,8 +389,8 @@ export default function ScheduleBuilderPage() {
             semesterIndex: activeTabIndex,
             equivalences,
           })}
-          onConfirm={(classesToAdd) => {
-            if (classesToAdd.length === 0) {
+          onConfirm={(sectionsToAdd) => {
+            if (sectionsToAdd.length === 0) {
               setAddingCourses(false);
               return;
             }
@@ -398,10 +399,10 @@ export default function ScheduleBuilderPage() {
               const sem = (record.semesters ?? [])[activeTabIndex];
               if (!sem) return record;
 
-              // Add each class directly.
+              // Add each section directly.
               let updatedSem = sem;
-              for (const newCls of classesToAdd) {
-                updatedSem = addClass(updatedSem, newCls);
+              for (const newSec of sectionsToAdd) {
+                updatedSem = addSection(updatedSem, newSec);
               }
 
               return {
@@ -422,7 +423,7 @@ export default function ScheduleBuilderPage() {
             updatePlanning((record) => {
               const sem = (record.semesters ?? [])[activeTabIndex];
               if (!sem) return record;
-              const updatedSem = removeClass(sem, removingCourse.subjectCode);
+              const updatedSem = removeSection(sem, removingCourse.subjectCode);
               return {
                 ...record,
                 semesters: replaceSemester(record.semesters, activeTabIndex, updatedSem),
@@ -440,7 +441,7 @@ export default function ScheduleBuilderPage() {
           courseSuggestions={courseSuggestions}
           initialSchedules={addingCustomSection.initialSchedules}
           accessibleCodes={addingCustomSection.accessibleCodes ?? null}
-          onConfirm={({ semester, courseCode, section }) => {
+          onConfirm={({ semester, courseCode, section: sec_data }) => {
             setAddingCustomSection(null);
 
             // 1) Persist to customOffer
@@ -457,16 +458,16 @@ export default function ScheduleBuilderPage() {
                 currentOffer,
                 semester,
                 courseCode,
-                section,
+                sec_data,
                 courseName,
               ),
             );
 
-            // 2) Inject the new Class into the active semester.
-            const newCls = {
-              name: section.id,
+            // 2) Inject the new Section into the active semester.
+            const newSec = {
+              name: sec_data.id,
               subjectCode: courseCode,
-              slots: section.slots ?? [],
+              slots: sec_data.slots ?? [],
               subjectName: courseName,
             };
 
@@ -474,8 +475,8 @@ export default function ScheduleBuilderPage() {
               const sem = (record.semesters ?? [])[activeTabIndex];
               if (!sem) return record;
 
-              // addClass deduplicates by (subjectCode, name) — safe to call unconditionally.
-              const updatedSem = addClass(sem, newCls);
+              // addSection deduplicates by (subjectCode, name) — safe to call unconditionally.
+              const updatedSem = addSection(sem, newSec);
 
               return {
                 ...record,
@@ -492,17 +493,46 @@ export default function ScheduleBuilderPage() {
           subtitle="Escolha qual turma deseja manter. As demais serão removidas."
           candidates={choosingSection.candidates}
           initialPending={choosingSection.initialPending}
-          onChoose={(courseCode, sectionCode) => {
+          onChoose={(courseCode, sectionId) => {
             updatePlanning((record) => {
               const sem = (record.semesters ?? [])[activeTabIndex];
               if (!sem) return record;
-              const resolved = resolveWinningSection(courseCode, sectionCode, sem);
+              const resolved = resolveWinningSection(courseCode, sectionId, sem);
               return {
                 ...record,
                 semesters: replaceSemester(record.semesters, activeTabIndex, resolved),
               };
             });
             setChoosingSection(null);
+          }}
+          onRemoveSection={(courseCode, sectionId) => {
+            updatePlanning((record) => {
+              const sem = (record.semesters ?? [])[activeTabIndex];
+              if (!sem) return record;
+              const updatedSem = {
+                ...sem,
+                sections: sem.sections.filter(
+                  (sec) =>
+                    !(
+                      sec.subjectCode === courseCode &&
+                      String(sec.name ?? "").trim() === sectionId
+                    ),
+                ),
+              };
+              return {
+                ...record,
+                semesters: replaceSemester(record.semesters, activeTabIndex, updatedSem),
+              };
+            });
+            // If only one candidate remains after removal, no need to keep the modal open.
+            const remaining = choosingSection.candidates.filter(
+              (c) => !(c.courseCode === courseCode && c.sectionId === sectionId),
+            );
+            if (remaining.length <= 1) {
+              setChoosingSection(null);
+            } else {
+              setChoosingSection({ ...choosingSection, candidates: remaining, initialPending: null });
+            }
           }}
           onClose={() => setChoosingSection(null)}
         />
@@ -514,18 +544,18 @@ export default function ScheduleBuilderPage() {
           candidates={conflict.candidates}
           initialPending={conflict.initialPending}
           onChoose={handlePickWinner}
-          onRemoveSection={(courseCode, sectionCode) => {
+          onRemoveSection={(courseCode, sectionId) => {
             updatePlanning((record) => {
               const sem = (record.semesters ?? [])[activeTabIndex];
               if (!sem) return record;
-              // Remove the class whose (subjectCode, name) matches.
+              // Remove the section whose (subjectCode, name) matches.
               const updatedSem = {
                 ...sem,
-                classes: sem.classes.filter(
-                  (cls) =>
+                sections: sem.sections.filter(
+                  (sec) =>
                     !(
-                      cls.subjectCode === courseCode &&
-                      String(cls.name ?? "").trim() === sectionCode
+                      sec.subjectCode === courseCode &&
+                      String(sec.name ?? "").trim() === sectionId
                     ),
                 ),
               };
@@ -648,8 +678,8 @@ export default function ScheduleBuilderPage() {
                   )}
                 </h3>
                 <p className="text-xs text-gray-400 mt-0.5">
-                  {activeSemester?.classes?.length ?? 0} disciplina
-                  {(activeSemester?.classes?.length ?? 0) !== 1 ? "s" : ""}
+                  {activeSemester?.sections?.length ?? 0} disciplina
+                  {(activeSemester?.sections?.length ?? 0) !== 1 ? "s" : ""}
                 </p>
               </div>
               <div className="flex gap-2">
@@ -716,7 +746,7 @@ export default function ScheduleBuilderPage() {
                 if (conflict) {
                   return new Set(
                     conflict.candidates.map(
-                      (c) => `${c.courseCode}::${c.sectionCode}`,
+                      (c) => `${c.courseCode}::${c.sectionId}`,
                     ),
                   );
                 }
@@ -730,35 +760,35 @@ export default function ScheduleBuilderPage() {
               }
               onChooseSection={
                 isEditable(activeTabIndex)
-                  ? (courseCode, sectionCode) => {
+                  ? (courseCode, sectionId) => {
                       if (!activeSemester) return;
                       // Collect all sections for this subject so the user can
                       // pick one from a prompt instead of resolving immediately.
-                      const candidates = (activeSemester.classes ?? [])
-                        .filter((c) => c.subjectCode === courseCode)
-                        .map((c) => ({
-                          courseCode: c.subjectCode,
-                          sectionCode: String(c.name ?? "").trim(),
-                          courseName: c.subjectName ?? "",
-                          slots: Array.isArray(c.slots) ? c.slots : [],
+                      const candidates = (activeSemester.sections ?? [])
+                        .filter((s) => s.subjectCode === courseCode)
+                        .map((s) => ({
+                          courseCode: s.subjectCode,
+                          sectionId: String(s.name ?? "").trim(),
+                          courseName: s.subjectName ?? "",
+                          slots: Array.isArray(s.slots) ? s.slots : [],
                         }));
                       setChoosingSection({
                         candidates,
-                        initialPending: { courseCode, sectionCode },
+                        initialPending: { courseCode, sectionId },
                       });
                     }
                   : undefined
               }
               onRemoveCourse={
                 isEditable(activeTabIndex)
-                  ? (courseCode, sectionCode) => {
-                      // Find the class by (subjectCode, name).
-                      const cls = activeSemester.classes.find(
-                        (c) =>
-                          c.subjectCode === courseCode &&
-                          String(c.name ?? "").trim() === sectionCode,
+                  ? (courseCode, sectionId) => {
+                      // Find the section by (subjectCode, name).
+                      const sec = activeSemester.sections.find(
+                        (s) =>
+                          s.subjectCode === courseCode &&
+                          String(s.name ?? "").trim() === sectionId,
                       );
-                      if (cls) setRemovingCourse(cls);
+                      if (sec) setRemovingCourse(sec);
                     }
                   : undefined
               }

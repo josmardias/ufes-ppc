@@ -9,10 +9,10 @@
  *   CurriculumSemester {
  *     label: string,
  *     offerSemester: 1|2,
- *     classes: Class[],
+ *     sections: Section[],
  *   }
  *
- *   Class {
+ *   Section {
  *     name: string,        // section identifier, e.g. "06.1 N"
  *     subjectCode: string, // subject code, e.g. "ELE15923"
  *     slots: Slot[],       // schedule entries
@@ -49,14 +49,14 @@ function parseSlot(slot) {
 }
 
 /**
- * Returns all validated schedule intervals for a Class.
- * Reads directly from cls.slots.
+ * Returns all validated schedule intervals for a Section.
+ * Reads directly from sec.slots.
  *
- * @param {object} cls
+ * @param {object} sec
  * @returns {Array<{day:string, startMin:number, endMin:number}>}
  */
-function classIntervals(cls) {
-  return (Array.isArray(cls?.slots) ? cls.slots : [])
+function sectionIntervals(sec) {
+  return (Array.isArray(sec?.slots) ? sec.slots : [])
     .map(parseSlot)
     .filter(Boolean);
 }
@@ -81,13 +81,13 @@ function anyIntervalsOverlap(intervalsA, intervalsB) {
 }
 
 /**
- * Returns a safe, normalised array of Classes from a CurriculumSemester.
+ * Returns a safe, normalised array of Sections from a CurriculumSemester.
  *
  * @param {object} semester
  * @returns {object[]}
  */
-function safeClasses(semester) {
-  return Array.isArray(semester?.classes) ? semester.classes.filter(Boolean) : [];
+function safeSections(semester) {
+  return Array.isArray(semester?.sections) ? semester.sections.filter(Boolean) : [];
 }
 
 // ---------------------------------------------------------------------------
@@ -99,22 +99,22 @@ function safeClasses(semester) {
  * next semester from the supplied CurriculumSemester.
  *
  * Blocking conditions:
- *   1. Any two Classes have overlapping schedule slots.
+ *   1. Any two Sections have overlapping schedule slots.
  *
  * @param {object} semester - A CurriculumSemester.
  * @returns {string[]} Array of pt-BR blocking reason strings (empty when clear).
  */
 export function blockingReasons(semester) {
-  const classes = safeClasses(semester);
+  const sections = safeSections(semester);
   const reasons = [];
 
-  // Pairwise schedule conflicts between classes.
-  for (let i = 0; i < classes.length - 1; i++) {
-    const iIntervals = classIntervals(classes[i]);
-    for (let j = i + 1; j < classes.length; j++) {
-      if (anyIntervalsOverlap(iIntervals, classIntervals(classes[j]))) {
+  // Pairwise schedule conflicts between sections.
+  for (let i = 0; i < sections.length - 1; i++) {
+    const iIntervals = sectionIntervals(sections[i]);
+    for (let j = i + 1; j < sections.length; j++) {
+      if (anyIntervalsOverlap(iIntervals, sectionIntervals(sections[j]))) {
         reasons.push(
-          `Conflito de horário: ${classes[i].subjectCode} × ${classes[j].subjectCode}`,
+          `Conflito de horário: ${sections[i].subjectCode} × ${sections[j].subjectCode}`,
         );
       }
     }
@@ -124,19 +124,19 @@ export function blockingReasons(semester) {
 }
 
 /**
- * Returns true when any two Classes in the CurriculumSemester have at least one
+ * Returns true when any two Sections in the CurriculumSemester have at least one
  * pair of schedule slots on the same weekday with overlapping time intervals.
  *
  * @param {object} semester - A CurriculumSemester.
  * @returns {boolean}
  */
 export function semesterHasScheduleConflict(semester) {
-  const classes = safeClasses(semester);
+  const sections = safeSections(semester);
 
-  for (let i = 0; i < classes.length - 1; i++) {
-    const iIntervals = classIntervals(classes[i]);
-    for (let j = i + 1; j < classes.length; j++) {
-      if (anyIntervalsOverlap(iIntervals, classIntervals(classes[j]))) {
+  for (let i = 0; i < sections.length - 1; i++) {
+    const iIntervals = sectionIntervals(sections[i]);
+    for (let j = i + 1; j < sections.length; j++) {
+      if (anyIntervalsOverlap(iIntervals, sectionIntervals(sections[j]))) {
         return true;
       }
     }
@@ -150,22 +150,22 @@ export function semesterHasScheduleConflict(semester) {
  *
  * Conflicts are grouped by { day, blockStart } where blockStart is the start
  * minute of the overlapping block. Each descriptor lists the subject codes
- * of every Class that participates in that conflict slot.
+ * of every Section that participates in that conflict slot.
  *
  * @param {object} semester - A CurriculumSemester.
  * @returns {Array<{ day: string, blockStart: number, subjectCodes: string[] }>}
  */
 export function allScheduleConflicts(semester) {
-  const classes = safeClasses(semester);
+  const sections = safeSections(semester);
 
   /** @type {Map<string, Set<string>>} */
   const buckets = new Map();
 
-  for (let i = 0; i < classes.length - 1; i++) {
-    const iIntervals = classIntervals(classes[i]);
+  for (let i = 0; i < sections.length - 1; i++) {
+    const iIntervals = sectionIntervals(sections[i]);
 
-    for (let j = i + 1; j < classes.length; j++) {
-      const jIntervals = classIntervals(classes[j]);
+    for (let j = i + 1; j < sections.length; j++) {
+      const jIntervals = sectionIntervals(sections[j]);
 
       for (const a of iIntervals) {
         for (const b of jIntervals) {
@@ -179,8 +179,8 @@ export function allScheduleConflicts(semester) {
             buckets.set(key, new Set());
           }
           const bucket = buckets.get(key);
-          bucket.add(classes[i].subjectCode);
-          bucket.add(classes[j].subjectCode);
+          bucket.add(sections[i].subjectCode);
+          bucket.add(sections[j].subjectCode);
         }
       }
     }
@@ -197,31 +197,31 @@ export function allScheduleConflicts(semester) {
 }
 
 /**
- * Returns all course-section pairs whose schedule overlaps the given time block
+ * Returns all section pairs whose schedule overlaps the given time block
  * on the given weekday.
  *
  * @param {string} day      - Canonical weekday (e.g. "Mon").
  * @param {number} startMin - Block start in minutes since 00:00 (inclusive).
  * @param {number} endMin   - Block end in minutes since 00:00 (exclusive).
  * @param {object} semester - A CurriculumSemester.
- * @returns {Array<{ courseCode: string, sectionCode: string }>}
+ * @returns {Array<{ courseCode: string, sectionId: string }>}
  */
 export function sectionsInSlot(day, startMin, endMin, semester) {
   const normalDay = normalizeDay(day);
-  const classes = safeClasses(semester);
-  /** @type {Array<{ courseCode: string, sectionCode: string }>} */
+  const sections = safeSections(semester);
+  /** @type {Array<{ courseCode: string, sectionId: string }>} */
   const result = [];
 
-  for (const cls of classes) {
-    const intervals = classIntervals(cls);
+  for (const sec of sections) {
+    const intervals = sectionIntervals(sec);
     const hits = intervals.some(
       (iv) =>
         iv.day === normalDay && overlaps(iv.startMin, iv.endMin, startMin, endMin),
     );
     if (hits) {
       result.push({
-        courseCode: String(cls?.subjectCode ?? "").trim(),
-        sectionCode: String(cls?.name ?? "").trim(),
+        courseCode: String(sec?.subjectCode ?? "").trim(),
+        sectionId: String(sec?.name ?? "").trim(),
       });
     }
   }
@@ -230,7 +230,7 @@ export function sectionsInSlot(day, startMin, endMin, semester) {
 }
 
 /**
- * Returns all course-section pairs that are present in the block
+ * Returns all sections that are present in the block
  * [blockStart, blockEnd) on the given weekday — but only when there are two or
  * more such sections (i.e. an actual conflict exists).
  *
@@ -240,7 +240,7 @@ export function sectionsInSlot(day, startMin, endMin, semester) {
  * @param {number} blockStart - Block start in minutes since 00:00 (inclusive).
  * @param {number} blockEnd   - Block end in minutes since 00:00 (exclusive).
  * @param {object} semester   - A CurriculumSemester.
- * @returns {Array<{ courseCode: string, sectionCode: string }>}
+ * @returns {Array<{ courseCode: string, sectionId: string }>}
  */
 export function conflictCandidatesForBlock(day, blockStart, blockEnd, semester) {
   const candidates = sectionsInSlot(day, blockStart, blockEnd, semester);
@@ -248,44 +248,44 @@ export function conflictCandidatesForBlock(day, blockStart, blockEnd, semester) 
 }
 
 /**
- * Designates the Class identified by (courseCode, sectionCode) as the winner
- * for that subject, then removes any other classes that conflict in schedule
- * with the winning class.
+ * Designates the Section identified by (courseCode, sectionId) as the winner
+ * for that subject, then removes any other sections that conflict in schedule
+ * with the winning section.
  *
  * Rules:
- *   - For the winning class (matching both courseCode AND sectionCode): keep as-is.
- *   - Remove all other classes for the same courseCode (other candidate sections).
- *   - For every remaining class (different courseCode): remove it if its slots
- *     overlap with the winning class's slots on any day.
+ *   - For the winning section (matching both courseCode AND sectionId): keep as-is.
+ *   - Remove all other sections for the same courseCode (other candidate sections).
+ *   - For every remaining section (different courseCode): remove it if its slots
+ *     overlap with the winning section's slots on any day.
  *
- * Does NOT mutate the input semester or any of its class objects.
+ * Does NOT mutate the input semester or any of its section objects.
  *
- * @param {string} courseCode   - The subjectCode of the class to resolve.
- * @param {string} sectionCode  - The winning section identifier (class.name).
- * @param {object} semester     - A CurriculumSemester.
- * @returns {object} New CurriculumSemester with updated classes.
+ * @param {string} courseCode - The subjectCode of the section to resolve.
+ * @param {string} sectionId  - The winning section identifier (section.name).
+ * @param {object} semester   - A CurriculumSemester.
+ * @returns {object} New CurriculumSemester with updated sections.
  */
-export function resolveWinningSection(courseCode, sectionCode, semester) {
-  const classes = safeClasses(semester);
+export function resolveWinningSection(courseCode, sectionId, semester) {
+  const sections = safeSections(semester);
 
-  // Find the winning class and compute its intervals for pruning.
-  const winningClass = classes.find(
-    (c) => c?.subjectCode === courseCode && String(c?.name ?? "").trim() === sectionCode,
+  // Find the winning section and compute its intervals for pruning.
+  const winningSection = sections.find(
+    (s) => s?.subjectCode === courseCode && String(s?.name ?? "").trim() === sectionId,
   );
-  const winningIntervals = winningClass ? classIntervals(winningClass) : [];
+  const winningIntervals = winningSection ? sectionIntervals(winningSection) : [];
 
-  const updatedClasses = classes.filter((cls) => {
-    // Always keep the winning class.
-    if (cls === winningClass) return true;
+  const updatedSections = sections.filter((sec) => {
+    // Always keep the winning section.
+    if (sec === winningSection) return true;
 
     // Remove other candidate sections for the same subject.
-    if (cls?.subjectCode === courseCode) return false;
+    if (sec?.subjectCode === courseCode) return false;
 
     // For every other subject, remove if its slots conflict with the winner.
     if (winningIntervals.length === 0) return true;
-    const cIntervals = classIntervals(cls);
-    return !anyIntervalsOverlap(cIntervals, winningIntervals);
+    const secIntervals = sectionIntervals(sec);
+    return !anyIntervalsOverlap(secIntervals, winningIntervals);
   });
 
-  return { ...semester, classes: updatedClasses };
+  return { ...semester, sections: updatedSections };
 }

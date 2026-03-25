@@ -152,21 +152,21 @@ export function upsertCustomSection(
 // ---------------------------------------------------------------------------
 
 /**
- * Groups an array of Class objects by subjectCode, returning one SubjectGroup
+ * Groups an array of Section objects by subjectCode, returning one SubjectGroup
  * per unique subjectCode. The order of groups follows the first occurrence of
  * each subjectCode in the input array.
  *
- * @param {Array<{ subjectCode: string, subjectName?: string, [key: string]: unknown }>} classes
- * @returns {Array<{ subjectCode: string, subjectName: string, classes: object[] }>}
+ * @param {Array<{ subjectCode: string, subjectName?: string, [key: string]: unknown }>} sections
+ * @returns {Array<{ subjectCode: string, subjectName: string, sections: object[] }>}
  */
-export function groupClassesBySubject(classes) {
+export function groupSectionsBySubject(sections) {
   const map = new Map();
-  for (const cls of Array.isArray(classes) ? classes : []) {
-    const code = cls.subjectCode;
+  for (const sec of Array.isArray(sections) ? sections : []) {
+    const code = sec.subjectCode;
     if (!map.has(code)) {
-      map.set(code, { subjectCode: code, subjectName: cls.subjectName ?? "", classes: [] });
+      map.set(code, { subjectCode: code, subjectName: sec.subjectName ?? "", sections: [] });
     }
-    map.get(code).classes.push(cls);
+    map.get(code).sections.push(sec);
   }
   return Array.from(map.values());
 }
@@ -176,7 +176,7 @@ export function groupClassesBySubject(classes) {
 // ---------------------------------------------------------------------------
 
 /**
- * Returns true when the given Class has at least one slot that falls within
+ * Returns true when the given Section has at least one slot that falls within
  * the requested shift, or when the shift is "dia" (all-day — no filter).
  *
  * Shift rules:
@@ -184,13 +184,13 @@ export function groupClassesBySubject(classes) {
  *   "manha" — slot start before 13:00
  *   "tarde" — slot start at or after 13:00
  *
- * @param {{ slots: Array<{ start: string }> }} cls
+ * @param {{ slots: Array<{ start: string }> }} sec
  * @param {"dia"|"manha"|"tarde"|string} shift
  * @returns {boolean}
  */
-export function classMatchesShift(cls, shift) {
+export function sectionMatchesShift(sec, shift) {
   if (shift === "dia") return true;
-  return (cls.slots ?? []).some((slot) => {
+  return (sec.slots ?? []).some((slot) => {
     const mins =
       parseInt(String(slot.start ?? "").split(":")[0] ?? "0", 10) * 60;
     return shift === "manha" ? mins < AFTERNOON_CUTOFF_MIN : mins >= AFTERNOON_CUTOFF_MIN;
