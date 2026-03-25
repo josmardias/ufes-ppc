@@ -1,12 +1,12 @@
 import { useState } from "react";
 import WeekCalendar from "./WeekCalendar.jsx";
-import DisciplinaCard from "./DisciplinaCard.jsx";
+import ScheduleClassCard from "./ScheduleClassCard.jsx";
 
-export default function SemestreView({
+export default function SemesterView({
   semester,
-  onResolverConflito,
-  onEscolherTurma,
-  onRemoverDisciplina,
+  onResolveConflict,
+  onChooseSection,
+  onRemoveCourse,
   focusedSections,
   onEmptyClick,
 }) {
@@ -37,16 +37,16 @@ export default function SemestreView({
       {view === "calendar" ? (
         <WeekCalendar
           semester={semester}
-          onConflictClick={onResolverConflito}
-          onMultiSectionClick={onEscolherTurma}
-          onRemoverClick={onRemoverDisciplina}
+          onConflictClick={onResolveConflict}
+          onMultiSectionClick={onChooseSection}
+          onRemoveCourseClick={onRemoveCourse}
           focusedSections={focusedSections}
           onEmptyClick={onEmptyClick}
         />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {(semester?.classes ?? []).map((cls, i) => (
-            <DisciplinaCard key={`${cls.subjectCode}-${cls.name}-${i}`} cls={cls} />
+            <ScheduleClassCard key={`${cls.subjectCode}-${cls.name}-${i}`} cls={cls} />
           ))}
         </div>
       )}

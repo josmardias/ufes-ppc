@@ -1,6 +1,6 @@
 import SectionCard from "./SectionCard.jsx";
 
-export default function SemesterPanel({ semestre, offer, onAdd, onRemove }) {
+export default function SemesterPanel({ semester, offer, onAdd, onRemove }) {
   const disciplinas = offer?.disciplinas ?? [];
   // Flatten to a list of { courseCode, courseName, section } for display
   const entries = disciplinas.flatMap((d) =>
@@ -15,10 +15,10 @@ export default function SemesterPanel({ semestre, offer, onAdd, onRemove }) {
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-gray-700">
-          {semestre}º semestre
+          {semester}º semestre
         </h3>
         <button
-          onClick={() => onAdd(semestre)}
+          onClick={() => onAdd(semester)}
           className="px-3 py-1.5 text-xs font-medium rounded-lg border border-blue-300 text-blue-600 bg-white hover:border-blue-500 hover:bg-blue-50 transition-colors cursor-pointer"
         >
           + Turma
@@ -27,7 +27,7 @@ export default function SemesterPanel({ semestre, offer, onAdd, onRemove }) {
 
       {entries.length === 0 ? (
         <p className="text-sm text-gray-400 py-4 text-center">
-          Nenhuma turma customizada para o {semestre}º semestre.
+          Nenhuma turma customizada para o {semester}º semestre.
         </p>
       ) : (
         <div className="flex flex-col gap-2">
@@ -37,7 +37,7 @@ export default function SemesterPanel({ semestre, offer, onAdd, onRemove }) {
               courseCode={courseCode}
               courseName={courseName}
               section={section}
-              onRemove={() => onRemove(semestre, courseCode, section.turma)}
+              onRemove={() => onRemove(semester, courseCode, section.turma)}
             />
           ))}
         </div>

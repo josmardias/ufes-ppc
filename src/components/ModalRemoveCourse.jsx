@@ -1,24 +1,11 @@
-import { useEffect, useRef } from "react";
+import { useEscKey } from "../hooks/useEscKey.js";
 
-function useEscKey(handler) {
-  const handlerRef = useRef(handler);
-  handlerRef.current = handler;
-  useEffect(() => {
-    if (!handler) return;
-    function onKeyDown(e) {
-      if (e.key === "Escape") handlerRef.current?.();
-    }
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [handler]);
-}
-
-export default function ModalRemoverDisciplina({ courseCode, courseName, onConfirm, onFechar }) {
-  useEscKey(onFechar);
+export default function ModalRemoveCourse({ courseCode, courseName, onConfirm, onClose }) {
+  useEscKey(onClose);
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-      onClick={onFechar}
+      onClick={onClose}
     >
       <div
         className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm mx-4"
@@ -45,7 +32,7 @@ export default function ModalRemoverDisciplina({ courseCode, courseName, onConfi
             Remover
           </button>
           <button
-            onClick={onFechar}
+            onClick={onClose}
             className="flex-1 py-2.5 border border-gray-300 text-gray-600 hover:border-gray-400 text-sm font-medium rounded-xl transition-colors cursor-pointer"
           >
             Cancelar

@@ -1,30 +1,19 @@
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
+import { useEscKey } from "../hooks/useEscKey.js";
 import equivalenciasJson from "../data/equivalencias.json";
+import { classMatchesShift, groupClassesBySubject } from "../domain/offer.js";
 
 const LEGACY_CODES = new Set(
   Object.values(equivalenciasJson.equivalencias).flat(),
 );
 
-export const TURNO_OPCOES = [
+export const SHIFT_OPTIONS = [
   { id: "dia", label: "Dia" },
   { id: "manha", label: "Manhã" },
   { id: "tarde", label: "Tarde" },
 ];
 
-function useEscKey(handler) {
-  const handlerRef = useRef(handler);
-  handlerRef.current = handler;
-  useEffect(() => {
-    if (!handler) return;
-    function onKeyDown(e) {
-      if (e.key === "Escape") handlerRef.current?.();
-    }
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [handler]);
-}
-
-export default function ModalConfirmarPeriodo({
+export default function ModalConfirmTerm({
   newClasses,
   semesterIndex,
   onConfirm,
@@ -32,68 +21,44 @@ export default function ModalConfirmarPeriodo({
 }) {
   useEscKey(onCancel);
 
-  const CUTOFF = 13 * 60;
-
-  // Returns true when any slot in the class matches the requested shift
-  function classMatchesShift(cls, t) {
-    if (t === "dia") return true;
-    return (cls.slots ?? []).some((h) => {
-      const mins = parseInt(String(h.inicio ?? "").split(":")[0] ?? "0") * 60;
-      return t === "manha" ? mins < CUTOFF : mins >= CUTOFF;
-    });
-  }
-
-  // Group classes by subjectCode for display
-  function groupBySubject(classes) {
-    const map = new Map();
-    for (const cls of classes) {
-      const code = cls.subjectCode;
-      if (!map.has(code)) {
-        map.set(code, { subjectCode: code, nome: cls.nome ?? "", classes: [] });
-      }
-      map.get(code).classes.push(cls);
-    }
-    return Array.from(map.values());
-  }
-
-  const [turno, setTurno] = useState(() => {
+  const [shift, setShift] = useState(() => {
     // Auto-detect shift from the majority of slots
     return "dia";
   });
   const [showLegacy, setShowLegacy] = useState(false);
 
   // Visible classes filtered by shift + legacy toggle
-  function getVisibleClasses(t, legacy) {
+  function getVisibleClasses(s, legacy) {
     return newClasses.filter(
       (cls) =>
-        classMatchesShift(cls, t) &&
+        classMatchesShift(cls, s) &&
         (legacy || !LEGACY_CODES.has(cls.subjectCode)),
     );
   }
 
   // Visible groups (one per unique subjectCode among visible classes)
-  const visibleClasses = getVisibleClasses(turno, showLegacy);
-  const visibleGroups = groupBySubject(visibleClasses);
+  const visibleClasses = getVisibleClasses(shift, showLegacy);
+  const visibleGroups = groupClassesBySubject(visibleClasses);
 
   // Selection is by subjectCode; selecting a subject selects ALL its classes
-  const [selecionados, setSelecionados] = useState(
+  const [selected, setSelected] = useState(
     () => new Set(visibleGroups.map((g) => g.subjectCode)),
   );
 
   function handleShiftChange(newShift) {
-    setTurno(newShift);
-    const visiveis = groupBySubject(getVisibleClasses(newShift, showLegacy));
-    setSelecionados(new Set(visiveis.map((g) => g.subjectCode)));
+    setShift(newShift);
+    const visible = groupClassesBySubject(getVisibleClasses(newShift, showLegacy));
+    setSelected(new Set(visible.map((g) => g.subjectCode)));
   }
 
   function handleShowLegacyChange(val) {
     setShowLegacy(val);
-    const visiveis = groupBySubject(getVisibleClasses(turno, val));
-    setSelecionados(new Set(visiveis.map((g) => g.subjectCode)));
+    const visible = groupClassesBySubject(getVisibleClasses(shift, val));
+    setSelected(new Set(visible.map((g) => g.subjectCode)));
   }
 
   function toggleSubject(subjectCode) {
-    setSelecionados((prev) => {
+    setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(subjectCode)) next.delete(subjectCode);
       else next.add(subjectCode);
@@ -101,21 +66,21 @@ export default function ModalConfirmarPeriodo({
     });
   }
 
-  function toggleTodos() {
-    if (selecionados.size === visibleGroups.length) {
-      setSelecionados(new Set());
+  function toggleAll() {
+    if (selected.size === visibleGroups.length) {
+      setSelected(new Set());
     } else {
-      setSelecionados(new Set(visibleGroups.map((g) => g.subjectCode)));
+      setSelected(new Set(visibleGroups.map((g) => g.subjectCode)));
     }
   }
 
-  const todosSelecionados =
-    visibleGroups.length > 0 && selecionados.size === visibleGroups.length;
-  const algumSelecionado = selecionados.size > 0;
+  const allSelected =
+    visibleGroups.length > 0 && selected.size === visibleGroups.length;
+  const anySelected = selected.size > 0;
 
   // Collect the classes to confirm: all classes for selected subjects
   function getConfirmedClasses() {
-    return newClasses.filter((cls) => selecionados.has(cls.subjectCode));
+    return newClasses.filter((cls) => selected.has(cls.subjectCode));
   }
 
   return (
@@ -141,8 +106,8 @@ export default function ModalConfirmarPeriodo({
             <div className="flex items-center gap-2">
               <span className="text-xs font-medium text-gray-500">Turno:</span>
               <div className="flex rounded-lg border border-gray-300 overflow-hidden">
-                {TURNO_OPCOES.map(({ id, label }) => {
-                  const count = groupBySubject(
+                {SHIFT_OPTIONS.map(({ id, label }) => {
+                  const count = groupClassesBySubject(
                     getVisibleClasses(id, showLegacy),
                   ).length;
                   return (
@@ -151,14 +116,14 @@ export default function ModalConfirmarPeriodo({
                       onClick={() => handleShiftChange(id)}
                       className={[
                         "px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer flex flex-col items-center leading-tight",
-                        turno === id
+                        shift === id
                           ? "bg-blue-600 text-white"
                           : "bg-white text-gray-600 hover:bg-gray-50",
                       ].join(" ")}
                     >
                       <span>{label}</span>
                       <span
-                        className={`text-xs ${turno === id ? "text-blue-200" : "text-gray-400"}`}
+                        className={`text-xs ${shift === id ? "text-blue-200" : "text-gray-400"}`}
                       >
                         {count}
                       </span>
@@ -181,10 +146,10 @@ export default function ModalConfirmarPeriodo({
 
         <div className="px-6 py-2 border-b border-gray-100">
           <button
-            onClick={toggleTodos}
+            onClick={toggleAll}
             className="text-xs font-medium text-blue-600 hover:text-blue-800 cursor-pointer"
           >
-            {todosSelecionados ? "Desmarcar todas" : "Selecionar todas"}
+            {allSelected ? "Desmarcar todas" : "Selecionar todas"}
           </button>
         </div>
 
@@ -195,14 +160,14 @@ export default function ModalConfirmarPeriodo({
             </p>
           ) : (
             visibleGroups.map((g) => {
-              const checked = selecionados.has(g.subjectCode);
-              const multiplas = g.classes.length > 1;
+              const checked = selected.has(g.subjectCode);
+              const multiSection = g.classes.length > 1;
               return (
                 <label
                   key={g.subjectCode}
                   className={[
                     "flex items-start gap-3 px-2 py-2.5 rounded-lg border-b border-gray-50 last:border-0 cursor-pointer",
-                    multiplas
+                    multiSection
                       ? "bg-amber-50 border-amber-100 hover:bg-amber-100"
                       : "hover:bg-gray-50",
                   ].join(" ")}
@@ -221,7 +186,7 @@ export default function ModalConfirmarPeriodo({
                       <span className="text-xs text-gray-400 font-mono flex-shrink-0">
                         {g.subjectCode}
                       </span>
-                      {multiplas && (
+                      {multiSection && (
                         <span className="text-xs font-semibold text-amber-600 flex-shrink-0">
                           {g.classes.length} turmas
                         </span>
@@ -260,12 +225,12 @@ export default function ModalConfirmarPeriodo({
 
         <div className="px-6 py-4 border-t border-gray-100 flex gap-2">
           <button
-            onClick={() => onConfirm(getConfirmedClasses(), turno)}
-            disabled={!algumSelecionado}
+            onClick={() => onConfirm(getConfirmedClasses(), shift)}
+            disabled={!anySelected}
             className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-bold rounded-xl transition-colors cursor-pointer"
           >
-            Adicionar {selecionados.size} disciplina
-            {selecionados.size !== 1 ? "s" : ""}
+            Adicionar {selected.size} disciplina
+            {selected.size !== 1 ? "s" : ""}
           </button>
           <button
             onClick={onCancel}

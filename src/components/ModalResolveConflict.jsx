@@ -1,53 +1,41 @@
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
+import { useEscKey } from "../hooks/useEscKey.js";
 
-function useEscKey(handler) {
-  const handlerRef = useRef(handler);
-  handlerRef.current = handler;
-  useEffect(() => {
-    if (!handler) return;
-    function onKeyDown(e) {
-      if (e.key === "Escape") handlerRef.current?.();
-    }
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [handler]);
-}
-
-export default function ModalResolverConflito({
+export default function ModalResolveConflict({
   dia,
   horaInicio,
   candidates,
   initialPending,
-  onEscolher,
-  onRemoverTurma,
-  onFechar,
+  onChoose,
+  onRemoveSection,
+  onClose,
 }) {
-  useEscKey(onFechar);
-  const [pending, setPendente] = useState(initialPending ?? null);
+  useEscKey(onClose);
+  const [pending, setPending] = useState(initialPending ?? null);
   const [pendingRemove, setPendingRemove] = useState(null);
   const horaLabel = `${String(Math.floor(horaInicio / 60)).padStart(2, "0")}:00`;
 
   function handleClick(c) {
     setPendingRemove(null);
     const key = `${c.courseCode}-${c.sectionCode}`;
-    const pendenteKey = pending
+    const pendingKey = pending
       ? `${pending.courseCode}-${pending.sectionCode}`
       : null;
-    if (pendenteKey === key) {
-      onEscolher(c.courseCode, c.sectionCode);
+    if (pendingKey === key) {
+      onChoose(c.courseCode, c.sectionCode);
     } else {
-      setPendente(c);
+      setPending(c);
     }
   }
 
   function handleRemoveClick(c) {
-    setPendente(null);
+    setPending(null);
     const key = `${c.courseCode}-${c.sectionCode}`;
     const pendingRemoveKey = pendingRemove
       ? `${pendingRemove.courseCode}-${pendingRemove.sectionCode}`
       : null;
     if (pendingRemoveKey === key) {
-      onRemoverTurma(c.courseCode, c.sectionCode);
+      onRemoveSection(c.courseCode, c.sectionCode);
     } else {
       setPendingRemove(c);
     }
@@ -56,7 +44,7 @@ export default function ModalResolverConflito({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-      onClick={onFechar}
+      onClick={onClose}
     >
       <div
         className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm mx-4"
@@ -72,7 +60,7 @@ export default function ModalResolverConflito({
         <div className="flex flex-col gap-2">
           {candidates.map((c) => {
             const key = `${c.courseCode}-${c.sectionCode}`;
-            const isPendente =
+            const isPending =
               pending && `${pending.courseCode}-${pending.sectionCode}` === key;
             const isPendingRemove =
               pendingRemove &&
@@ -83,7 +71,7 @@ export default function ModalResolverConflito({
                   onClick={() => handleClick(c)}
                   className={[
                     "flex-1 text-left px-4 py-3 rounded-xl border-2 transition-colors cursor-pointer",
-                    isPendente
+                    isPending
                       ? "border-blue-500 bg-blue-50"
                       : "border-gray-200 hover:border-blue-400 hover:bg-blue-50",
                   ].join(" ")}
@@ -104,7 +92,7 @@ export default function ModalResolverConflito({
                         )}
                       </div>
                     </div>
-                    {isPendente && (
+                    {isPending && (
                       <span className="text-xs font-semibold text-blue-600 flex-shrink-0">
                         Clique para confirmar
                       </span>
@@ -120,7 +108,7 @@ export default function ModalResolverConflito({
                     </div>
                   )}
                 </button>
-                {onRemoverTurma && (
+                {onRemoveSection && (
                   <button
                     onClick={() => handleRemoveClick(c)}
                     title="Remover esta turma"
@@ -139,7 +127,7 @@ export default function ModalResolverConflito({
           })}
         </div>
         <button
-          onClick={onFechar}
+          onClick={onClose}
           className="mt-4 w-full text-sm text-gray-400 hover:text-gray-600 cursor-pointer"
         >
           Cancelar

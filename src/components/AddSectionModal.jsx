@@ -1,23 +1,8 @@
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import ScheduleRow from "./ScheduleRow.jsx";
 import CourseCombobox from "./CourseCombobox.jsx";
 import { DAY_LABELS } from "./ScheduleRow.jsx";
-
-// ---------------------------------------------------------------------------
-// useEscKey
-// ---------------------------------------------------------------------------
-
-function useEscKey(handler) {
-  const ref = useRef(handler);
-  ref.current = handler;
-  useEffect(() => {
-    function onKey(e) {
-      if (e.key === "Escape") ref.current?.();
-    }
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, []);
-}
+import { useEscKey } from "../hooks/useEscKey.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -32,7 +17,7 @@ function emptySchedule() {
 // ---------------------------------------------------------------------------
 
 export default function AddSectionModal({
-  semestre,
+  semester,
   courseSuggestions,
   accessibleCodes,
   initialSchedules,
@@ -78,7 +63,7 @@ export default function AddSectionModal({
     }
 
     onConfirm({
-      semestre,
+      semester,
       courseCode: code,
       section: {
         turma: sec,
@@ -102,7 +87,7 @@ export default function AddSectionModal({
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="text-base font-semibold text-gray-800">
-          Adicionar turma — {semestre}º semestre
+          Adicionar turma — {semester}º semestre
         </h2>
 
         {/* Course code */}

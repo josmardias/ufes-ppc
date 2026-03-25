@@ -1,36 +1,36 @@
 import { useState } from "react";
 
-const DIAS_ORDER = { Seg: 1, Ter: 2, Qua: 3, Qui: 4, Sex: 5, Sab: 6, Dom: 7 };
+const DAY_ORDER = { Seg: 1, Ter: 2, Qua: 3, Qui: 4, Sex: 5, Sab: 6, Dom: 7 };
 
-function formatSchedules(horarios) {
-  if (!horarios || horarios.length === 0) return "—";
-  return [...horarios]
-    .sort((a, b) => (DIAS_ORDER[a.dia] ?? 9) - (DIAS_ORDER[b.dia] ?? 9))
+function formatSchedules(schedules) {
+  if (!schedules || schedules.length === 0) return "—";
+  return [...schedules]
+    .sort((a, b) => (DAY_ORDER[a.dia] ?? 9) - (DAY_ORDER[b.dia] ?? 9))
     .map((h) => `${h.dia} ${h.inicio}–${h.fim}`)
     .join(" · ");
 }
 
-function SectionRow({ turma }) {
+function SectionRow({ section }) {
   return (
     <div className="flex items-start gap-3 py-1.5 border-b border-gray-50 last:border-0">
       <span className="font-mono text-xs text-gray-500 w-16 flex-shrink-0 pt-0.5">
-        {turma.turma || "—"}
+        {section.turma || "—"}
       </span>
       <span className="text-xs text-gray-600 flex-1">
-        {formatSchedules(turma.horarios)}
+        {formatSchedules(section.horarios)}
       </span>
-      {turma.docente && (
+      {section.docente && (
         <span className="text-xs text-gray-400 flex-shrink-0 max-w-[140px] truncate">
-          {turma.docente}
+          {section.docente}
         </span>
       )}
     </div>
   );
 }
 
-export default function DisciplinaCard({ disciplina }) {
+export default function OfferCourseCard({ disciplina }) {
   const [open, setOpen] = useState(false);
-  const turmas = disciplina.turmas ?? [];
+  const sections = disciplina.turmas ?? [];
 
   return (
     <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
@@ -55,13 +55,13 @@ export default function DisciplinaCard({ disciplina }) {
             </span>
           )}
           <span className="text-xs bg-gray-100 text-gray-600 rounded px-1.5 py-0.5">
-            {turmas.length} turma{turmas.length !== 1 ? "s" : ""}
+            {sections.length} turma{sections.length !== 1 ? "s" : ""}
           </span>
           <span className="text-gray-300 text-xs">{open ? "▲" : "▼"}</span>
         </div>
       </button>
 
-      {open && turmas.length > 0 && (
+      {open && sections.length > 0 && (
         <div className="px-4 pb-3 border-t border-gray-100">
           <div className="flex items-center gap-2 py-1.5 mb-1">
             <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider w-16">
@@ -74,13 +74,13 @@ export default function DisciplinaCard({ disciplina }) {
               Docente
             </span>
           </div>
-          {turmas.map((t, i) => (
-            <SectionRow key={i} turma={t} />
+          {sections.map((s, i) => (
+            <SectionRow key={i} section={s} />
           ))}
         </div>
       )}
 
-      {open && turmas.length === 0 && (
+      {open && sections.length === 0 && (
         <div className="px-4 pb-3 pt-2 border-t border-gray-100 text-xs text-gray-400">
           Sem turmas cadastradas.
         </div>

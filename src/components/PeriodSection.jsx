@@ -1,19 +1,19 @@
 import { useMemo } from "react";
 import ppcJson from "../data/ppc-2022.json";
-import DisciplinaCard from "./OfertaDisciplinaCard.jsx";
+import OfferCourseCard from "./OfferCourseCard.jsx";
 
-// Mapa codigo -> suggestedSemester do PPC
-const PPC_PERIODO = new Map(
+// Map: codigo -> suggestedSemester from the PPC data
+const PPC_PERIOD = new Map(
   Object.values(ppcJson.courses)
     .filter((c) => c.suggestedSemester != null)
     .map((c) => [c.code, c.suggestedSemester]),
 );
 
-export default function PeriodoSection({ disciplinas }) {
+export default function PeriodSection({ disciplinas }) {
   const grouped = useMemo(() => {
     const map = new Map();
     for (const d of disciplinas) {
-      const key = PPC_PERIODO.get(d.codigo) ?? 0;
+      const key = PPC_PERIOD.get(d.codigo) ?? 0;
       if (!map.has(key)) map.set(key, []);
       map.get(key).push(d);
     }
@@ -26,20 +26,20 @@ export default function PeriodoSection({ disciplinas }) {
 
   return (
     <div className="space-y-6">
-      {grouped.map(([periodo, discs]) => (
-        <div key={periodo}>
+      {grouped.map(([period, courses]) => (
+        <div key={period}>
           <div className="flex items-center gap-3 mb-2">
             <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider">
-              {periodo === 0 ? "Fora do PPC" : `${periodo}º período`}
+              {period === 0 ? "Fora do PPC" : `${period}º período`}
             </h4>
             <div className="flex-1 h-px bg-gray-100" />
-            <span className="text-xs text-gray-400">{discs.length}</span>
+            <span className="text-xs text-gray-400">{courses.length}</span>
           </div>
           <div className="space-y-1.5">
-            {discs
+            {courses
               .sort((a, b) => a.codigo.localeCompare(b.codigo))
               .map((d) => (
-                <DisciplinaCard key={d.codigo} disciplina={d} />
+                <OfferCourseCard key={d.codigo} disciplina={d} />
               ))}
           </div>
         </div>

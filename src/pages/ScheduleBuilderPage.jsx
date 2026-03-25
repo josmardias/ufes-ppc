@@ -16,25 +16,22 @@ import {
   allScheduleConflicts,
   conflictCandidatesForBlock,
   resolveWinningSection,
-  semesterToCourseSections,
-  courseSectionSlots,
-  courseSectionHasConflictOnDay,
 } from "../domain/calendar.js";
 import { usePlanningContext } from "../App.jsx";
 import AddSectionModal from "../components/AddSectionModal.jsx";
-import { upsertCustomSection } from "./CustomOfferPage.jsx";
+import { upsertCustomSection } from "../domain/offer.js";
 import ppcJson from "../data/ppc-2022.json";
 import offer1Json from "../data/oferta-semestre-1.json";
 import offer2Json from "../data/oferta-semestre-2.json";
 import equivalenciasJson from "../data/equivalencias.json";
 import Badge from "../components/Badge.jsx";
 import CollapsibleBanner from "../components/CollapsibleBanner.jsx";
-import ModalPrimeiroperiodo from "../components/ModalPrimeiroperiodo.jsx";
-import ModalAdicionarDisciplinas from "../components/ModalAdicionarDisciplinas.jsx";
-import ModalRemoverDisciplina from "../components/ModalRemoverDisciplina.jsx";
-import ModalConfirmarPeriodo from "../components/ModalConfirmarPeriodo.jsx";
-import ModalResolverConflito from "../components/ModalResolverConflito.jsx";
-import SemestreView from "../components/SemestreView.jsx";
+import ModalFirstTerm from "../components/ModalFirstTerm.jsx";
+import ModalAddCourses from "../components/ModalAddCourses.jsx";
+import ModalRemoveCourse from "../components/ModalRemoveCourse.jsx";
+import ModalConfirmTerm from "../components/ModalConfirmTerm.jsx";
+import ModalResolveConflict from "../components/ModalResolveConflict.jsx";
+import SemesterView from "../components/SemesterView.jsx";
 
 // ---------------------------------------------------------------------------
 // useActiveOffer — returns system offer merged with the profile's custom offer.
@@ -266,12 +263,12 @@ export default function ScheduleBuilderPage() {
 
   function handleEmptyClick(dia, startMin, endMin) {
     const activeSemester = activeTabIndex !== null ? semesters[activeTabIndex] : null;
-    const semestre = activeSemester?.offerSemester ?? 1;
+    const semester = activeSemester?.offerSemester ?? 1;
     const toHHMM = (mins) =>
       `${String(Math.floor(mins / 60)).padStart(2, "0")}:00`;
 
     setAddingCustomSection({
-      semestre,
+      semester,
       initialSchedules: [{ dia, inicio: toHHMM(startMin), fim: toHHMM(endMin) }],
       accessibleCodes,
     });
@@ -357,10 +354,10 @@ export default function ScheduleBuilderPage() {
   return (
     <div className="p-6 max-w-5xl mx-auto">
       {askingEntryTerm && (
-        <ModalPrimeiroperiodo onConfirm={handleConfirmFirstTerm} />
+        <ModalFirstTerm onConfirm={handleConfirmFirstTerm} />
       )}
       {pendingTerm && (
-        <ModalConfirmarPeriodo
+        <ModalConfirmTerm
           newClasses={pendingTerm.newSemester.classes}
           semesterIndex={pendingTerm.semesterIndex}
           onConfirm={handleConfirmTerm}
@@ -368,7 +365,7 @@ export default function ScheduleBuilderPage() {
         />
       )}
       {addingCourses && activeTabIndex !== null && (
-        <ModalAdicionarDisciplinas
+        <ModalAddCourses
           semesterIndex={activeTabIndex}
           existingSubjectCodes={
             new Set(
@@ -420,7 +417,7 @@ export default function ScheduleBuilderPage() {
         />
       )}
       {removingCourse && (
-        <ModalRemoverDisciplina
+        <ModalRemoveCourse
           courseCode={removingCourse.subjectCode}
           courseName={removingCourse.name}
           onConfirm={() => {
@@ -435,21 +432,21 @@ export default function ScheduleBuilderPage() {
             });
             setRemovingCourse(null);
           }}
-          onFechar={() => setRemovingCourse(null)}
+          onClose={() => setRemovingCourse(null)}
         />
       )}
 
       {addingCustomSection && activeTabIndex !== null && (
         <AddSectionModal
-          semestre={addingCustomSection.semestre}
+          semester={addingCustomSection.semester}
           courseSuggestions={courseSuggestions}
           initialSchedules={addingCustomSection.initialSchedules}
           accessibleCodes={addingCustomSection.accessibleCodes ?? null}
-          onConfirm={({ semestre, courseCode, section }) => {
+          onConfirm={({ semester, courseCode, section }) => {
             setAddingCustomSection(null);
 
             // 1) Persist to customOffer
-            const currentOffer = (planning?.customOffer ?? {})[semestre] ?? null;
+            const currentOffer = (planning?.customOffer ?? {})[semester] ?? null;
             const ppcCourse = ppcJson?.courses?.[courseCode] ?? {};
             const suggestedName =
               courseSuggestions.find((s) => s.codigo === courseCode)?.nome ?? "";
@@ -457,10 +454,10 @@ export default function ScheduleBuilderPage() {
               String(ppcCourse?.name ?? "").trim() || suggestedName || courseCode;
 
             setCustomOffer(
-              semestre,
+              semester,
               upsertCustomSection(
                 currentOffer,
-                semestre,
+                semester,
                 courseCode,
                 section,
                 courseName,
@@ -493,13 +490,13 @@ export default function ScheduleBuilderPage() {
         />
       )}
       {conflict && (
-        <ModalResolverConflito
+        <ModalResolveConflict
           dia={conflict.dia}
           horaInicio={conflict.horaInicio}
           candidates={conflict.candidates}
           initialPending={conflict.initialPending}
-          onEscolher={handlePickWinner}
-          onRemoverTurma={(courseCode, sectionCode) => {
+          onChoose={handlePickWinner}
+          onRemoveSection={(courseCode, sectionCode) => {
             updatePlanning((record) => {
               const sem = (record.semesters ?? [])[activeTabIndex];
               if (!sem) return record;
@@ -521,7 +518,7 @@ export default function ScheduleBuilderPage() {
             });
             setConflict(null);
           }}
-          onFechar={() => setConflict(null)}
+          onClose={() => setConflict(null)}
         />
       )}
 
@@ -694,7 +691,7 @@ export default function ScheduleBuilderPage() {
 
           {/* Semester content */}
           {activeTabIndex !== null && activeSemester && (
-            <SemestreView
+            <SemesterView
               key={activeTabIndex}
               semester={activeSemester}
               focusedSections={(() => {
@@ -710,10 +707,10 @@ export default function ScheduleBuilderPage() {
               onEmptyClick={
                 isEditable(activeTabIndex) ? handleEmptyClick : undefined
               }
-              onResolverConflito={
+              onResolveConflict={
                 isEditable(activeTabIndex) ? handleConflictClick : undefined
               }
-              onEscolherTurma={
+              onChooseSection={
                 isEditable(activeTabIndex)
                   ? (courseCode, sectionCode) => {
                       // Choosing a turma means resolving the winning section —
@@ -738,7 +735,7 @@ export default function ScheduleBuilderPage() {
                     }
                   : undefined
               }
-              onRemoverDisciplina={
+              onRemoveCourse={
                 isEditable(activeTabIndex)
                   ? (courseCode, sectionCode) => {
                       // Find the class by (subjectCode, name).

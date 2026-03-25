@@ -1,7 +1,7 @@
 /**
  * src/domain/calendar.js
  *
- * Pure domain functions for calendar/planning conflict detection and resolution.
+ * Pure domain functions for schedule conflict detection and resolution.
  * No framework, no storage, no UI — only plain JS logic.
  *
  * Operates on the Class shape described in DOMAIN.md:
@@ -19,34 +19,9 @@
  *   }
  *
  *   Slot { dia: string, inicio: "HH:MM", fim: "HH:MM" }
- *
- *   CourseSection — a flat view of one Class used for rendering:
- *   {
- *     courseCode: string,   // subjectCode
- *     courseName: string,   // name (turma identifier)
- *     sectionCode: string,  // same as name — kept for calendar API compatibility
- *     horarios: Slot[],     // same as slots
- *   }
  */
 
 import { hhmmToMinutes, overlaps, normalizeDia } from "../lib/time.js";
-
-// ---------------------------------------------------------------------------
-// Calendar display constants
-// ---------------------------------------------------------------------------
-
-/**
- * First hour shown on the weekly calendar grid (inclusive).
- * @type {number}
- */
-export const HOUR_START = 7;
-
-/**
- * Last hour shown on the weekly calendar grid (exclusive — the grid ends at
- * the START of this hour, i.e. the last visible row is HOUR_END - 1).
- * @type {number}
- */
-export const HOUR_END = 23;
 
 // ---------------------------------------------------------------------------
 // Internal helpers
@@ -219,108 +194,6 @@ export function allScheduleConflicts(semester) {
       codigos: Array.from(codesSet),
     };
   });
-}
-
-/**
- * Converts the Classes of a CurriculumSemester into a list of CourseSection
- * objects — one entry per Class. Classes with no slots still produce an entry
- * (with an empty horarios array) so that they can be rendered as placeholders.
- *
- * Each CourseSection has:
- *   courseCode   — class.subjectCode
- *   courseName   — class.name  (the turma identifier, e.g. "06.1 N")
- *   sectionCode  — class.name  (same — kept for calendar API compatibility)
- *   horarios     — class.slots (raw slot array)
- *
- * @param {object} semester - A CurriculumSemester.
- * @returns {Array<{ courseCode: string, courseName: string, sectionCode: string, horarios: object[] }>}
- */
-export function semesterToCourseSections(semester) {
-  const classes = safeClasses(semester);
-  return classes.map((cls) => ({
-    courseCode: String(cls?.subjectCode ?? "").trim(),
-    courseName: String(cls?.name ?? "").trim(),
-    sectionCode: String(cls?.name ?? "").trim(),
-    horarios: Array.isArray(cls?.slots) ? cls.slots : [],
-  }));
-}
-
-/**
- * Returns the parsed schedule intervals for a CourseSection, enriched with
- * the original minute values for rendering purposes.
- *
- * Each returned slot has:
- *   dia      — normalised weekday string (e.g. "Seg")
- *   startMin — start in minutes since 00:00
- *   endMin   — end in minutes since 00:00
- *   rawStart — same as startMin
- *   rawEnd   — same as endMin
- *
- * @param {{ horarios: object[] }} section - A CourseSection.
- * @returns {Array<{ dia: string, startMin: number, endMin: number, rawStart: number, rawEnd: number }>}
- */
-export function courseSectionSlots(section) {
-  const horarios = Array.isArray(section?.horarios) ? section.horarios : [];
-  /** @type {Array<{ dia: string, startMin: number, endMin: number, rawStart: number, rawEnd: number }>} */
-  const result = [];
-
-  for (const h of horarios) {
-    const parsed = parseSlot(h);
-    if (!parsed) continue;
-    result.push({
-      dia: parsed.dia,
-      startMin: parsed.startMin,
-      endMin: parsed.endMin,
-      rawStart: parsed.startMin,
-      rawEnd: parsed.endMin,
-    });
-  }
-
-  return result;
-}
-
-/**
- * Returns true when the given CourseSection has a schedule conflict with any
- * OTHER section in `allSections` within the specified rendered block
- * [blockStart, blockEnd) on `dia`.
- *
- * A conflict exists when another section (different courseCode OR same
- * courseCode but different sectionCode) has at least one horario slot on `dia`
- * that overlaps with the given block interval.
- *
- * @param {{ courseCode: string, sectionCode: string, horarios: object[] }} section
- * @param {Array<{ courseCode: string, sectionCode: string, horarios: object[] }>} allSections
- * @param {string} dia        - Canonical weekday (e.g. "Ter").
- * @param {number} blockStart - Rendered block start in minutes since 00:00.
- * @param {number} blockEnd   - Rendered block end in minutes since 00:00.
- * @returns {boolean}
- */
-export function courseSectionHasConflictOnDay(section, allSections, dia, blockStart, blockEnd) {
-  const normalDay = normalizeDia(dia);
-
-  const ownSlots = courseSectionSlots(section);
-  const ownInBlock = ownSlots.some(
-    (s) => s.dia === normalDay && overlaps(s.startMin, s.endMin, blockStart, blockEnd),
-  );
-  if (!ownInBlock) return false;
-
-  for (const other of Array.isArray(allSections) ? allSections : []) {
-    if (other === section) continue;
-    if (
-      other.courseCode === section.courseCode &&
-      other.sectionCode === section.sectionCode
-    ) {
-      continue;
-    }
-
-    const otherSlots = courseSectionSlots(other);
-    const otherInBlock = otherSlots.some(
-      (s) => s.dia === normalDay && overlaps(s.startMin, s.endMin, blockStart, blockEnd),
-    );
-    if (otherInBlock) return true;
-  }
-
-  return false;
 }
 
 /**

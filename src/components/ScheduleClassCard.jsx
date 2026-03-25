@@ -1,6 +1,6 @@
-// src/components/DisciplinaCard.jsx
+// src/components/ScheduleClassCard.jsx
 // Renders a single Class card in the schedule builder cards view.
-export default function DisciplinaCard({ cls }) {
+export default function ScheduleClassCard({ cls }) {
   const slots = Array.isArray(cls.slots) ? cls.slots : [];
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-4 flex flex-col gap-2">

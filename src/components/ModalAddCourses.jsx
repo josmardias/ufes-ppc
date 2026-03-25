@@ -1,25 +1,13 @@
 import { useState } from "react";
-import { useEffect, useRef } from "react";
 import equivalenciasJson from "../data/equivalencias.json";
+import { groupClassesBySubject } from "../domain/offer.js";
+import { useEscKey } from "../hooks/useEscKey.js";
 
 const LEGACY_CODES = new Set(
   Object.values(equivalenciasJson.equivalencias).flat(),
 );
 
-function useEscKey(handler) {
-  const handlerRef = useRef(handler);
-  handlerRef.current = handler;
-  useEffect(() => {
-    if (!handler) return;
-    function onKeyDown(e) {
-      if (e.key === "Escape") handlerRef.current?.();
-    }
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [handler]);
-}
-
-export default function ModalAdicionarDisciplinas({
+export default function ModalAddCourses({
   available,
   allCourses,
   semesterIndex,
@@ -29,7 +17,7 @@ export default function ModalAdicionarDisciplinas({
 }) {
   useEscKey(onCancel);
   // Track selected subject codes (one selection = all classes for that code)
-  const [selecionados, setSelecionados] = useState(new Set());
+  const [selected, setSelected] = useState(new Set());
   const [onlyAccessible, setOnlyAccessible] = useState(true);
   const [showLegacy, setShowLegacy] = useState(false);
   const [search, setSearch] = useState("");
@@ -40,22 +28,8 @@ export default function ModalAdicionarDisciplinas({
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "");
 
-  // Deduplicate classes into one entry per subjectCode for display.
-  // Each entry carries all the Class objects for that subject.
-  function groupBySubject(classes) {
-    const map = new Map();
-    for (const cls of classes) {
-      const code = cls.subjectCode;
-      if (!map.has(code)) {
-        map.set(code, { subjectCode: code, nome: cls.nome ?? "", classes: [] });
-      }
-      map.get(code).classes.push(cls);
-    }
-    return Array.from(map.values());
-  }
-
   const sourceList = onlyAccessible ? available : allCourses;
-  const grouped = groupBySubject(
+  const grouped = groupClassesBySubject(
     sourceList.filter((r) => showLegacy || !LEGACY_CODES.has(r.subjectCode)),
   );
   const displayGroups = search.trim()
@@ -69,7 +43,7 @@ export default function ModalAdicionarDisciplinas({
     : grouped;
 
   function toggle(subjectCode) {
-    setSelecionados((prev) => {
+    setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(subjectCode)) next.delete(subjectCode);
       else next.add(subjectCode);
@@ -80,7 +54,7 @@ export default function ModalAdicionarDisciplinas({
   // Collect all Class objects for selected subjects to pass to onConfirm
   function getSelectedClasses() {
     return (onlyAccessible ? available : allCourses).filter((cls) =>
-      selecionados.has(cls.subjectCode),
+      selected.has(cls.subjectCode),
     );
   }
 
@@ -140,14 +114,14 @@ export default function ModalAdicionarDisciplinas({
             </p>
           ) : (
             displayGroups.map((g) => {
-              const checked = selecionados.has(g.subjectCode);
-              const jaExiste = existingSubjectCodes?.has(g.subjectCode) ?? false;
+              const checked = selected.has(g.subjectCode);
+              const alreadyAdded = existingSubjectCodes?.has(g.subjectCode) ?? false;
               return (
                 <label
                   key={g.subjectCode}
                   className={[
                     "flex items-start gap-3 px-2 py-2.5 rounded-lg border-b border-gray-50 last:border-0",
-                    jaExiste
+                    alreadyAdded
                       ? "opacity-40 cursor-not-allowed"
                       : "hover:bg-gray-50 cursor-pointer",
                   ].join(" ")}
@@ -156,7 +130,7 @@ export default function ModalAdicionarDisciplinas({
                     type="checkbox"
                     checked={checked}
                     onChange={() => toggle(g.subjectCode)}
-                    disabled={jaExiste}
+                    disabled={alreadyAdded}
                     className="mt-1 accent-blue-600 w-4 h-4 flex-shrink-0 cursor-pointer disabled:opacity-40"
                   />
                   <div className="min-w-0 flex-1">
@@ -167,7 +141,7 @@ export default function ModalAdicionarDisciplinas({
                       <span className="text-xs text-gray-400 font-mono flex-shrink-0">
                         {g.subjectCode}
                       </span>
-                      {jaExiste && (
+                      {alreadyAdded && (
                         <span className="text-xs text-gray-400">
                           já na grade
                         </span>
@@ -207,11 +181,11 @@ export default function ModalAdicionarDisciplinas({
         <div className="px-6 py-4 border-t border-gray-100 flex gap-2">
           <button
             onClick={() => onConfirm(getSelectedClasses())}
-            disabled={selecionados.size === 0}
+            disabled={selected.size === 0}
             className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-bold rounded-xl transition-colors cursor-pointer"
           >
-            Adicionar {selecionados.size > 0 ? selecionados.size : ""}{" "}
-            disciplina{selecionados.size !== 1 ? "s" : ""}
+            Adicionar {selected.size > 0 ? selected.size : ""}{" "}
+            disciplina{selected.size !== 1 ? "s" : ""}
           </button>
           <button
             onClick={onCancel}

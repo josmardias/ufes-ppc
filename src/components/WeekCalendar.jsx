@@ -11,18 +11,101 @@
  *   semester            — CurriculumSemester for the period
  *   onConflictClick     — optional: (dia, blockStart, blockEnd, courseCode, sectionCode) => void
  *   onMultiSectionClick — optional: (courseCode, sectionCode) => void
- *   onRemoverClick      — optional: (courseCode, sectionCode) => void
+ *   onRemoveCourseClick — optional: (courseCode, sectionCode) => void
  *   focusedSections     — optional: Set<"courseCode::sectionCode"> — highlighted course sections
  *   onEmptyClick        — optional: (dia, startMin, endMin) => void
  */
 
-import {
-  HOUR_START,
-  HOUR_END,
-  semesterToCourseSections,
-  courseSectionSlots,
-  courseSectionHasConflictOnDay,
-} from "../domain/calendar.js";
+import { hhmmToMinutes, overlaps, normalizeDia } from "../lib/time.js";
+
+// ---------------------------------------------------------------------------
+// Grid display constants
+// ---------------------------------------------------------------------------
+
+/** First hour shown on the weekly calendar grid (inclusive). */
+const HOUR_START = 7;
+
+/**
+ * Last hour shown on the weekly calendar grid (exclusive — the grid ends at
+ * the START of this hour, i.e. the last visible row is HOUR_END - 1).
+ */
+const HOUR_END = 23;
+
+// ---------------------------------------------------------------------------
+// View-model adapter helpers (Class -> CourseSection for rendering)
+// ---------------------------------------------------------------------------
+
+/**
+ * Converts the Classes of a CurriculumSemester into a list of CourseSection
+ * objects — one entry per Class. Classes with no slots still produce an entry
+ * (with an empty horarios array) so they can be rendered as placeholders.
+ *
+ * CourseSection shape:
+ *   courseCode  — class.subjectCode
+ *   courseName  — class.name  (turma identifier, e.g. "06.1 N")
+ *   sectionCode — class.name  (same — kept for calendar API compatibility)
+ *   horarios    — class.slots (raw slot array)
+ */
+function semesterToCourseSections(semester) {
+  const classes = Array.isArray(semester?.classes)
+    ? semester.classes.filter(Boolean)
+    : [];
+  return classes.map((cls) => ({
+    courseCode: String(cls?.subjectCode ?? "").trim(),
+    courseName: String(cls?.name ?? "").trim(),
+    sectionCode: String(cls?.name ?? "").trim(),
+    horarios: Array.isArray(cls?.slots) ? cls.slots : [],
+  }));
+}
+
+/**
+ * Returns the parsed schedule intervals for a CourseSection.
+ * Each entry: { dia, startMin, endMin, rawStart, rawEnd }
+ */
+function courseSectionSlots(section) {
+  const horarios = Array.isArray(section?.horarios) ? section.horarios : [];
+  const result = [];
+  for (const h of horarios) {
+    const dia = normalizeDia(h?.dia);
+    const startMin = hhmmToMinutes(String(h?.inicio ?? "").trim());
+    const endMin = hhmmToMinutes(String(h?.fim ?? "").trim());
+    if (!dia || startMin === null || endMin === null || endMin <= startMin) continue;
+    result.push({ dia, startMin, endMin, rawStart: startMin, rawEnd: endMin });
+  }
+  return result;
+}
+
+/**
+ * Returns true when the given CourseSection has a schedule conflict with any
+ * OTHER section in allSections within the rendered block [blockStart, blockEnd)
+ * on the given weekday.
+ */
+function courseSectionHasConflictOnDay(section, allSections, dia, blockStart, blockEnd) {
+  const normalDay = normalizeDia(dia);
+
+  const ownSlots = courseSectionSlots(section);
+  const ownInBlock = ownSlots.some(
+    (s) => s.dia === normalDay && overlaps(s.startMin, s.endMin, blockStart, blockEnd),
+  );
+  if (!ownInBlock) return false;
+
+  for (const other of Array.isArray(allSections) ? allSections : []) {
+    if (other === section) continue;
+    if (
+      other.courseCode === section.courseCode &&
+      other.sectionCode === section.sectionCode
+    ) {
+      continue;
+    }
+    const otherSlots = courseSectionSlots(other);
+    const otherInBlock = otherSlots.some(
+      (s) => s.dia === normalDay && overlaps(s.startMin, s.endMin, blockStart, blockEnd),
+    );
+    if (otherInBlock) return true;
+  }
+
+  return false;
+}
 
 // ---------------------------------------------------------------------------
 // Color palette
@@ -160,8 +243,8 @@ function CourseSectionCard({
   color,
   isFocused,
   onConflictClick,
-  onMultiTurmaClick,
-  onRemoverClick,
+  onMultiSectionClick,
+  onRemoveCourseClick,
   // Rendering context injected by WeekCalendar
   _dia,
   _startMin,
@@ -202,15 +285,15 @@ function CourseSectionCard({
 
   const isClickable =
     (hasConflict && onConflictClick) ||
-    (hasMultiTurma && onMultiTurmaClick) ||
-    !!onRemoverClick;
+    (hasMultiTurma && onMultiSectionClick) ||
+    !!onRemoveCourseClick;
   const tooltipPrefix = hasConflict
     ? "Clique para resolver conflito de horário — "
     : hasMultiTurma
-      ? "Clique para escolher turma — "
-      : onRemoverClick
-        ? "Clique para remover — "
-        : "";
+    ? "Clique para escolher turma — "
+    : onRemoveCourseClick
+      ? "Clique para remover — "
+      : "";
   const tooltip = `${tooltipPrefix}${section.courseName}${section.sectionCode ? ` (${section.sectionCode})` : ""} — ${timeLabel}`;
 
   function handleClick() {
@@ -220,12 +303,12 @@ function CourseSectionCard({
       onConflictClick(_dia, blockStart, blockEnd, section.courseCode, section.sectionCode);
       return;
     }
-    if (hasMultiTurma && onMultiTurmaClick) {
-      onMultiTurmaClick(section.courseCode, section.sectionCode);
+    if (hasMultiTurma && onMultiSectionClick) {
+      onMultiSectionClick(section.courseCode, section.sectionCode);
       return;
     }
-    if (onRemoverClick) {
-      onRemoverClick(section.courseCode, section.sectionCode);
+    if (onRemoveCourseClick) {
+      onRemoveCourseClick(section.courseCode, section.sectionCode);
     }
   }
 
@@ -292,7 +375,7 @@ export default function WeekCalendar({
   semester,
   onConflictClick,
   onMultiSectionClick,
-  onRemoverClick,
+  onRemoveCourseClick,
   focusedSections,
   onEmptyClick,
 }) {
@@ -467,8 +550,8 @@ export default function WeekCalendar({
                                     ev.endMin,
                                   )}
                                   onConflictClick={onConflictClick}
-                                  onMultiTurmaClick={onMultiSectionClick}
-                                  onRemoverClick={onRemoverClick}
+                                  onMultiSectionClick={onMultiSectionClick}
+                                  onRemoveCourseClick={onRemoveCourseClick}
                                   _dia={dia}
                                   _startMin={ev.startMin}
                                   _endMin={ev.endMin}
