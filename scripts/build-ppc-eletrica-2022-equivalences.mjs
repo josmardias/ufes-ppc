@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * scripts/processar-equivalencias.mjs
+ * scripts/build-ppc-eletrica-2022-equivalences.mjs
  *
  * Extracts legacy-to-current discipline code mappings from the UFES
  * "Equivalências por Curso" PDF and writes them as a JSON file.
@@ -13,9 +13,9 @@
  *
  * Output shape:
  *   {
- *     "gerado_em": "...",
- *     "fonte_pdf": "...",
- *     "equivalencias": {
+ *     "generated_at": "...",
+ *     "source_pdf": "...",
+ *     "equivalences": {
  *       "EPR15969": ["EPR07923"],
  *       "HID15930": ["DEA07756"],
  *       ...
@@ -23,11 +23,11 @@
  *   }
  *
  * Usage:
- *   node scripts/processar-equivalencias.mjs [--pdf <path>] [--out <path>] [--debug]
+ *   node scripts/build-ppc-eletrica-2022-equivalences.mjs [--pdf <path>] [--out <path>] [--debug]
  *
  * Defaults:
  *   --pdf  scripts/input/EquivalenciasporCurso.pdf
- *   --out  scripts/output/equivalencias.json
+ *   --out  src/data/ppc-eletrica-2022-equivalences.json
  *
  * Dependencies: pdf-parse (already installed)
  */
@@ -47,7 +47,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 function parseArgs(argv) {
   const out = {
     pdf: path.resolve(__dirname, "input/EquivalenciasporCurso.pdf"),
-    out: path.resolve(__dirname, "../src/data/equivalencias.json"),
+    out: path.resolve(__dirname, "../src/data/ppc-eletrica-2022-equivalences.json"),
     debug: false,
   };
 
@@ -67,7 +67,7 @@ function parseArgs(argv) {
     }
     if (a === "-h" || a === "--help") {
       console.log(
-        "Usage: node processar-equivalencias.mjs [--pdf <path>] [--out <path>] [--debug]",
+        "Usage: node build-ppc-eletrica-2022-equivalences.mjs [--pdf <path>] [--out <path>] [--debug]",
       );
       process.exit(0);
     }
@@ -146,7 +146,7 @@ function extractNameAfterCode(line) {
  * One legacy code may map to multiple current codes (one-to-many equivalence).
  */
 function parse(lines, dbg) {
-  const equivalencias = [];
+  const equivalences = [];
 
   // Skip header/footer lines that match known patterns
   const isPageNoise = (s) =>
@@ -230,10 +230,10 @@ function parse(lines, dbg) {
           continue;
         }
 
-        dbg("equivalencia:", legacyCode, "→", currentCode, currentName);
-        equivalencias.push({
-          codigo_antigo: legacyCode,
-          codigo_novo: currentCode,
+        dbg("equivalence:", legacyCode, "→", currentCode, currentName);
+        equivalences.push({
+          legacy_code: legacyCode,
+          current_code: currentCode,
           nome_novo: currentName,
         });
         continue;
@@ -255,7 +255,7 @@ function parse(lines, dbg) {
     }
   }
 
-  return equivalencias;
+  return equivalences;
 }
 
 // ---------------------------------------------------------------------------
@@ -282,33 +282,33 @@ async function main() {
 
   dbg("lines:", lines.length);
 
-  const equivalencias = parse(lines, dbg);
+  const equivalences = parse(lines, dbg);
 
-  // Build inverted map: codigo_novo → [codigo_antigo, ...] (deduplicated, sorted)
+  // Build inverted map: current_code → [legacy_code, ...] (deduplicated, sorted)
   const map = {};
-  for (const { codigo_antigo, codigo_novo } of equivalencias) {
-    if (!map[codigo_novo]) map[codigo_novo] = new Set();
-    map[codigo_novo].add(codigo_antigo);
+  for (const { legacy_code, current_code } of equivalences) {
+    if (!map[current_code]) map[current_code] = new Set();
+    map[current_code].add(legacy_code);
   }
 
   // Convert Sets to sorted arrays and sort keys for stability
-  const equivalenciasMap = Object.fromEntries(
+  const equivalencesMap = Object.fromEntries(
     Object.keys(map)
       .sort()
       .map((k) => [k, [...map[k]].sort()]),
   );
 
-  const totalPairs = Object.values(equivalenciasMap).reduce(
+  const totalPairs = Object.values(equivalencesMap).reduce(
     (acc, v) => acc + v.length,
     0,
   );
 
   const payload = {
-    gerado_em: new Date().toISOString(),
-    fonte_pdf: path.basename(args.pdf),
-    total_legacy_codes: Object.keys(equivalenciasMap).length,
+    generated_at: new Date().toISOString(),
+    source_pdf: path.basename(args.pdf),
+    total_legacy_codes: Object.keys(equivalencesMap).length,
     total_pairs: totalPairs,
-    equivalencias: equivalenciasMap,
+    equivalences: equivalencesMap,
   };
 
   await fsp.mkdir(path.dirname(args.out), { recursive: true });
@@ -319,13 +319,13 @@ async function main() {
   );
 
   console.log(
-    `OK: ${Object.keys(equivalenciasMap).length} códigos legados, ${totalPairs} pares`,
+    `OK: ${Object.keys(equivalencesMap).length} legacy codes, ${totalPairs} pairs`,
   );
-  console.log(`JSON gerado em: ${args.out}`);
+  console.log(`JSON written to: ${args.out}`);
 
   // Print summary to stdout
-  for (const [novo, antigos] of Object.entries(equivalenciasMap)) {
-    console.log(`  ${antigos.join(", ")} → ${novo}`);
+  for (const [current, legacy] of Object.entries(equivalencesMap)) {
+    console.log(`  ${legacy.join(", ")} → ${current}`);
   }
 }
 

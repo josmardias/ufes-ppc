@@ -6,71 +6,104 @@
  * src/data/ is fully populated before the Vite app build starts.
  *
  * Steps (in order):
- *   1. build-data-offer.mjs (×5) — parses each offer PDF → src/data/oferta-semestre-<YYYY>-s<n>.json
+ *   1. build-ppc-eletrica-2022.mjs — parses the 2022 EE PPC PDF → src/data/ppc-eletrica-2022.json
+ *   2. build-ppc-eletrica-2022-equivalences.mjs — extracts equivalences → src/data/equivalencias.json
+ *   3. build-offer-from-department.mjs (×N) — parses every
+ *      scripts/input/oferta-departamento-*.pdf → src/data/<stem>.json
  *
  * Usage:
  *   node scripts/build-data.mjs [--debug]
  *
- * Optional:
- *   --debug    Pass --debug through to every script that supports it
+ * Options:
+ *   --debug    Pass --debug through to every sub-script
  */
 
-import { spawnSync } from "node:child_process";
-import path from "node:path";
+import { spawnSync }  from "node:child_process";
+import fs             from "node:fs";
+import path           from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const ROOT = path.resolve(__dirname, "..");
-const NODE = process.execPath;
-const debug = process.argv.includes("--debug");
+const ROOT      = path.resolve(__dirname, "..");
+const NODE      = process.execPath;
+const debug     = process.argv.includes("--debug");
 
-/** @type {string[]} */
-const OFFERS = [
-  "scripts/input/oferta-eng-ambiental-2026-1.pdf",
-  "scripts/input/oferta-eng-civil-2026-1.pdf",
-  "scripts/input/oferta-eng-computacao-2026-1.pdf",
-  "scripts/input/oferta-eng-eletrica-2026-1.pdf",
-  "scripts/input/oferta-eng-mecanica-2026-1.pdf",
-];
+// ---------------------------------------------------------------------------
+// Discover all department-offer PDFs
+// ---------------------------------------------------------------------------
+
+const INPUT_DIR = path.join(ROOT, "scripts", "input");
+
+const DEPARTMENT_PDFS = fs
+  .readdirSync(INPUT_DIR)
+  .filter((f) => f.startsWith("oferta-departamento-") && f.endsWith(".pdf"))
+  .sort()
+  .map((f) => path.join("scripts", "input", f));
+
+if (DEPARTMENT_PDFS.length === 0) {
+  console.error(
+    `No oferta-departamento-*.pdf files found in ${INPUT_DIR}. Nothing to do.`,
+  );
+  process.exit(1);
+}
+
+// ---------------------------------------------------------------------------
+// Runner
+// ---------------------------------------------------------------------------
 
 /**
  * Runs a Node script and streams its output to the terminal.
  * Returns true on success, false on failure.
- *
- * @param {string} scriptPath  Absolute path to the .mjs script
- * @param {string[]} args      Arguments to pass to the script
- * @returns {boolean}
  */
 function run(scriptPath, args) {
   const result = spawnSync(NODE, [scriptPath, ...args], {
-    cwd: ROOT,
-    stdio: "inherit",
+    cwd:      ROOT,
+    stdio:    "inherit",
     encoding: "utf8",
   });
   return result.status === 0;
 }
 
+// ---------------------------------------------------------------------------
+// Steps
+// ---------------------------------------------------------------------------
+
 /** @type {{ label: string, run: () => boolean }[]} */
 const STEPS = [
-  ...OFFERS.map((pdf) => ({
-    label: `Offer: ${path.basename(pdf)}`,
-    run: () =>
-      run(path.join(__dirname, "build-data-offer.mjs"), [
-        "--pdf", pdf,
-        ...(debug ? ["--debug"] : []),
-      ]),
+  {
+    label: "PPC Engenharia Elétrica 2022",
+    run: () => run(path.join(__dirname, "build-ppc-eletrica-2022.mjs"), []),
+  },
+  {
+    label: "PPC Engenharia Elétrica 2022 — Equivalences",
+    run: () => run(path.join(__dirname, "build-ppc-eletrica-2022-equivalences.mjs"), []),
+  },
+  ...DEPARTMENT_PDFS.map((pdf) => ({
+  label: `Department offer: ${path.basename(pdf)}`,
+  run: () =>
+    run(path.join(__dirname, "build-offer-from-department.mjs"), [
+      "--pdf", pdf,
+      ...(debug ? ["--debug"] : []),
+    ]),
   })),
+
 ];
+
+// ---------------------------------------------------------------------------
+// Execute
+// ---------------------------------------------------------------------------
+
+console.log(`Found ${DEPARTMENT_PDFS.length} department PDF(s) to process.\n`);
 
 let anyFailed = false;
 
 for (const step of STEPS) {
-  console.log(`\n── ${step.label}`);
+  console.log(`── ${step.label}`);
   const ok = step.run();
   if (!ok) {
-    console.error(`\n✗ Step failed: ${step.label}`);
+    console.error(`✗ Step failed: ${step.label}`);
     anyFailed = true;
-    // Continue so all errors surface in one pass.
+    // Keep going so all errors surface in one pass.
   }
 }
 
