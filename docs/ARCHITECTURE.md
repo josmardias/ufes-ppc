@@ -61,12 +61,12 @@ Top-level components that correspond to the main screens of the application. The
 Custom React hooks that connect the store to the UI: thin wrappers over store selectors and actions. Hooks do not touch `src/storage` directly.
 
 ### `src/data`
-Static datasets bundled with the application — no network requests, no user uploads. Contains:
+Static datasets bundled with the application — no network requests, no user uploads. Two subfolders:
 
-- **Course Curricula (PPCs)** — committed JSON files, one per PPC version (see PPC dataset below). Each PPC is identified by a **PPC id** (e.g. `engenharia-eletrica-2023`) and carries a display name; profiles reference this id.
-- **Past Offerings** — generated at build time by `scripts/` (git-ignored, never committed): a **single curated snapshot per (course, Year Semester)** — the Sections (with schedules and professors) that represent what that Year Semester typically looks like. Anomalies in the source data are fixed by parser exceptions in `scripts/`, not by fallback logic in the app. Enrollment Scopes and target courses are not part of the dataset — the tool does not model enrollment eligibility.
+- **`src/data/ppcs`** — Course Curricula (PPCs), one JSON file per PPC version (see PPC dataset below). Each PPC is identified by a **PPC id** (e.g. `engenharia-eletrica-2022`) and carries a display name; profiles reference this id. A PPC file reaches this folder one of two ways: hand-crafted and **committed directly** (the target for most future courses), or produced by `scripts/` and copied in by `scripts/copy-to-data.mjs` — today's case for Engenharia Elétrica, whose PPC is re-extracted from the official PDF rather than hand-authored, so it is **git-ignored** and regenerated on every build instead, same treatment as Offerings below.
+- **`src/data/offerings`** — Past Offerings, generated at build time by `scripts/` and copied in by `scripts/copy-to-data.mjs` (**git-ignored**, never committed — see Data Pipeline): a **single curated snapshot per (course, Year Semester)** — the Sections (with schedules and professors) that represent what that Year Semester typically looks like. Anomalies in the source data are fixed by parser exceptions in `scripts/`, not by fallback logic in the app. Enrollment Scopes and target courses are not part of the dataset — the tool does not model enrollment eligibility.
 
-Datasets are loaded **eagerly**: an index module builds the registry with `import.meta.glob` (eager mode), so all data access is synchronous and adding a dataset file requires no registry edits. Adding a course means adding its PPC file, its department PDFs, and one collector config entry in `scripts/` — no changes elsewhere.
+Datasets are loaded **eagerly** by `src/data/index.js`: it builds the `ppcs` (keyed by PPC id) and `offerings` (keyed by PPC id, then Year Semester) registries with `import.meta.glob` (eager mode), plus `getPpc(id)` / `getOfferings(ppcId, yearSemester)` lookups — so all data access is synchronous and adding a dataset file requires no registry edits. Adding a course means adding its PPC file, its department PDFs, and one collector config entry in `scripts/` — no changes elsewhere.
 
 Initial coverage: **UFES Electrical Engineering**, both cohorts — 1st Year Semester ingress (morning shift) and 2nd Year Semester ingress (afternoon shift).
 
@@ -76,7 +76,7 @@ Initial coverage: **UFES Electrical Engineering**, both cohorts — 1st Year Sem
 
 ### PPC dataset
 
-One committed JSON file per PPC version. PPCs are static once approved, so each file is produced once — by hand, by script-assisted extraction from the official PDF, or a mix — validated, and committed. The d2 graphs in `scripts/input` are an authoring source; a script converts them to JSON, inverting edge direction (the d2 stores *prerequisite → dependent*; the JSON stores each subject's own requisite lists, which is what evaluation wants).
+One JSON file per PPC version, produced either by hand or by script-assisted extraction from the official PDF (see `src/data/ppcs` above for which one applies to a given course). PPCs are static once approved, so whichever process produces a course's file, it is validated before use. The d2 graphs in `scripts/input` are an authoring source; a script converts them to JSON, inverting edge direction (the d2 stores *prerequisite → dependent*; the JSON stores each subject's own requisite lists, which is what evaluation wants).
 
 ```js
 {
@@ -194,17 +194,22 @@ Import (UC-06) runs the same migration pipeline as storage (so old exported file
 
 ## Data Pipeline (`scripts/`)
 
-Offline generation runs in Node (plain JavaScript) at deploy time. Inputs are the committed official PDFs in `scripts/input`. The pipeline has two stages:
+Offline generation runs in Node (plain JavaScript) at deploy time, writing intermediate files to `scripts/output` (git-ignored). Inputs are the committed official PDFs in `scripts/input`. The pipeline has four stages, each its own standalone script (runnable directly, e.g. `node scripts/validate-data.mjs`); `scripts/build-data.mjs` runs all of them in order and is the one exposed as `npm run build-data`:
 
 ```
-Stage 1: department PDF ──parser──▶ department JSON     (one parser per department; per source semester)
-Stage 2: department JSONs ──collector──▶ course snapshots (one per Year Semester per course)
+Stage 1: department PDF ──parser────▶ department JSON       (one parser per department; per source semester)
+         PPC PDF        ──parser────▶ subjects JSON + equivalences JSON, merged (one per PPC version)
+Stage 2: department JSONs ──collector──▶ course Offerings snapshots (one per Year Semester per course)
+         subjects JSON     ──assemble───▶ course PPC dataset          (one per PPC version)
+Stage 3: assembled PPC + Offerings JSONs ──validate──▶ pass/fail      (schema + referential integrity)
+Stage 4: validated JSONs ──copy──▶ src/data/ppcs, src/data/offerings
 ```
 
-- **Stage 1 — parsers.** One parser per department extracts that department's offering PDF into an intermediate JSON (not committed). Anomalies in the source PDFs are fixed by **hardcoded exceptions inside the parser scripts** — never by fallback logic in the app.
-- **Stage 2 — collector.** A collector script builds each course's Year Semester snapshots. Its knowledge is a small per-course config array: the `ppcId` to filter by and which source semester fills which Year Semester slot (e.g. `2026-1 → YS1`, `2025-2 → YS2`). Departments are discovered automatically: the collector reads every department JSON available for the source semester and keeps Sections matching the PPC filter (subject ∈ PPC or ∈ some subject's `equivalents`).
-- **Validation.** Generation validates its output — schema checks plus referential integrity (offering subject codes resolve, session times parse, shifts recompute correctly). **Any validation error fails the deploy.** Because the generated offerings are not committed, deploy-time validation is the safety net against silent parser regressions; a committed snapshot fixture for one department is kept under Vitest to catch regressions before deploy.
-- **PPC files** are produced once per PPC version (hybrid: hand-typed and/or script-extracted from the official PDF, manually fixed) and committed to `src/data` directly; they are inputs to the collector, not outputs of the deploy-time pipeline.
+- **Stage 1 — parsers.** One parser per department extracts that department's offering PDF into an intermediate JSON. One parser per PPC PDF extracts its required/optional subjects (`extract-subjects-*.mjs`) and its equivalences document (`extract-equivalencias-*.mjs`), merged into a single subjects JSON (`merge-equivalencias-*.mjs`). Anomalies in the source PDFs are fixed by **hardcoded exceptions inside the parser scripts** — never by fallback logic in the app.
+- **Stage 2 — collector / assemble.** `collect-course-offerings.mjs` builds each course's Year Semester Offerings snapshots. Its knowledge is a small per-course config array: the `ppcId` to filter by and which source semester fills which Year Semester slot (e.g. `2026-1 → YS1`, `2025-2 → YS2`). Departments are discovered automatically: the collector reads every department JSON available for the source semester and keeps Sections matching the PPC filter (subject ∈ PPC or ∈ some subject's `equivalents`). `assemble-ppc.mjs` reshapes each merged subjects JSON into the final PPC dataset shape (see PPC dataset below) — course-agnostic, runs over every subjects JSON found.
+- **Stage 3 — validation** (`validate-data.mjs`). Schema checks plus referential integrity (offering subject codes resolve against the matching PPC's own codes or its equivalents, prerequisite/corequisite codes resolve within the PPC, session times parse, shifts recompute correctly). **Any validation error fails the deploy** (non-zero exit). Because generated Offerings are never committed, this is the safety net against silent parser regressions; a committed snapshot fixture for one department is kept under Vitest to catch regressions before deploy.
+- **Stage 4 — copy** (`copy-to-data.mjs`). Copies the validated PPC and Offerings JSONs into `src/data/ppcs` and `src/data/offerings` respectively (see `src/data` above). `src/data/offerings` is always git-ignored and rewritten on every build; `src/data/ppcs` is git-ignored per-file for script-generated PPCs (Engenharia Elétrica today) and committed for hand-crafted ones.
+- A future hand-crafted course PPC skips Stages 1's PPC parser and Stage 2's assemble step, but still needs a collector config entry and a subjects JSON in the collector's expected (pre-assembly) shape to produce that course's Offerings — today's collector only reads from `scripts/output`, not from `src/data/ppcs` directly.
 
 ---
 
@@ -228,7 +233,7 @@ GitHub Pages, deployed by GitHub Actions on push to main:
 
 1. install
 2. unit tests (domain, storage, store)
-3. data generation + validation (fails the build on any error)
+3. data generation + validation (`npm run build-data`; fails the build on any error)
 4. Vite build
 5. Playwright smoke suite against the built output
 6. deploy to Pages

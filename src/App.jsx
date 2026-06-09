@@ -1,57 +1,27 @@
-import { useState, createContext, useContext } from "react";
-import ScheduleBuilderPage from "./pages/ScheduleBuilderPage";
-import PpcPage from "./pages/PpcPage";
-import OfferPage from "./pages/OfferPage";
-import CustomOfferPage from "./pages/CustomOfferPage";
-import StudentSelect from "./pages/StudentSelect";
-import { usePlanning } from "./hooks/usePlanning.js";
-import AppHeader from "./components/AppHeader.jsx";
-import AppNavTabs from "./components/AppNavTabs.jsx";
+// Static routes (see docs/ARCHITECTURE.md, "State Management and Routing").
+// `/profile` resolves the active profile from persisted state; if there is
+// none, it redirects to `/` instead of taking the profile id from the URL.
 
-export const PlanningContext = createContext(null);
+import { Redirect, Route, Router, Switch } from 'wouter';
+import { useStore } from './store/index.js';
+import ProfileListPage from './pages/ProfileListPage.jsx';
+import PlannerPage from './pages/PlannerPage.jsx';
 
-export function usePlanningContext() {
-  return useContext(PlanningContext);
+// Served from a GitHub Pages subpath; keep wouter's base in sync with Vite's.
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+
+function PlannerRoute() {
+  const activeProfileId = useStore((state) => state.activeProfileId);
+  return activeProfileId ? <PlannerPage /> : <Redirect to="/" />;
 }
 
-const TABS = [
-  {
-    id: "schedule-builder",
-    label: "Simular Grade",
-    component: ScheduleBuilderPage,
-  },
-  { id: "ppc", label: "PPC", component: PpcPage },
-  { id: "oferta", label: "Oferta", component: OfferPage },
-  { id: "custom-offer", label: "Oferta Custom", component: CustomOfferPage },
-];
-
 export default function App() {
-  const [activeTab, setActiveTab] = useState("schedule-builder");
-  const planningApi = usePlanning();
-  const { activeProfile, logout } = planningApi;
-
-  const ActivePage = TABS.find((t) => t.id === activeTab)?.component ?? null;
-
-  // No active student → show selection screen
-  if (!activeProfile) {
-    return (
-      <PlanningContext.Provider value={planningApi}>
-        <StudentSelect />
-      </PlanningContext.Provider>
-    );
-  }
-
   return (
-    <PlanningContext.Provider value={planningApi}>
-      <div className="min-h-screen bg-gray-50 text-gray-900">
-        <AppHeader activeProfile={activeProfile} onLogout={logout} />
-        <AppNavTabs tabs={TABS} activeTab={activeTab} onTabChange={setActiveTab} />
-
-        {/* Page content */}
-        <main className="max-w-5xl mx-auto">
-          {ActivePage && <ActivePage />}
-        </main>
-      </div>
-    </PlanningContext.Provider>
+    <Router base={base}>
+      <Switch>
+        <Route path="/" component={ProfileListPage} />
+        <Route path="/profile" component={PlannerRoute} />
+      </Switch>
+    </Router>
   );
 }
