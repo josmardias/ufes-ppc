@@ -1,13 +1,13 @@
-# Dependências
+# Dependencies
 node_modules/
 
 # Build
 dist/
 
-# Saída dos scripts Node
+# Node script output
 output/
 
-# Arquivos de sistema
+# System files
 .DS_Store
 Thumbs.db
 
