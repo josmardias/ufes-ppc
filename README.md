@@ -6,6 +6,12 @@
 
 https://josmardias.github.io/ufes-ppc/
 
+## Documentation
+
+- [Use Cases](docs/USE_CASES.md) — purpose & scope, and what users can do
+- [Domain](docs/DOMAIN.md) — the concepts and rules (with EN → PT-BR dictionary and [diagram](docs/DOMAIN.svg))
+- [Architecture](docs/ARCHITECTURE.md) — tech stack, project structure, persistence
+
 ## Local development
 
 ```sh

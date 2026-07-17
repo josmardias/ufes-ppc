@@ -1,0 +1,155 @@
+# Visual companion to DOMAIN.md.
+# Render with: d2 DOMAIN.d2 DOMAIN.svg
+#
+# Split rationale: the "university side" is static reference data the student
+# cannot change; the "student side" is the planning data this tool manages.
+# Academic Transcript (Histórico Escolar) is intentionally omitted — described
+# in DOMAIN.md for context, but this tool does not work with it.
+# Enrollment Scopes and Enrollment Periods are shown but marked context-only:
+# the tool does not model enrollment eligibility.
+
+direction: right
+
+university: "University side — static reference data" {
+  ppc: "Course Curriculum (PPC)" {
+    shape: sql_table
+    id: "PPC id, e.g. engenharia-eletrica-2023"
+    versioning: "many per course, one *current*"
+    mutability: "static once approved"
+  }
+
+  subject: "Subject (Disciplina)" {
+    shape: sql_table
+    code: "unique identifier"
+    classification: "required | optional | elective"
+    suggested_semester: "optional hint, not a rule"
+  }
+
+  equivalence: "Equivalence (Equivalência)" {
+    shape: sql_table
+    scope: "defined per PPC"
+    logic: "OR — passing any one equivalent suffices"
+    directionality: "one-way: B satisfies A ≠ A satisfies B"
+  }
+
+  department: "Department (Departamento)"
+
+  offering: "Offering (Oferta)" {
+    shape: sql_table
+    stability: "repeats per Year Semester parity:\n2024/1 ≈ 2025/1 ≈ 2026/1\n→ one curated snapshot per (course, Year Semester)"
+  }
+
+  section: "Section (Turma)" {
+    shape: sql_table
+    schedule: "weekly sessions (day + start/end)"
+    professors: "one or more"
+    shift: "morning | afternoon | day —\nprecomputed when generating static data"
+    scope: "1 | 2 | 3 + target course —\ncontext only, not modeled by the tool"
+  }
+
+  year_semester: "Year Semester (Semestre)\n1st or 2nd of the calendar year"
+
+  enrollment_period: "Enrollment Period (Etapa)\n1ª etapa → 2ª etapa\ncontext only, not modeled by the tool" {
+    note: "scope tends to widen in 2ª etapa"
+  }
+
+  ppc -> subject: contains
+  subject -> subject: "prerequisite (pass before)"
+  subject -> subject: "co-requisite (take together)" {style.stroke-dash: 3}
+  equivalence -> subject: "equivalent satisfies target"
+  department -> subject: owns
+  department -> offering: "publishes each Year Semester"
+  offering -> section: "groups (~one per course)"
+  offering -> subject: "for one"
+  year_semester -> enrollment_period: "has two"
+  enrollment_period -> section: "may widen scope" {style.stroke-dash: 3}
+}
+
+student: "Student side — what this tool manages" {
+  profile: "Student (Aluno)" {
+    shape: sql_table
+    ppc_id: "chosen at first Planned Semester (flat list);\neditable only with zero semesters —\nswitching also requires zero Credit Entries"
+    ingress: "year + Year Semester (1st/2nd)"
+    shift: "day | morning | afternoon —\ndefault Section-list filter"
+    shift_filter: "persisted toggle override\n(morning | afternoon | whole day);\ncleared when last semester is deleted"
+  }
+
+  planned_semester: "Planned Semester (Período)" {
+    shape: sql_table
+    position: "ordered: student's 1st, 2nd, 3rd…"
+    label: "derived: position + ingress → e.g. 2024/1"
+    contents: "intended Sections + applied Custom Section\ncopies — deleted with the semester"
+    valid: "no Schedule Conflicts AND no Unmet\nRequisites; invalid semesters may be held\nwhile the student decides"
+    editing: "last semester accepts new Sections;\nearlier ones can be corrected (mark failed,\nremove) — only the last is deletable"
+  }
+
+  failed_mark: "Failed Mark (Reprovação)" {
+    shape: sql_table
+    carrier: "flag on a Section in a Planned Semester"
+    effect: "no fulfillment forward (prereq, co-req,\ncurriculum) — Subject reappears when planning"
+    same_semester: "still satisfies sibling co-requisites\nand still occupies schedule time"
+  }
+
+  unmet_requisite: "Unmet Requisite (Requisito não atendido)" {
+    shape: sql_table
+    nature: "derived, never stored"
+    computation: "fulfillment set built semester by semester,\nexcluding failed Sections"
+    cascade: "flagged Sections confer nothing →\nflags propagate recursively down the plan"
+  }
+
+  custom_section: "Custom Section (Turma Personalizada)" {
+    shape: sql_table
+    storage: "catalog on the profile"
+    purpose: "stand-in for missing Offering data,\nor non-academic commitment (lab, job…)"
+    subject_link: "optional — linked ⇒ behaves like a\nregular Section; stale after PPC switch\n(kept, de-emphasized, acts unlinked)"
+    applicability: "Year Semester 1 | 2 | both"
+    apply: "adding to a semester creates an independent\ncopy — catalog edits never touch copies"
+    sessions: "weekly (day + start/end)"
+  }
+
+  credit_entry: "Credit Entry (Aproveitamento)" {
+    shape: sql_table
+    subject: "must belong to student's PPC"
+    effect: "timeless — fulfilled from the very start,\nfor every Planned Semester"
+    lifecycle: "must be deleted before switching PPC"
+  }
+
+  audit_mark: "Audit Mark (Ouvinte)" {
+    shape: sql_table
+    carrier: "flag on a Section in a semester,\nor on a Credit Entry — dies with it"
+    meaning: "fulfills requisites, but I still\nwant to retake it (as listener)"
+    effect: "requisites unchanged; Subject offered\nagain when planning"
+  }
+
+  conflict: "Schedule Conflict (Conflito de Horário)" {
+    definition: "two Sections in same semester\nwith overlapping sessions"
+    policy: "surfaced, never blocks"
+  }
+
+  profile -> planned_semester: "ordered sequence of"
+  profile -> credit_entry: has
+  profile -> custom_section: "catalog of"
+  planned_semester -> custom_section: "holds independent copies of"
+  planned_semester -> conflict: "may contain"
+  planned_semester -> failed_mark: "Sections may carry"
+  planned_semester -> unmet_requisite: "recomputed on every change"
+  failed_mark -> unmet_requisite: "triggers, cascading recursively" {style.stroke-dash: 3}
+  audit_mark -> planned_semester: "carrier: Section in a semester" {style.stroke-dash: 3}
+  audit_mark -> credit_entry: "carrier: Credit Entry" {style.stroke-dash: 3}
+}
+
+rules: "Requisite evaluation for semester N (position-based, not calendar-based)" {
+  shape: page
+  r1: "non-failed Sections in semesters < N → satisfy prerequisites AND co-requisites"
+  r2: "semester N itself → satisfies co-requisites only (even Sections later marked failed)"
+  r3: "Credit Entries → always satisfied, from the very start of the timeline"
+  r4: "everywhere, Equivalences count as the target Subject"
+  r5: "Sections with Unmet Requisites confer nothing → flags cascade recursively"
+  grid-rows: 5
+}
+
+student.profile -> university.ppc: "follows one (by PPC id)"
+student.planned_semester -> university.section: "holds intended"
+student.credit_entry -> university.subject: credits
+student.custom_section -> university.subject: "optionally linked to" {style.stroke-dash: 3}
+student.planned_semester -> rules: "eligibility checked by" {style.stroke-dash: 3}

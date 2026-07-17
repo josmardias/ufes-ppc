@@ -1,5 +1,25 @@
 # Use Cases
 
+## Purpose & Scope
+
+**Problem:** Each semester, UFES students must decide which Sections (Turmas) to enroll in — navigating prerequisites, co-requisites, equivalences, schedule conflicts, and offerings that vary by Year Semester — with no official tool to simulate plans ahead of time.
+
+**Target user:** UFES undergraduate students planning their path through their course, semester by semester. Initial data covers Electrical Engineering; more courses will be added.
+
+**Goals:**
+- Simulate an academic path semester by semester, using past Offerings to predict which Sections will likely be available.
+- Surface Unmet Requisites and Schedule Conflicts as information — never as hard blocks.
+- Work entirely client-side: profiles persist in the browser and can be exported/imported as files.
+
+**Non-goals:**
+- No connection to official UFES systems — a plan here is a simulation, not an enrollment.
+- No accounts, no server, no network requests.
+- No grade or transcript tracking — the plan assumes planned Subjects are passed unless the user marks a Section as failed (UC-22); no other academic outcome is recorded.
+- No degree-progress auditing — the tool does not track required Subjects remaining, optional credit-hour minimums, or total workload toward graduation. It is a schedule planner, not a degree auditor.
+- No enrollment eligibility modeling — Enrollment Scopes and Periods are domain context only (see `DOMAIN.md`).
+
+---
+
 This document describes the use cases of the UFES course planning system. Use cases describe user goals and the interaction flow between the user and the system, independent of any specific UI or implementation decisions.
 
 Domain terms follow the same convention as `DOMAIN.md`: English name with PT-BR name in parentheses where relevant.
@@ -31,13 +51,17 @@ Domain terms follow the same convention as `DOMAIN.md`: English name with PT-BR 
 
 **Main Flow:**
 1. The user requests to create a new profile.
-2. The system asks for the Student's name.
-3. The user provides the name and confirms.
+2. The system asks for:
+   - The Student's name.
+   - The ingress year, and whether the Student ingressed in the 1st or 2nd Year Semester.
+   - The Student's shift (Day, Morning, or Afternoon).
+3. The user provides the information and confirms.
 4. The system creates and persists the new Student profile.
 5. The system makes the new profile the active Student.
 
 **Validation:**
 - The Student's name must not be empty.
+- The Student's name must differ from all existing profile names.
 
 **Alternative Flow — User cancels:**
 - No profile is created.
@@ -56,6 +80,9 @@ Domain terms follow the same convention as `DOMAIN.md`: English name with PT-BR 
 **Main Flow:**
 1. The user selects a Student profile from the list.
 2. The system loads that profile as the active Student.
+
+**Notes:**
+- The active selection is persisted with the stored data: after a reload the system returns to the last active Student without reselecting. Deleting the active profile (UC-05) clears the selection.
 
 ---
 
@@ -114,11 +141,14 @@ Domain terms follow the same convention as `DOMAIN.md`: English name with PT-BR 
 
 **Main Flow:**
 1. The user requests to import a profile and provides a file.
-2. The system reads, parses, and validates the file.
+2. The system reads and parses the file, migrates it to the current data format when it was exported by an older version of the system, and validates it.
 3. The system persists the imported profile.
 
 **Alternative Flow — File is invalid:**
 - The system rejects the file and does not save anything.
+
+**Alternative Flow — Unknown Course Curriculum:**
+- The profile references a Course Curriculum (PPC) that does not exist in the system's datasets. The system rejects the file with a clear message and does not save anything — profiles are never imported in a degraded state.
 
 **Alternative Flow — Profile name already exists:**
 - The system asks the user whether to overwrite the existing profile or cancel.
@@ -137,6 +167,9 @@ Domain terms follow the same convention as `DOMAIN.md`: English name with PT-BR 
 **Main Flow:**
 1. The user selects a Student profile and requests to export it.
 2. The system serializes the profile data and delivers it to the user as a file.
+
+**Notes:**
+- The exported file records the data format version, so files exported by older versions of the system remain importable (UC-06).
 
 ---
 
@@ -166,11 +199,13 @@ Domain terms follow the same convention as `DOMAIN.md`: English name with PT-BR 
 
 ## Schedule Planner
 
+New planning happens on the **last** Planned Semester — it is the only one that accepts new Sections (UC-12). Earlier Planned Semesters are the record of the plan so far, but they can be **corrected** to reflect real life: a Section can be marked as failed (UC-22) or removed (UC-13). Either correction changes the fulfillment set from that point on, and the system recomputes Unmet Requisites for all later semesters automatically — cascading recursively through anything that depended on the corrected Section (see `DOMAIN.md`).
+
 ### UC-09 — View Schedule Planner
 
 **Actor:** User
 
-**Goal:** Access the planning workspace for the active Student, where past and current Planned Semesters and their Classes can be reviewed, and where any Schedule Conflicts in the selected Planned Semester are visible.
+**Goal:** Access the planning workspace for the active Student, where past and current Planned Semesters and their Sections can be reviewed, and where any Schedule Conflicts or Unmet Requisites in the selected Planned Semester are visible.
 
 **Preconditions:**
 - An active Student profile has been selected or created.
@@ -178,11 +213,11 @@ Domain terms follow the same convention as `DOMAIN.md`: English name with PT-BR 
 **Main Flow:**
 1. The system loads the planning data for the active Student.
 2. The system presents the list of the Student's Planned Semesters.
-3. The system presents the Classes assigned to the selected Planned Semester.
-4. If the selected Planned Semester contains Schedule Conflicts, the system highlights the conflicting Classes and indicates the semester is not yet valid.
+3. The system presents the Sections assigned to the selected Planned Semester, indicating any Failed Marks and Audit Marks.
+4. If the selected Planned Semester contains Schedule Conflicts or Unmet Requisites, the system highlights the affected Sections and indicates the semester is not valid.
 
 **Alternative Flow — No Planned Semesters exist:**
-- The system informs the user that no Planned Semesters exist and offers the option to add the first one.
+- The system informs the user that no Planned Semesters exist and offers the option to add the first one. In this state the user may also edit the profile data (UC-24).
 
 ---
 
@@ -190,7 +225,7 @@ Domain terms follow the same convention as `DOMAIN.md`: English name with PT-BR 
 
 **Actor:** User
 
-**Goal:** View the Classes planned for a specific Planned Semester.
+**Goal:** View the Sections planned for a specific Planned Semester.
 
 **Preconditions:**
 - The Schedule Planner is open.
@@ -198,8 +233,8 @@ Domain terms follow the same convention as `DOMAIN.md`: English name with PT-BR 
 
 **Main Flow:**
 1. The user selects a Planned Semester from the list.
-2. The system presents the Classes assigned to that Planned Semester.
-3. If the selected Planned Semester contains Schedule Conflicts, the system highlights the conflicting Classes and indicates the semester is not yet valid.
+2. The system presents the Sections assigned to that Planned Semester.
+3. If the selected Planned Semester contains Schedule Conflicts or Unmet Requisites, the system highlights the affected Sections and indicates the semester is not valid.
 
 ---
 
@@ -207,24 +242,26 @@ Domain terms follow the same convention as `DOMAIN.md`: English name with PT-BR 
 
 **Actor:** User
 
-**Goal:** Add the next Planned Semester to the plan, pre-populated with a suggested set of Classes the Student is eligible to enroll in.
+**Goal:** Add the next Planned Semester to the plan, pre-populated with a suggested set of Sections the Student is eligible to enroll in.
 
 **Preconditions:**
 - The Schedule Planner is open.
 
 **Main Flow:**
 1. The user requests to add a new Planned Semester.
-2. If no Course information is recorded for this Student yet, the system asks for:
-   - The Course (and its Course Curriculum) the Student is enrolled in.
-   - Whether the Student ingressed in the 1st or 2nd Year Semester.
-   The system persists this information to the Student profile before proceeding.
-3. The system determines the label (Year Semester) and number (Curriculum Semester position) for the new Planned Semester based on the Student's ingress information and existing Planned Semesters.
-4. The system evaluates all Subjects in the Course Curriculum that do not yet appear in any Planned Semester, and identifies those whose prerequisites are satisfied by Classes in past Planned Semesters (considering Equivalences).
-5. For each eligible Subject, the system identifies available Classes from past Offerings of the same Year Semester.
-6. The system creates the new Planned Semester pre-populated with the suggested Classes and persists it.
-7. The user iterates — adding and removing Classes (UC-12, UC-13) — until the semester is valid (no Schedule Conflicts).
+2. If no Course Curriculum (PPC) is recorded for this Student yet, the system presents a flat list of the available PPCs; the user picks one and the system persists it to the Student profile before proceeding.
+3. The system determines the label (Year Semester) and number (position in the plan) for the new Planned Semester based on the Student's ingress information and existing Planned Semesters.
+4. The system evaluates all Subjects in the Course Curriculum that are not yet fulfilled — a Subject is fulfilled when a past Planned Semester holds a non-failed Section for it, or a Credit Entry covers it (considering Equivalences); Subjects whose fulfillment carries an Audit Mark (UC-20) are included even when fulfilled — and identifies those whose prerequisites are satisfied by non-failed Sections in past Planned Semesters or Credit Entries.
+5. For each eligible Subject, the system identifies available Sections from the curated Offering snapshot of the same Year Semester.
+6. The system creates the new Planned Semester pre-populated with the suggested Sections and persists it.
+7. The user iterates — adding and removing Sections (UC-12, UC-13) — until the semester is valid (no Schedule Conflicts, no Unmet Requisites).
 
-**Alternative Flow — No eligible Classes found:**
+**Notes:**
+- Custom Sections (UC-17) whose applicability matches the Year Semester are also considered: one linked to an eligible Subject is included among the suggested Sections.
+- Suggested Sections may be offered under an **equivalent** code of the Subject (see `DOMAIN.md`, Equivalence, and UC-12).
+- Suggested Sections are preferably drawn from the Student's effective shift filter: the persisted toggle if set, the profile shift otherwise (see UC-12).
+
+**Alternative Flow — No eligible Sections found:**
 - The system creates the new Planned Semester empty and informs the user.
 
 **Alternative Flow — User cancels:**
@@ -232,73 +269,82 @@ Domain terms follow the same convention as `DOMAIN.md`: English name with PT-BR 
 
 ---
 
-### UC-12 — Add a Class to a Planned Semester
+### UC-12 — Add a Section to a Planned Semester
 
 **Actor:** User
 
-**Goal:** Add a Class to a Planned Semester being worked on.
+**Goal:** Add a Section to the Planned Semester being worked on.
 
 **Preconditions:**
 - The Schedule Planner is open.
 - At least one Planned Semester exists.
+- The selected Planned Semester is the last one in the plan.
 
 **Main Flow:**
-1. The user requests to add a Class to the selected Planned Semester.
-2. The system presents the Classes available for that Year Semester whose Subject prerequisites are satisfied by past Planned Semesters, and whose Subject co-requisites are satisfied by past or current Planned Semesters (considering Equivalences).
-3. The user selects a Class.
-4. The system adds the Class to the Planned Semester and persists the change.
-5. If the added Class creates a Schedule Conflict with any existing Class in the semester, the system highlights the conflict.
+1. The user requests to add a Section to the selected Planned Semester.
+2. The system presents the Sections available for that Year Semester (from the curated Offering snapshot) whose Subject prerequisites are satisfied by non-failed Sections in past Planned Semesters or Credit Entries, and whose Subject co-requisites are satisfied by past or current Planned Semesters (considering Equivalences). Subjects already fulfilled — a non-failed Section in a past Planned Semester or a Credit Entry — are excluded, unless their fulfillment carries an Audit Mark (UC-20). The Student's Custom Sections with matching applicability are also presented — linked ones under the same requisite rules, unlinked ones unconditionally.
+3. The list is filtered by the effective shift filter: the profile's shift by default, or the persisted toggle (morning, afternoon, or whole day) once the user sets it. Day-shift Sections appear under every filter option. The user may change the toggle at any time; the system persists it on the profile.
+4. The user selects a Section.
+5. The system adds the Section to the Planned Semester and persists the change. Adding a Custom Section creates an independent copy inside the semester — later catalog edits do not affect it.
+6. If the added Section creates a Schedule Conflict with any existing Section in the semester, the system highlights the conflict.
 
 **Notes:**
-- The system does not prevent adding a Class that causes a Schedule Conflict. Conflicts are surfaced as information, not as a hard block.
+- The system does not prevent adding a Section that causes a Schedule Conflict. Conflicts are surfaced as information, not as a hard block.
+- The available list includes Sections offered under an **equivalent** code of a PPC Subject (see `DOMAIN.md`, Equivalence). Adding one fulfills the corresponding PPC Subject exactly as a Section under the Subject's own code would.
 
 **Alternative Flow — User cancels:**
 - No changes are made.
 
 ---
 
-### UC-13 — Remove a Class from a Planned Semester
+### UC-13 — Remove a Section from a Planned Semester
 
 **Actor:** User
 
-**Goal:** Remove a Class from a Planned Semester.
+**Goal:** Remove a Section from a Planned Semester — either while working on the last semester, or to correct an earlier one.
 
 **Preconditions:**
 - The Schedule Planner is open.
-- The selected Planned Semester contains at least one Class.
+- The selected Planned Semester contains at least one Section.
 
 **Main Flow:**
-1. The user selects a Class in the Planned Semester and requests to remove it.
-2. The system removes the Class from the Planned Semester and persists the change.
-3. The system re-evaluates Schedule Conflicts for the semester and updates the validity indicator.
+1. The user selects a Section in the Planned Semester and requests to remove it.
+2. The system removes the Section from the Planned Semester and persists the change.
+3. The system re-evaluates Schedule Conflicts and Unmet Requisites — for this semester and all later ones — and updates the validity indicators.
 
 **Notes:**
-- Removing a Class may eliminate a Schedule Conflict, making the semester valid.
-- Removing a Class whose Subject is a co-requisite for another Class remaining in the same semester will surface a new co-requisite violation. The system highlights this but does not block the removal.
+- Removing a Section may eliminate a Schedule Conflict, making the semester valid.
+- Removing a Section whose Subject is a co-requisite for another Section remaining in the same semester will surface a new Unmet Requisite. The system highlights this but does not block the removal.
+- Removing a Section from an earlier Planned Semester may surface Unmet Requisites in later semesters, cascading recursively through Sections that depended on it. These are surfaced as information, never as a block.
+- Removing a Section also removes any Failed Mark or Audit Mark it carries.
 
 **Alternative Flow — User cancels:**
 - No changes are made.
 
 ---
 
-### UC-14 — Delete a Planned Semester
+### UC-14 — Delete the Last Planned Semester
 
 **Actor:** User
 
-**Goal:** Remove an entire Planned Semester and all its Classes from the Student's plan.
+**Goal:** Remove the last Planned Semester and all its contents from the Student's plan.
 
 **Preconditions:**
 - The Schedule Planner is open.
 - At least one Planned Semester exists.
 
 **Main Flow:**
-1. The user selects a Planned Semester and requests to delete it.
+1. The user selects the last Planned Semester and requests to delete it.
 2. The system asks the user to confirm the deletion.
 3. The user confirms.
-4. The system removes the Planned Semester and all its Classes from the plan and persists the change.
+4. The system removes the Planned Semester and all its contents — Sections, applied Custom Section copies, and any Failed Marks or Audit Marks they carry — and persists the change.
+5. If no Planned Semesters remain, the system also clears the persisted shift filter toggle (see UC-12). All other profile data — PPC, Credit Entries, the Custom Section catalog — is kept, and profile data becomes editable (UC-24).
+
+**Validation:**
+- Only the **last** Planned Semester in the plan may be deleted. Deleting a middle semester is not allowed, because every later semester is anchored to its plan position: positions would shift and Year Semester labels would flip parity, invalidating the Offerings the Sections were drawn from. To remove an earlier semester, the user must delete later semesters first.
 
 **Notes:**
-- Deleting a past Planned Semester may cause prerequisite violations in later semesters. The system does not block the deletion but should surface any resulting violations.
+- Deleting the last Planned Semester cannot cause Unmet Requisites, since no later semesters depend on it.
 
 **Alternative Flow — User cancels:**
 - No changes are made.
@@ -311,25 +357,24 @@ Domain terms follow the same convention as `DOMAIN.md`: English name with PT-BR 
 
 **Actor:** User
 
-**Goal:** Record a Subject from the Course Curriculum as formally credited to the Student, so that it counts as fulfilled for requisite evaluation from a given point in the plan onward.
+**Goal:** Record a Subject from the Course Curriculum as formally credited to the Student, so that it counts as fulfilled for requisite evaluation throughout the entire plan.
 
 **Preconditions:**
 - An active Student profile has been selected.
-- The Student has a Course Curriculum recorded on their profile.
+- The Student has a Course Curriculum recorded on their profile (this happens when the first Planned Semester is created, UC-11).
 
 **Main Flow:**
 1. The user requests to add a Credit Entry.
 2. The system presents the list of Subjects from the Student's Course Curriculum that do not already have a Credit Entry.
-3. The user selects a Subject.
-4. The system asks at which point the credit was granted:
-   - Before the course started (position 0), or
-   - During a specific Planned Semester (by plan index).
-5. The user confirms.
-6. The system persists the Credit Entry on the Student profile.
+3. The user selects a Subject and confirms.
+4. The system persists the Credit Entry on the Student profile.
 
 **Validation:**
 - The selected Subject must exist in the Student's Course Curriculum.
 - A Subject may not have more than one Credit Entry.
+
+**Notes:**
+- Credit Entries are timeless: the credited Subject counts as fulfilled from the very start of the timeline, for every Planned Semester (see `DOMAIN.md`).
 
 **Alternative Flow — User cancels:**
 - No changes are made.
@@ -353,30 +398,217 @@ Domain terms follow the same convention as `DOMAIN.md`: English name with PT-BR 
 4. The system removes the Credit Entry from the Student profile and persists the change.
 
 **Notes:**
-- Removing a Credit Entry may cause prerequisite violations in Planned Semesters that relied on it. The system does not block the removal but should surface any resulting violations.
+- Removing a Credit Entry may cause Unmet Requisites in Planned Semesters that relied on it, cascading recursively. The system does not block the removal but surfaces the resulting flags.
+- Removing a Credit Entry also removes any Audit Mark it carries (UC-20).
+- Credit Entries must be removed before the profile can switch to a different Course Curriculum (UC-24).
 
 **Alternative Flow — User cancels:**
 - No changes are made.
 
 ---
 
-## TODO
+## Custom Sections
 
-### UC-17 — Edit a Past Planned Semester
+Custom Sections (Turmas Personalizadas) let the Student plan around commitments the system has no data for — a real Section missing from the Offering data, or a non-academic commitment such as lab work or a side project. They live in a catalog on the profile; adding one to a Planned Semester creates an independent copy (UC-12). See `DOMAIN.md` for the concept.
 
-> **TODO:** This use case is not yet fully specified. The interaction flow and validation rules need to be defined before implementation.
+### UC-17 — Add a Custom Section
 
 **Actor:** User
 
-**Goal:** Modify the Classes in a Planned Semester that has already been superseded by later semesters in the plan.
+**Goal:** Register a Custom Section in the profile's catalog so it can be added to Planned Semesters.
+
+**Preconditions:**
+- An active Student profile has been selected.
+
+**Main Flow:**
+1. The user requests to add a Custom Section.
+2. The system asks for:
+   - A title.
+   - Its applicability: the 1st Year Semester, the 2nd, or both. A semester-bound entry models a real Section missing from the Offering data; a both-semesters entry models a standing commitment such as work, a side project, or lab hours.
+   - The weekly sessions (day of the week, start and end time).
+   - Optionally, a Subject from the Student's Course Curriculum that it stands in for.
+3. The user fills in the data and confirms.
+4. The system persists the Custom Section in the profile's catalog.
+5. The Custom Section becomes available when adding Sections to Planned Semesters of a matching Year Semester (UC-12).
+
+**Validation:**
+- The title must not be empty.
+- At least one weekly session must be provided, and each session's end time must be after its start time.
+- The linked Subject, when provided, must exist in the Student's Course Curriculum.
+
+**Alternative Flow — User cancels:**
+- No changes are made.
+
+---
+
+### UC-18 — Edit a Custom Section
+
+**Actor:** User
+
+**Goal:** Change the title, sessions, applicability, or Subject link of an existing Custom Section in the catalog.
+
+**Preconditions:**
+- An active Student profile has been selected.
+- At least one Custom Section exists in the catalog.
+
+**Main Flow:**
+1. The user selects a Custom Section and requests to edit it.
+2. The system presents the current data for modification.
+3. The user changes the data and confirms.
+4. The system persists the updated Custom Section in the catalog.
+
+**Validation:**
+- Same rules as UC-17.
+
+**Notes:**
+- Copies already applied to Planned Semesters — including the last one — are never affected: they are independent snapshots taken when added (UC-12). The user manages those inside the semesters themselves (UC-13).
+- A catalog entry whose Subject link does not resolve in the current Course Curriculum (after a PPC switch, UC-24) is shown de-emphasized and behaves as unlinked until edited or deleted.
+
+**Alternative Flow — User cancels:**
+- No changes are made.
+
+---
+
+### UC-19 — Delete a Custom Section
+
+**Actor:** User
+
+**Goal:** Remove a Custom Section from the profile's catalog.
+
+**Preconditions:**
+- An active Student profile has been selected.
+- At least one Custom Section exists in the catalog.
+
+**Main Flow:**
+1. The user selects a Custom Section and requests to delete it.
+2. The system asks the user to confirm the deletion.
+3. The user confirms.
+4. The system removes the Custom Section from the catalog and persists the change.
+
+**Notes:**
+- Copies already applied to Planned Semesters are not affected — they are independent snapshots. To remove one from a semester, use UC-13.
+
+**Alternative Flow — User cancels:**
+- No changes are made.
+
+---
+
+## Audit Marks
+
+Audit Marks (Ouvinte) let the Student plan to attend an already-fulfilled Subject again as a listener, without enrollment. See `DOMAIN.md` for the concept.
+
+### UC-20 — Mark a Subject for Audit
+
+**Actor:** User
+
+**Goal:** Mark a fulfilled Subject so it appears again when planning new Planned Semesters, while its original fulfillment keeps counting for requisites.
+
+**Preconditions:**
+- An active Student profile has been selected.
+- The Subject is fulfilled — by a Credit Entry or by a non-failed Section in a past Planned Semester.
+
+**Main Flow:**
+1. The user selects the fulfillment carrier — a Credit Entry, or a Section in a past Planned Semester — and requests to mark it for Audit.
+2. The system records the Audit Mark on that carrier and persists it.
+3. From this point on, the Subject is included among suggested and available Sections when planning new Planned Semesters (UC-11, UC-12).
+
+**Validation:**
+- A Subject may not have more than one Audit Mark.
+- A Section carrying a Failed Mark cannot carry an Audit Mark — a failed Subject already reappears when planning.
+
+---
+
+### UC-21 — Remove an Audit Mark
+
+**Actor:** User
+
+**Goal:** Remove a previously set Audit Mark so the Subject is once again treated as done for planning purposes.
+
+**Preconditions:**
+- An active Student profile has been selected.
+- At least one Audit Mark exists on the profile.
+
+**Main Flow:**
+1. The user selects an Audit Mark and requests to remove it.
+2. The system removes the Audit Mark from its carrier and persists the change.
+
+**Notes:**
+- The mark is also removed implicitly when its carrier is deleted — the Section (UC-13, UC-14) or the Credit Entry (UC-16).
+- Removing the mark does not remove Sections already added to Planned Semesters for that Subject — the user removes those explicitly if desired (UC-13).
+
+---
+
+## Failed Marks
+
+Failed Marks (Reprovação) let the Student make the plan reflect a real-life failure without deleting the historical record. See `DOMAIN.md` for the concept and its exact requisite semantics.
+
+### UC-22 — Mark a Section as Failed
+
+**Actor:** User
+
+**Goal:** Record that a Section in a Planned Semester was not passed, so the Subject stops counting as fulfilled and reappears when planning later semesters.
 
 **Preconditions:**
 - The Schedule Planner is open.
-- At least two Planned Semesters exist (i.e. there is at least one semester that is not the last).
+- The selected Planned Semester contains at least one Section linked to a Subject.
 
-**Known constraints:**
-- Only Classes and Credit Entries whose grant position is ≤ the plan index of the semester being edited are available as fulfilled subjects during that edit. Credits granted at a later position were not yet available at that point in the plan.
-- Editing a past Planned Semester may cause prerequisite violations in later semesters. The system should surface these but not block the edit.
+**Main Flow:**
+1. The user selects a Section in a Planned Semester and requests to mark it as failed.
+2. The system records the Failed Mark on the Section and persists the change.
+3. The system recomputes Unmet Requisites for all later Planned Semesters: Sections that depended on the failed Subject — directly or through the cascade — are flagged.
+4. The Subject reappears among suggested and available Sections when planning later Planned Semesters (UC-11, UC-12).
+
+**Notes:**
+- Within its own Planned Semester, the failed Section still satisfies co-requisites for sibling Sections and still occupies schedule time (see `DOMAIN.md`).
+- Unmet Requisites are surfaced as information, never as a block — the user decides how to replan.
+- Marking a Section as failed removes any Audit Mark it carries (UC-20).
+
+**Alternative Flow — User cancels:**
+- No changes are made.
+
+---
+
+### UC-23 — Remove a Failed Mark
+
+**Actor:** User
+
+**Goal:** Undo a Failed Mark, restoring the Section as a normal fulfillment.
+
+**Preconditions:**
+- The Schedule Planner is open.
+- At least one Section carries a Failed Mark.
+
+**Main Flow:**
+1. The user selects a failed Section and requests to remove the Failed Mark.
+2. The system removes the mark and persists the change.
+3. The system recomputes Unmet Requisites for all later Planned Semesters — flags that existed only because of the failure are cleared.
+
+---
+
+## Profile Data Editing
+
+### UC-24 — Edit Student Profile Data
+
+**Actor:** User
+
+**Goal:** Change the profile's ingress information, shift, or Course Curriculum (PPC).
+
+**Preconditions:**
+- An active Student profile has been selected.
+- The profile has **no Planned Semesters** — either none were ever created, or all were deleted (UC-14). (Renaming is available at any time via UC-08.)
+
+**Main Flow:**
+1. The user requests to edit the profile data.
+2. The system presents the current ingress year, ingress Year Semester, shift, and — if recorded — the Course Curriculum (PPC) for modification.
+3. The user changes the data and confirms.
+4. The system persists the updated profile.
+
+**Validation:**
+- Switching to a different PPC requires the profile to have **no Credit Entries** — they reference Subjects of the current PPC and must be removed first (UC-16).
+
+**Notes:**
+- The Custom Section catalog survives a PPC switch. Entries whose Subject link does not resolve in the new PPC become stale — kept, shown de-emphasized, and treated as unlinked (UC-18). Switching back to the original PPC makes the links functional again.
+- Changing ingress information changes the Year Semester labels derived for future Planned Semesters.
 
 **Alternative Flow — User cancels:**
 - No changes are made.
