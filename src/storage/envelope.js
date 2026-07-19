@@ -18,7 +18,13 @@ export function defaultEnvelope() {
  */
 const migrations = {};
 
-function migrate(envelope) {
+/**
+ * Applies sequential migrations to bring an envelope-shaped object up to
+ * `CURRENT_SCHEMA_VERSION`. Exported so the profile import pipeline
+ * (`src/storage/profileFile.js`, UC-06) can reuse it on a lone imported
+ * profile wrapped in an envelope shape.
+ */
+export function migrateEnvelope(envelope) {
   let current = envelope;
   while (current.schemaVersion < CURRENT_SCHEMA_VERSION) {
     const migrateStep = migrations[current.schemaVersion];
@@ -46,7 +52,7 @@ export function loadEnvelope() {
     throw new Error(`Stored data is corrupted and could not be parsed: ${error.message}`);
   }
 
-  return migrate(parsed);
+  return migrateEnvelope(parsed);
 }
 
 /** @param {import('../domain/types.js').Envelope} envelope */
