@@ -8,12 +8,15 @@
     "preview": "vite preview --port 4173",
     "test": "vitest run",
     "pretest:e2e": "npm run build",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "devDependencies": {
     "@playwright/test": "^1.61.1",
     "@tailwindcss/vite": "^4.3.3",
     "@vitejs/plugin-react": "^6.0.3",
+    "prettier": "^3.9.5",
     "tailwindcss": "^4.3.3",
     "vite": "^8.1.5",
     "vitest": "^4.1.10"
