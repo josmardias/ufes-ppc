@@ -8,7 +8,7 @@
 
 **Goals:**
 - Simulate an academic path semester by semester, using past Offerings to predict which Sections will likely be available.
-- Surface Unmet Requisites and Schedule Conflicts as information — never as hard blocks.
+- Surface planning signals — Schedule Conflicts, Duplicate Subjects, Redundant Enrollments, Unmet Requisites (see `DOMAIN.md`) — as information, never as hard blocks.
 - Work entirely client-side: profiles persist in the browser and can be exported/imported as files.
 
 **Non-goals:**
@@ -199,22 +199,29 @@ Domain terms follow the same convention as `DOMAIN.md`: English name with PT-BR 
 
 ## Schedule Planner
 
-New planning happens on the **last** Planned Semester — it is the only one that accepts new Sections (UC-12). Earlier Planned Semesters are the record of the plan so far, but they can be **corrected** to reflect real life: a Section can be marked as failed (UC-22) or removed (UC-13). Either correction changes the fulfillment set from that point on, and the system recomputes Unmet Requisites for all later semesters automatically — cascading recursively through anything that depended on the corrected Section (see `DOMAIN.md`).
+The planner presents a Planned Semester as a **weekly schedule**: each Section's sessions are placed on a day × time grid, and Sections without sessions (e.g. Estágio) appear in a separate "no schedule" strip alongside it. The list of Planned Semesters stays visible next to the schedule, each entry carrying its status — clean, warnings only, or errors (see `DOMAIN.md`, Planned Semester) — and the semester matching the real-world current date (derived from the ingress information) is discreetly marked. A planning signal always flags a Section as a whole: every session of a flagged Section shows the signal's severity, not just the conflicting one.
+
+**Any** Planned Semester can be edited — Sections added (UC-12) or removed (UC-13), Failed Marks (UC-22, UC-23) and Audit Marks (UC-20, UC-21) toggled. Every edit re-evaluates the planning signals for that semester and all later ones, cascading recursively (see `DOMAIN.md`, Unmet Requisite). The typical rhythm: real-world grades arrive, the user marks a Section as failed in the semester where it happened, then sweeps forward through the later semesters resolving the signals that surfaced — re-adding the failed Subject somewhere (UC-12), choosing which of the conflicting Sections to keep (UC-25) — until every semester is clean again. Only the **last** Planned Semester can be deleted (UC-14).
 
 ### UC-09 — View Schedule Planner
 
 **Actor:** User
 
-**Goal:** Access the planning workspace for the active Student, where past and current Planned Semesters and their Sections can be reviewed, and where any Schedule Conflicts or Unmet Requisites in the selected Planned Semester are visible.
+**Goal:** Access the planning workspace for the active Student, where Planned Semesters can be reviewed on a weekly schedule and any planning signals are visible.
 
 **Preconditions:**
 - An active Student profile has been selected or created.
 
 **Main Flow:**
 1. The system loads the planning data for the active Student.
-2. The system presents the list of the Student's Planned Semesters.
-3. The system presents the Sections assigned to the selected Planned Semester, indicating any Failed Marks and Audit Marks.
-4. If the selected Planned Semester contains Schedule Conflicts or Unmet Requisites, the system highlights the affected Sections and indicates the semester is not valid.
+2. The system presents the list of the Student's Planned Semesters, each with its status — clean, warnings only, or errors — and marks the one corresponding to the real-world current date, when the plan reaches it.
+3. The system presents the selected Planned Semester as a weekly schedule: sessions on the day × time grid, session-less Sections in the "no schedule" strip, Failed Marks and Audit Marks indicated.
+4. Sections flagged by planning signals are visually distinguished by severity — warning (Schedule Conflict, Duplicate Subject, Redundant Enrollment) or error (Unmet Requisite) — across **all** their sessions.
+5. Selecting a session (or a strip chip) emphasizes the sibling sessions of the same Section and opens its details: the resolution flow when flagged (UC-25, UC-26), otherwise the Section's data and its actions — remove (UC-13), Failed Mark (UC-22, UC-23), Audit Mark (UC-20, UC-21).
+
+**Notes:**
+- The grid shows Monday–Friday, adding Saturday only when some Section in the semester holds a Saturday session; its time range covers all sessions in the semester.
+- On narrow screens the weekly grid is kept, compacted (short Section labels, details in an overlay), rather than switching to a per-day view — the week at a glance is the planner's core surface.
 
 **Alternative Flow — No Planned Semesters exist:**
 - The system informs the user that no Planned Semesters exist and offers the option to add the first one. In this state the user may also edit the profile data (UC-24).
@@ -233,8 +240,8 @@ New planning happens on the **last** Planned Semester — it is the only one tha
 
 **Main Flow:**
 1. The user selects a Planned Semester from the list.
-2. The system presents the Sections assigned to that Planned Semester.
-3. If the selected Planned Semester contains Schedule Conflicts or Unmet Requisites, the system highlights the affected Sections and indicates the semester is not valid.
+2. The system presents that Planned Semester on the weekly schedule (see UC-09).
+3. If the selected Planned Semester has planning signals, the system highlights the affected Sections by severity, matching the status shown in the semester list.
 
 ---
 
@@ -242,30 +249,37 @@ New planning happens on the **last** Planned Semester — it is the only one tha
 
 **Actor:** User
 
-**Goal:** Add the next Planned Semester to the plan, pre-populated with a suggested set of Sections the Student is eligible to enroll in.
+**Goal:** Add the next Planned Semester to the plan, reviewing and adjusting a pre-selected set of Sections the Student is eligible to enroll in **before** the semester is created.
 
 **Preconditions:**
 - The Schedule Planner is open.
 
 **Main Flow:**
 1. The user requests to add a new Planned Semester.
-2. If no Course Curriculum (PPC) is recorded for this Student yet, the system presents a flat list of the available PPCs; the user picks one and the system persists it to the Student profile before proceeding.
-3. The system determines the label (Year Semester) and number (position in the plan) for the new Planned Semester based on the Student's ingress information and existing Planned Semesters.
-4. The system evaluates all Subjects in the Course Curriculum that are not yet fulfilled — a Subject is fulfilled when a past Planned Semester holds a non-failed Section for it, or a Credit Entry covers it (considering Equivalences); Subjects whose fulfillment carries an Audit Mark (UC-20) are included even when fulfilled — and identifies those whose prerequisites are satisfied by non-failed Sections in past Planned Semesters or Credit Entries.
-5. For each eligible Subject, the system identifies available Sections from the curated Offering snapshot of the same Year Semester.
-6. The system creates the new Planned Semester pre-populated with the suggested Sections and persists it.
-7. The user iterates — adding and removing Sections (UC-12, UC-13) — until the semester is valid (no Schedule Conflicts, no Unmet Requisites).
+2. If the last Planned Semester has any planning signal, the system warns that eligibility for the new semester will be computed as if all flagged Sections are kept, and asks whether to continue (a soft gate — never a block).
+3. If no Course Curriculum (PPC) is recorded for this Student yet, the system presents a flat list of the available PPCs; the user picks one and the system persists it to the Student profile before proceeding.
+4. The system determines the label (Year Semester) and number (position in the plan) for the new Planned Semester based on the Student's ingress information and existing Planned Semesters.
+5. The system presents a review screen listing every available Section for that Year Semester, grouped by Subject and **all pre-selected**: Sections from the curated Offering snapshot (including ones under equivalent codes) of Subjects not yet fulfilled — or whose fulfillment carries an open Audit Mark (UC-20) — and whose prerequisites are satisfied at that point in the plan. Co-requisites are not checked at this step. Custom Sections (UC-17) with matching applicability are included — linked ones under the same rules, unlinked ones unconditionally.
+6. The list is scoped by the effective shift filter — the persisted toggle if set, the profile shift otherwise. The user may change it at any time; the system persists the change on the profile (see UC-12).
+7. As the user adjusts the selection, the system continuously indicates the signals the current selection would produce — Duplicate Subjects (several Sections selected under one Subject group) and Schedule Conflicts among selected Sections.
+8. The user confirms.
+9. The system creates the new Planned Semester containing exactly the selected Sections and persists it. Nothing is persisted before this point.
+10. The user iterates on the weekly schedule — adding and removing Sections (UC-12, UC-13), resolving signals (UC-25, UC-26) — until the semester is clean.
+
+**Filter and selection rules:**
+- The filter defines the candidate pool; the selection lives inside it. Day-shift Sections appear under every filter option.
+- Widening the filter (e.g. morning → whole day) reveals the new Sections pre-selected; narrowing it removes the now-hidden Sections from the selection — nothing outside the visible pool is ever included.
+- Manual deselections are preserved for Sections that remain visible across filter changes.
 
 **Notes:**
-- Custom Sections (UC-17) whose applicability matches the Year Semester are also considered: one linked to an eligible Subject is included among the suggested Sections.
-- Suggested Sections may be offered under an **equivalent** code of the Subject (see `DOMAIN.md`, Equivalence, and UC-12).
-- Suggested Sections are preferably drawn from the Student's effective shift filter: the persisted toggle if set, the profile shift otherwise (see UC-12).
+- Pre-selecting **all** alternative Sections (turmas) of a Subject is deliberate: the grouping makes the redundancy obvious, and the user chooses whether to prune on the review screen or later on the weekly schedule (UC-25). A freshly created semester therefore typically starts with Duplicate Subject warnings.
+- A Subject is fulfilled when an earlier Planned Semester holds a non-failed Section for it, or a Credit Entry covers it (considering Equivalences); an open Audit Mark re-includes the Subject (see `DOMAIN.md`, Audit Mark).
 
 **Alternative Flow — No eligible Sections found:**
-- The system creates the new Planned Semester empty and informs the user.
+- The review screen is empty and says so; confirming creates the new Planned Semester empty.
 
 **Alternative Flow — User cancels:**
-- No changes are made.
+- No changes are made — no Planned Semester is created and no Sections are stored.
 
 ---
 
@@ -273,24 +287,25 @@ New planning happens on the **last** Planned Semester — it is the only one tha
 
 **Actor:** User
 
-**Goal:** Add a Section to the Planned Semester being worked on.
+**Goal:** Add a Section to any Planned Semester — the one being worked on, or an earlier one being corrected to reflect real life.
 
 **Preconditions:**
 - The Schedule Planner is open.
 - At least one Planned Semester exists.
-- The selected Planned Semester is the last one in the plan.
 
 **Main Flow:**
 1. The user requests to add a Section to the selected Planned Semester.
-2. The system presents the Sections available for that Year Semester (from the curated Offering snapshot) whose Subject prerequisites are satisfied by non-failed Sections in past Planned Semesters or Credit Entries, and whose Subject co-requisites are satisfied by past or current Planned Semesters (considering Equivalences). Subjects already fulfilled — a non-failed Section in a past Planned Semester or a Credit Entry — are excluded, unless their fulfillment carries an Audit Mark (UC-20). The Student's Custom Sections with matching applicability are also presented — linked ones under the same requisite rules, unlinked ones unconditionally.
+2. The system presents the Sections available for that semester's Year Semester (from the curated Offering snapshot) whose Subject prerequisites are satisfied by non-failed Sections in earlier Planned Semesters or Credit Entries, and whose Subject co-requisites are satisfied by earlier Planned Semesters or the selected one (considering Equivalences). Subjects already fulfilled at that point in the plan — a non-failed Section in an earlier Planned Semester or a Credit Entry — are excluded, unless their fulfillment carries an Audit Mark still open at the selected semester (UC-20). The Student's Custom Sections with matching applicability are also presented — linked ones under the same requisite rules, unlinked ones unconditionally.
 3. The list is filtered by the effective shift filter: the profile's shift by default, or the persisted toggle (morning, afternoon, or whole day) once the user sets it. Day-shift Sections appear under every filter option. The user may change the toggle at any time; the system persists it on the profile.
-4. The user selects a Section.
-5. The system adds the Section to the Planned Semester and persists the change. Adding a Custom Section creates an independent copy inside the semester — later catalog edits do not affect it.
-6. If the added Section creates a Schedule Conflict with any existing Section in the semester, the system highlights the conflict.
+4. While browsing, the user can preview a candidate: the system shows the candidate's sessions in place on the weekly schedule, so fits and collisions are visible before adding.
+5. The user selects a Section.
+6. The system adds the Section to the Planned Semester and persists the change. Adding a Custom Section creates an independent copy inside the semester — later catalog edits do not affect it.
+7. The system re-evaluates planning signals for this semester and all later ones and updates the indicators.
 
 **Notes:**
-- The system does not prevent adding a Section that causes a Schedule Conflict. Conflicts are surfaced as information, not as a hard block.
+- The system does not prevent adding a Section that causes a planning signal — Schedule Conflict, Duplicate Subject, or Redundant Enrollment. Signals are surfaced as information, not as a hard block.
 - The available list includes Sections offered under an **equivalent** code of a PPC Subject (see `DOMAIN.md`, Equivalence). Adding one fulfills the corresponding PPC Subject exactly as a Section under the Subject's own code would.
+- Adding a Section to an earlier Planned Semester is the natural fix for an Unmet Requisite in a later one — the cascade re-evaluates automatically.
 
 **Alternative Flow — User cancels:**
 - No changes are made.
@@ -301,7 +316,7 @@ New planning happens on the **last** Planned Semester — it is the only one tha
 
 **Actor:** User
 
-**Goal:** Remove a Section from a Planned Semester — either while working on the last semester, or to correct an earlier one.
+**Goal:** Remove a Section from any Planned Semester — while working on it, or to correct an earlier one to reflect real life.
 
 **Preconditions:**
 - The Schedule Planner is open.
@@ -310,10 +325,10 @@ New planning happens on the **last** Planned Semester — it is the only one tha
 **Main Flow:**
 1. The user selects a Section in the Planned Semester and requests to remove it.
 2. The system removes the Section from the Planned Semester and persists the change.
-3. The system re-evaluates Schedule Conflicts and Unmet Requisites — for this semester and all later ones — and updates the validity indicators.
+3. The system re-evaluates planning signals — for this semester and all later ones — and updates the status indicators.
 
 **Notes:**
-- Removing a Section may eliminate a Schedule Conflict, making the semester valid.
+- Removing a Section may clear signals — e.g. eliminate a Schedule Conflict or a Duplicate Subject — making the semester clean.
 - Removing a Section whose Subject is a co-requisite for another Section remaining in the same semester will surface a new Unmet Requisite. The system highlights this but does not block the removal.
 - Removing a Section from an earlier Planned Semester may surface Unmet Requisites in later semesters, cascading recursively through Sections that depended on it. These are surfaced as information, never as a block.
 - Removing a Section also removes any Failed Mark or Audit Mark it carries.
@@ -351,6 +366,54 @@ New planning happens on the **last** Planned Semester — it is the only one tha
 
 ---
 
+### UC-25 — Resolve Conflicting Sections
+
+**Actor:** User
+
+**Goal:** Starting from a flagged Section, choose which of a set of mutually exclusive Sections to keep — resolving a Schedule Conflict or a Duplicate Subject in one confirmation.
+
+**Preconditions:**
+- The Schedule Planner is open.
+- The selected Planned Semester contains a Section flagged with a Schedule Conflict or a Duplicate Subject.
+
+**Main Flow:**
+1. The user selects a flagged Section (any of its sessions).
+2. The system isolates the resolution set, one signal type at a time, in priority order: if the Section has Schedule Conflicts, the set is the Section plus every Section overlapping it in time; otherwise, if it is a Duplicate Subject, the set is all Sections of that Subject in the semester. Everything outside the set is de-emphasized, and the clicked Section is highlighted as the reference.
+3. The system presents the details of the involved Sections; the user chooses which Section to keep, changing the choice freely — nothing is persisted while deciding.
+4. The user confirms.
+5. The system removes, among the involved Sections, those in conflict with the kept one — and only those — persists the change, and re-evaluates planning signals for this semester and all later ones.
+
+**Notes:**
+- Removal is keeper-relative: a Section in the set that does not itself conflict with the kept one survives. Example — A overlaps B, B overlaps C, A and C don't touch: resolving from B and keeping A removes only B, and C remains. Remaining signals are resolved in further passes.
+- A Section flagged with several signal types is resolved in successive passes — Schedule Conflicts first, then Duplicate Subjects.
+- Resolution is never mandatory: the user may cancel and keep the conflicting Sections while weighing options (see `DOMAIN.md`, Planned Semester).
+
+**Alternative Flow — User cancels:**
+- No changes are made.
+
+---
+
+### UC-26 — Resolve a Redundant Enrollment
+
+**Actor:** User
+
+**Goal:** Act on a Section flagged as a Redundant Enrollment — its Subject is already fulfilled earlier in the plan, with no open Audit Mark legitimizing a re-take.
+
+**Preconditions:**
+- The Schedule Planner is open.
+- The selected Planned Semester contains a Section flagged as a Redundant Enrollment.
+
+**Main Flow:**
+1. The user selects the flagged Section.
+2. The system explains the flag and identifies the fulfillment source — the earlier Section or Credit Entry that already covers the Subject.
+3. The system offers the two resolutions: remove the Section (UC-13), or mark the fulfillment source for Audit (UC-20), which legitimizes the re-take and clears the flag.
+4. The user chooses one; the system applies it, persists the change, and re-evaluates planning signals.
+
+**Alternative Flow — User cancels:**
+- No changes are made.
+
+---
+
 ## Credit Entries
 
 ### UC-15 — Add a Credit Entry
@@ -375,6 +438,7 @@ New planning happens on the **last** Planned Semester — it is the only one tha
 
 **Notes:**
 - Credit Entries are timeless: the credited Subject counts as fulfilled from the very start of the timeline, for every Planned Semester (see `DOMAIN.md`).
+- Adding a Credit Entry for a Subject already planned in some Planned Semester surfaces a Redundant Enrollment warning on that Section (UC-26).
 
 **Alternative Flow — User cancels:**
 - No changes are made.
@@ -505,16 +569,19 @@ Audit Marks (Ouvinte) let the Student plan to attend an already-fulfilled Subjec
 
 **Preconditions:**
 - An active Student profile has been selected.
-- The Subject is fulfilled — by a Credit Entry or by a non-failed Section in a past Planned Semester.
+- The Subject is fulfilled — by a Credit Entry or by a non-failed Section in a Planned Semester.
 
 **Main Flow:**
-1. The user selects the fulfillment carrier — a Credit Entry, or a Section in a past Planned Semester — and requests to mark it for Audit.
+1. The user selects the fulfillment carrier — a Credit Entry, or a Section in a Planned Semester — and requests to mark it for Audit.
 2. The system records the Audit Mark on that carrier and persists it.
-3. From this point on, the Subject is included among suggested and available Sections when planning new Planned Semesters (UC-11, UC-12).
+3. While the mark is **open**, the Subject is included among suggested and available Sections when planning Planned Semesters after the carrier (UC-11, UC-12).
 
 **Validation:**
 - A Subject may not have more than one Audit Mark.
 - A Section carrying a Failed Mark cannot carry an Audit Mark — a failed Subject already reappears when planning.
+
+**Notes:**
+- Planning a re-take Section closes the mark from that semester onward; deleting the re-take re-opens it — open/closed is derived, never stored (see `DOMAIN.md`, Audit Mark). A re-take planned while the mark is open is never flagged as a Redundant Enrollment (UC-26).
 
 ---
 
@@ -581,7 +648,10 @@ Failed Marks (Reprovação) let the Student make the plan reflect a real-life fa
 **Main Flow:**
 1. The user selects a failed Section and requests to remove the Failed Mark.
 2. The system removes the mark and persists the change.
-3. The system recomputes Unmet Requisites for all later Planned Semesters — flags that existed only because of the failure are cleared.
+3. The system recomputes planning signals for all later Planned Semesters — flags that existed only because of the failure are cleared.
+
+**Notes:**
+- Restoring the fulfillment may make a later re-take Section redundant — the system surfaces a Redundant Enrollment warning on it (UC-26).
 
 ---
 

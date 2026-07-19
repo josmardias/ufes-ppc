@@ -79,8 +79,8 @@ student: "Student side — what this tool manages" {
     position: "ordered: student's 1st, 2nd, 3rd…"
     label: "derived: position + ingress → e.g. 2024/1"
     contents: "intended Sections + applied Custom Section\ncopies — deleted with the semester"
-    valid: "no Schedule Conflicts AND no Unmet\nRequisites; invalid semesters may be held\nwhile the student decides"
-    editing: "last semester accepts new Sections;\nearlier ones can be corrected (mark failed,\nremove) — only the last is deletable"
+    status: "clean | warnings only | errors — derived from\nplanning signals; flagged semesters may be\nheld while the student decides"
+    editing: "any semester editable (add, remove, mark\nfailed/audit) — edits cascade forward;\nonly the last is deletable"
   }
 
   failed_mark: "Failed Mark (Reprovação)" {
@@ -92,9 +92,11 @@ student: "Student side — what this tool manages" {
 
   unmet_requisite: "Unmet Requisite (Requisito não atendido)" {
     shape: sql_table
+    severity: "ERROR — breaks fulfillment forward"
     nature: "derived, never stored"
     computation: "fulfillment set built semester by semester,\nexcluding failed Sections"
     cascade: "flagged Sections confer nothing →\nflags propagate recursively down the plan"
+    fix: "also from elsewhere: add the requisite to an\nearlier semester, or a Credit Entry"
   }
 
   custom_section: "Custom Section (Turma Personalizada)" {
@@ -119,11 +121,28 @@ student: "Student side — what this tool manages" {
     carrier: "flag on a Section in a semester,\nor on a Credit Entry — dies with it"
     meaning: "fulfills requisites, but I still\nwant to retake it (as listener)"
     effect: "requisites unchanged; Subject offered\nagain when planning"
+    open_closed: "open until a re-take is planned after the\ncarrier; re-take closes it from there on —\nderived, deleting the re-take re-opens it"
   }
 
   conflict: "Schedule Conflict (Conflito de Horário)" {
+    shape: sql_table
+    severity: "warning — contained in its semester"
     definition: "two Sections in same semester\nwith overlapping sessions"
     policy: "surfaced, never blocks"
+  }
+
+  duplicate_subject: "Duplicate Subject (Disciplina Duplicada)" {
+    shape: sql_table
+    severity: "warning — contained in its semester"
+    definition: "2+ Sections in same semester fulfilling\none PPC Subject (Equivalences count)\n— even without time overlap"
+    rationale: "can't enroll twice in one Subject;\nturmas are mutually exclusive choices"
+  }
+
+  redundant_enrollment: "Redundant Enrollment (Matrícula Redundante)" {
+    shape: sql_table
+    severity: "warning — contained in its semester"
+    definition: "Section whose Subject is already fulfilled\nearlier (semester or Credit Entry) with no\nopen Audit Mark on the source"
+    fix: "remove the Section, or audit-mark\nthe fulfillment source"
   }
 
   profile -> planned_semester: "ordered sequence of"
@@ -131,11 +150,14 @@ student: "Student side — what this tool manages" {
   profile -> custom_section: "catalog of"
   planned_semester -> custom_section: "holds independent copies of"
   planned_semester -> conflict: "may contain"
+  planned_semester -> duplicate_subject: "may contain"
+  planned_semester -> redundant_enrollment: "may contain"
   planned_semester -> failed_mark: "Sections may carry"
   planned_semester -> unmet_requisite: "recomputed on every change"
   failed_mark -> unmet_requisite: "triggers, cascading recursively" {style.stroke-dash: 3}
   audit_mark -> planned_semester: "carrier: Section in a semester" {style.stroke-dash: 3}
   audit_mark -> credit_entry: "carrier: Credit Entry" {style.stroke-dash: 3}
+  audit_mark -> redundant_enrollment: "open mark suppresses" {style.stroke-dash: 3}
 }
 
 rules: "Requisite evaluation for semester N (position-based, not calendar-based)" {

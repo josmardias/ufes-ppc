@@ -31,6 +31,9 @@ Throughout this document, each concept is presented with its English name follow
 | Failed Mark | Reprovação |
 | Schedule Conflict | Conflito de Horário |
 | Unmet Requisite | Requisito não atendido |
+| Duplicate Subject | Disciplina Duplicada |
+| Redundant Enrollment | Matrícula Redundante |
+| Warning / Error (planning signal severity) | Aviso / Erro |
 | Custom Section | Turma Personalizada |
 | Audit Mark (attend as listener) | Ouvinte |
 | Shift | Turno |
@@ -154,7 +157,9 @@ Each Planned Semester is associated with a **Year Semester label** (e.g. "2024/1
 
 A Planned Semester captures intended enrollment, not grades or academic outcomes. The one outcome it does record is the **Failed Mark** (see below), so that requisite evaluation can reflect a Subject that must be retaken.
 
-A Planned Semester is considered **valid** when it contains no Schedule Conflicts and no Unmet Requisites (see below). An invalid Planned Semester is still a meaningful planning artifact — a student may intentionally hold conflicting or blocked Sections while weighing their options. Nothing is ever forbidden or hidden; both signals are information, not hard blocks.
+Any Planned Semester can be **edited** at any time — Sections added or removed, Failed Marks and Audit Marks toggled — whether it lies in the past, present, or future of the student's real timeline. This is how the plan is kept aligned with reality: grades come in, a failure is recorded in the semester where it happened, and the semesters after it are replanned. Every edit re-evaluates the planning signals of that semester and of all later ones (see Unmet Requisite). Only the **last** Planned Semester can be deleted, because every semester is anchored to its position in the plan.
+
+Four derived **planning signals** can flag Sections in a Planned Semester: Schedule Conflict, Duplicate Subject, and Redundant Enrollment are **warnings (Avisos)**; Unmet Requisite is an **error (Erro)**. Severity reflects reach — a warning stays contained in its own semester (the fulfillment conferred to later semesters is unaffected), while an error means the flagged Section confers nothing forward, breaking whatever depended on it, however far down the plan. A signal always flags the Section as a whole, not an individual session of it. A Planned Semester's **status** summarizes its signals: **clean** (no signals), **warnings only**, or **errors** (at least one error, regardless of warnings). A flagged Planned Semester is still a meaningful planning artifact — a student may intentionally hold conflicting or blocked Sections while weighing their options. Nothing is ever forbidden or hidden; signals are information, not hard blocks.
 
 ---
 
@@ -171,7 +176,9 @@ Effects of a failed Section:
 ### Unmet Requisite (Requisito não atendido)
 An Unmet Requisite flags a Section in a Planned Semester whose Subject's prerequisites or co-requisites are not satisfied at that point in the plan — because a supporting Section was marked as failed, removed, or never planned.
 
-Unmet Requisites are **derived, never stored**. They are computed from the sequence of Planned Semesters: the fulfillment set is built semester by semester, excluding failed Sections; a Section whose requisites are not met is flagged and contributes nothing to the fulfillment set itself — so the flagging **cascades recursively** to every Section that depended on it, however far down the plan. Any edit to a past Planned Semester (marking a Section as failed, removing a Section) propagates automatically through this recomputation.
+Unmet Requisites are **derived, never stored**. They are computed from the sequence of Planned Semesters: the fulfillment set is built semester by semester, excluding failed Sections; a Section whose requisites are not met is flagged and contributes nothing to the fulfillment set itself — so the flagging **cascades recursively** to every Section that depended on it, however far down the plan. Any edit to a past Planned Semester (marking a Section as failed, removing or adding a Section) propagates automatically through this recomputation.
+
+An Unmet Requisite is an **error** (see Planned Semester) — the one signal whose effect is not contained in its own semester. This also makes it fixable from elsewhere: adding the missing requisite to an earlier Planned Semester, or recording a Credit Entry for it, clears the flag through the same recomputation.
 
 ---
 
@@ -189,7 +196,21 @@ A Credit Entry may carry an **Audit Mark** (see below).
 ### Schedule Conflict (Conflito de Horário)
 A Schedule Conflict (Conflito de Horário) occurs when two or more Sections in the same Planned Semester have overlapping weekly sessions — that is, at least one session of one Section occupies the same day and overlaps in time with at least one session of another Section.
 
-A student may hold Sections with Schedule Conflicts in the same Planned Semester while deciding which ones to keep. Together with Unmet Requisites, Schedule Conflicts determine whether a Planned Semester is **valid** (see Planned Semester).
+A Schedule Conflict is a **warning** (see Planned Semester): it stays contained in its own semester — both Sections still confer fulfillment forward until the student decides which to keep. A student may hold Sections with Schedule Conflicts in the same Planned Semester while weighing their options.
+
+---
+
+### Duplicate Subject (Disciplina Duplicada)
+A student cannot enroll in the same Subject more than once in the same Year Semester. A Duplicate Subject flags two or more Sections in the same Planned Semester that fulfill the same PPC Subject — directly, under an equivalent code (see Equivalence), or through a linked Custom Section copy. Alternative Sections (turmas) of one Subject are mutually exclusive choices, not a set to plan together — even when their schedules do not overlap in time.
+
+A Duplicate Subject is a **warning** (see Planned Semester), derived and never stored: the Subject counts only once toward later semesters regardless of how many Sections of it are held, so the flag stays contained in its own semester. Pruning to one Section per Subject is part of planning.
+
+---
+
+### Redundant Enrollment (Matrícula Redundante)
+A student cannot enroll in a Subject they have already passed or been credited for — attending it again is only possible informally, as a listener (see Audit Mark). A Redundant Enrollment flags a Section whose Subject is already fulfilled at that point in the plan — by a non-failed Section in an earlier Planned Semester or by a Credit Entry — when that fulfillment does **not** carry an open Audit Mark. An open Audit Mark is precisely the state that legitimizes planning the Subject again, so it suppresses the flag.
+
+A Section rarely becomes redundant through the planning lists — fulfilled Subjects are excluded there — but it can become redundant after the fact: adding a Credit Entry for a Subject already planned ahead, removing the Failed Mark that had justified a re-take, or adding the Subject to an earlier Planned Semester. A Redundant Enrollment is a **warning** (see Planned Semester), derived and never stored, contained in its own semester. Its resolutions differ from a conflict's: remove the Section, or mark the fulfillment source for Audit to make the re-take legitimate.
 
 ---
 
@@ -221,3 +242,5 @@ Effects:
 - **Planning treats the Subject as not yet done** — it appears again among suggested and available Sections when planning new Planned Semesters.
 - A Section added for an audited Subject occupies schedule time and participates in Schedule Conflict detection like any other, but confers no additional fulfillment.
 - The mark persists until the Student removes it (or its carrier is deleted).
+
+An Audit Mark is **open** at a given point in the plan while no re-take Section has been planned since its carrier: the Subject then appears among suggested and available Sections. Planning a re-take **closes** the mark from that semester onward — later semesters treat the Subject as done again, and it stops being offered. Open/closed is **derived, never stored**: deleting the re-take Section re-opens the mark automatically. A re-take planned while the mark is open is never flagged as a Redundant Enrollment (see Redundant Enrollment).

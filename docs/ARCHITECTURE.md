@@ -182,7 +182,7 @@ Each `PlannedSection` carries its own flags: `failed: boolean` (Failed Mark, see
 
 `customSections` is the student's Custom Section **catalog** (see `DOMAIN.md`). Each entry declares its applicability (Year Semester 1, 2, or both), its sessions, and an optional Subject link — a linked entry fulfills that Subject like a regular Section when applied to a Planned Semester. Entries whose Subject link does not resolve in the current PPC are kept as stale and rendered de-emphasized.
 
-Unmet Requisites are never persisted — they are recomputed from the semester sequence by `src/domain` functions on every evaluation.
+Planning signals — Unmet Requisites, Schedule Conflicts, Duplicate Subjects, Redundant Enrollments — and the open/closed state of Audit Marks are never persisted: they are recomputed from the semester sequence by `src/domain` functions on every evaluation (see `DOMAIN.md`, Planned Semester).
 
 ### Export / import
 
