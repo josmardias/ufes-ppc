@@ -36,7 +36,7 @@ export default function ConfirmDialog({
   }, [open]);
 
   return (
-    <dialog ref={ref} onClose={onCancel} className="rounded-lg p-0 backdrop:bg-slate-900/40">
+    <dialog ref={ref} onClose={onCancel} className="overscroll-contain rounded-lg p-0 backdrop:bg-slate-900/40">
       <div className="flex w-80 flex-col gap-4 p-6">
         <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
         <p className="text-sm text-slate-700 text-pretty">{message}</p>

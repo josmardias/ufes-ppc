@@ -49,7 +49,7 @@ export default function ProfileNameDialog({ open, title, confirmLabel, initialNa
   }
 
   return (
-    <dialog ref={ref} onClose={onClose} className="rounded-lg p-0 backdrop:bg-slate-900/40">
+    <dialog ref={ref} onClose={onClose} className="overscroll-contain rounded-lg p-0 backdrop:bg-slate-900/40">
       <form onSubmit={handleSubmit} className="flex w-80 flex-col gap-4 p-6">
         <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
 

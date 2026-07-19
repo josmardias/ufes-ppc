@@ -225,6 +225,8 @@ Stage 4: validated JSONs ──copy──▶ src/data/ppcs, src/data/offerings
 
 The e2e suite is a **smoke suite, not a use-case matrix** — roughly 3–5 scenarios covering the seams unit tests skip: the persistence spine (create profile → plan → reload → intact), the export → delete → import round-trip, the two-tab warning, and one requisite/conflict warning flow through the real UI. All behavioral edge cases stay in domain/store unit tests. E2E runs on CI per PR; with no backend it stays fast.
 
+Specs locate elements by accessible name (`getByRole('button', { name: '…' })`, `getByRole('listitem')`, `getByRole('heading', { name: '…' })`) rather than test ids or CSS selectors. When changing a component those specs touch, keep its accessible names stable — icons must stay `aria-hidden` and paired with visible text, not replace it.
+
 ---
 
 ## Deployment

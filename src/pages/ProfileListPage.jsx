@@ -5,9 +5,12 @@
 import { useRef, useState } from 'react';
 import { useLocation } from 'wouter';
 import { useStore } from '../store/index.js';
+import { getPpc } from '../data/index.js';
+import { SHIFT_LABELS, formatIngress } from '../domain/format.js';
 import CreateProfileDialog from '../components/CreateProfileDialog.jsx';
 import ProfileNameDialog from '../components/ProfileNameDialog.jsx';
 import ConfirmDialog from '../components/ConfirmDialog.jsx';
+import { IconCopy, IconDownload, IconPencil, IconPlus, IconTrash, IconUpload, IconUsers } from '../components/icons.jsx';
 
 const IMPORT_ERROR_MESSAGES = {
   invalid: 'O arquivo selecionado não é válido.',
@@ -15,7 +18,8 @@ const IMPORT_ERROR_MESSAGES = {
 };
 
 const BUTTON_FOCUS_CLASS = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2';
-const ROW_ACTION_CLASS = `rounded px-1 hover:underline hover:text-slate-900 ${BUTTON_FOCUS_CLASS} focus-visible:ring-slate-400`;
+const ACTION_BUTTON_CLASS = `inline-flex items-center gap-1.5 rounded px-2 py-1 text-sm text-slate-600 hover:bg-slate-100 hover:text-slate-900 ${BUTTON_FOCUS_CLASS} focus-visible:ring-slate-400`;
+const DANGER_ACTION_BUTTON_CLASS = `inline-flex items-center gap-1.5 rounded px-2 py-1 text-sm text-red-600 hover:bg-red-50 hover:text-red-700 ${BUTTON_FOCUS_CLASS} focus-visible:ring-red-400`;
 
 function buildExportFilename(name) {
   const slug =
@@ -86,9 +90,14 @@ export default function ProfileListPage() {
 
   return (
     <main className="mx-auto max-w-2xl p-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-balance text-slate-900">Meus perfis</h1>
-        <div className="flex gap-2">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-semibold text-balance text-slate-900">Meus perfis</h1>
+          <p className="mt-1 text-sm text-pretty text-slate-600">
+            Escolha um perfil para continuar seu planejamento, ou crie um novo.
+          </p>
+        </div>
+        <div className="flex shrink-0 gap-2">
           <input
             ref={fileInputRef}
             type="file"
@@ -99,53 +108,80 @@ export default function ProfileListPage() {
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className={`rounded border border-slate-300 px-3 py-1 text-sm text-slate-700 hover:bg-slate-50 ${BUTTON_FOCUS_CLASS} focus-visible:ring-slate-400`}
+            className={`inline-flex items-center gap-1.5 rounded border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 ${BUTTON_FOCUS_CLASS} focus-visible:ring-slate-400`}
           >
+            <IconUpload className="size-4" />
             Importar perfil
           </button>
           <button
             type="button"
             onClick={() => createDialogRef.current?.showModal()}
-            className={`rounded bg-slate-900 px-3 py-1 text-sm text-white hover:bg-slate-800 ${BUTTON_FOCUS_CLASS} focus-visible:ring-slate-500`}
+            className={`inline-flex items-center gap-1.5 rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800 ${BUTTON_FOCUS_CLASS} focus-visible:ring-slate-500`}
           >
+            <IconPlus className="size-4" />
             Criar perfil
           </button>
         </div>
       </div>
 
       {profiles.length === 0 ? (
-        <p className="mt-4 text-slate-600">Nenhum perfil criado ainda.</p>
+        <div className="mt-8 flex flex-col items-center gap-3 rounded-lg border border-dashed border-slate-300 px-6 py-12 text-center">
+          <IconUsers className="size-10 text-slate-400" />
+          <p className="font-medium text-slate-700">Nenhum perfil criado ainda</p>
+          <p className="max-w-sm text-sm text-pretty text-slate-500">
+            Use os botões acima para criar um novo perfil ou importar um perfil exportado anteriormente.
+          </p>
+        </div>
       ) : (
-        <ul className="mt-4 space-y-2">
-          {profiles.map((profile) => (
-            <li key={profile.id} className="flex items-center justify-between gap-3 rounded border border-slate-200 p-3">
-              <button
-                type="button"
-                onClick={() => handleSelect(profile)}
-                className={`min-w-0 flex-1 truncate text-left font-medium text-slate-900 hover:underline ${BUTTON_FOCUS_CLASS} focus-visible:ring-slate-400`}
+        <ul className="mt-6 space-y-3">
+          {profiles.map((profile) => {
+            const ppc = profile.ppcId ? getPpc(profile.ppcId) : null;
+            return (
+              <li
+                key={profile.id}
+                className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition-colors hover:border-slate-300"
               >
-                {profile.name}
-              </button>
-              <div className="flex shrink-0 gap-3 text-sm text-slate-600">
-                <button type="button" onClick={() => handleExport(profile)} className={ROW_ACTION_CLASS}>
-                  Exportar
-                </button>
-                <button type="button" onClick={() => setCloneTarget(profile)} className={ROW_ACTION_CLASS}>
-                  Clonar
-                </button>
-                <button type="button" onClick={() => setRenameTarget(profile)} className={ROW_ACTION_CLASS}>
-                  Renomear
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDeleteTarget(profile)}
-                  className={`rounded px-1 text-red-600 hover:underline hover:text-red-700 ${BUTTON_FOCUS_CLASS} focus-visible:ring-red-400`}
-                >
-                  Excluir
-                </button>
-              </div>
-            </li>
-          ))}
+                <div className="min-w-0">
+                  <h2 className="text-base font-semibold text-slate-900">
+                    <button
+                      type="button"
+                      onClick={() => handleSelect(profile)}
+                      className={`block w-full truncate rounded text-left hover:underline ${BUTTON_FOCUS_CLASS} focus-visible:ring-slate-400`}
+                    >
+                      {profile.name}
+                    </button>
+                  </h2>
+                  <p className="mt-0.5 truncate text-sm text-slate-500">
+                    Ingresso {formatIngress(profile)} · Turno {SHIFT_LABELS[profile.shift]}
+                    {ppc ? ` · ${ppc.name}` : ''}
+                  </p>
+                </div>
+
+                <div className="mt-3 flex flex-wrap items-center gap-1 border-t border-slate-100 pt-2">
+                  <button type="button" onClick={() => handleExport(profile)} className={ACTION_BUTTON_CLASS}>
+                    <IconDownload className="size-4" />
+                    Exportar
+                  </button>
+                  <button type="button" onClick={() => setCloneTarget(profile)} className={ACTION_BUTTON_CLASS}>
+                    <IconCopy className="size-4" />
+                    Clonar
+                  </button>
+                  <button type="button" onClick={() => setRenameTarget(profile)} className={ACTION_BUTTON_CLASS}>
+                    <IconPencil className="size-4" />
+                    Renomear
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDeleteTarget(profile)}
+                    className={`ml-auto ${DANGER_ACTION_BUTTON_CLASS}`}
+                  >
+                    <IconTrash className="size-4" />
+                    Excluir
+                  </button>
+                </div>
+              </li>
+            );
+          })}
         </ul>
       )}
 

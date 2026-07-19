@@ -11,6 +11,7 @@ https://josmardias.github.io/ufes-ppc/
 - [Use Cases](docs/USE_CASES.md) — purpose & scope, and what users can do
 - [Domain](docs/DOMAIN.md) — the concepts and rules (with EN → PT-BR dictionary and [diagram](docs/DOMAIN.svg))
 - [Architecture](docs/ARCHITECTURE.md) — tech stack, project structure, persistence
+- [AGENTS.md](AGENTS.md) — notes for AI coding agents working in this repo
 
 ## Local development
 
@@ -28,7 +29,12 @@ npm test          # unit tests (domain, storage, store)
 npm run test:e2e  # Playwright smoke suite, against a production build
 ```
 
-`test:e2e` builds the app first and serves it via `vite preview`; run `npx playwright install --with-deps chromium` once beforehand to fetch the browser.
+`test:e2e` builds the app first and serves it via `vite preview`; fetch the browser once beforehand:
+
+```sh
+npx playwright install --with-deps chromium  # installs Chromium + OS deps (needs sudo) — what CI uses
+npx playwright install chromium              # Chromium only, no sudo — use on a machine/container without root
+```
 
 ## Deploy
 

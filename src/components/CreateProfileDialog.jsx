@@ -3,6 +3,7 @@
 
 import { useRef, useState } from 'react';
 import { useStore } from '../store/index.js';
+import { SHIFT_LABELS } from '../domain/format.js';
 
 const ERROR_MESSAGES = {
   empty: 'O nome não pode ser vazio.',
@@ -52,7 +53,7 @@ export default function CreateProfileDialog({ ref, onCreated }) {
   }
 
   return (
-    <dialog ref={ref} onClose={reset} className="rounded-lg p-0 backdrop:bg-slate-900/40">
+    <dialog ref={ref} onClose={reset} className="overscroll-contain rounded-lg p-0 backdrop:bg-slate-900/40">
       <form onSubmit={handleSubmit} className="flex w-80 flex-col gap-4 p-6">
         <h2 className="text-lg font-semibold text-slate-900">Criar perfil</h2>
 
@@ -118,9 +119,11 @@ export default function CreateProfileDialog({ ref, onCreated }) {
             onChange={(event) => setShift(event.target.value)}
             className={FIELD_CLASS}
           >
-            <option value="day">Integral</option>
-            <option value="morning">Manhã</option>
-            <option value="afternoon">Tarde</option>
+            {Object.entries(SHIFT_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
           </select>
         </label>
 
