@@ -3,7 +3,7 @@
 // every action here writes through to localStorage synchronously.
 
 import { create } from 'zustand';
-import { loadEnvelope, saveEnvelope } from '../storage/envelope.js';
+import { STORAGE_KEY, loadEnvelope, saveEnvelope } from '../storage/envelope.js';
 import { parseProfileFile, serializeProfileForExport } from '../storage/profileFile.js';
 import {
   cloneProfileRecord,
@@ -19,6 +19,9 @@ function persist(get) {
 
 export const useStore = create((set, get) => ({
   ...loadEnvelope(),
+
+  /** True once another tab has written the envelope (see "Concurrent tabs" below). */
+  storageChangedElsewhere: false,
 
   /** Selects a profile as active (UC-03), persisting the choice. */
   setActiveProfileId(id) {
@@ -127,3 +130,14 @@ export const useStore = create((set, get) => ({
     return { ok: true, profile: imported };
   },
 }));
+
+// Cross-tab awareness (see docs/ARCHITECTURE.md, "Concurrent tabs"): the
+// `storage` event fires only in *other* tabs than the one that wrote the
+// value, so this never fires for the tab's own writes. There is no
+// cross-tab state merging; the store just flags the conflict so the UI can
+// warn the user and offer a reload.
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (event) => {
+    if (event.key === STORAGE_KEY) useStore.setState({ storageChangedElsewhere: true });
+  });
+}
