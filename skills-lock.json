@@ -36,6 +36,12 @@
       "sourceType": "github",
       "skillPath": "skills/vitest/SKILL.md",
       "computedHash": "943d436114c677802426741980146c07560bf375297666b03062444f4b98a785"
+    },
+    "web-design-guidelines": {
+      "source": "antfu/skills",
+      "sourceType": "github",
+      "skillPath": "skills/web-design-guidelines/SKILL.md",
+      "computedHash": "65a2e7d85753383ae0f88df15475d58b9e39723e9c4bb6891421d6144a85f79c"
     }
   }
 }
