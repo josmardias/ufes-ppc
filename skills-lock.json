@@ -19,6 +19,12 @@
       "skillPath": ".claude/skills/playwright-dev/SKILL.md",
       "computedHash": "c491b4f287224c452e01f1f3e3ae3109dc7fd5f633f2ae7d11f569d7065ef084"
     },
+    "tailwind-4-docs": {
+      "source": "lombiq/tailwind-agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/tailwind-4-docs/SKILL.md",
+      "computedHash": "de756f5f03cc20a029983875b00b9dfef9d0ba8567d242c5cbb0262037d0a134"
+    },
     "vercel-react-best-practices": {
       "source": "vercel-labs/agent-skills",
       "sourceType": "github",
