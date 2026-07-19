@@ -7,6 +7,18 @@
       "skillPath": "pdf-extraction/SKILL.md",
       "computedHash": "b747452a0366e63d69743af86c0abf3da7e3f84a65f57bad2c61a1c0a44c0e14"
     },
+    "playwright-cli": {
+      "source": "microsoft/playwright-cli",
+      "sourceType": "github",
+      "skillPath": "skills/playwright-cli/SKILL.md",
+      "computedHash": "f602822b51bcb6d033749c60731b8f1e80f308222fcb2e4af551905a817c6e08"
+    },
+    "playwright-dev": {
+      "source": "microsoft/playwright",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/playwright-dev/SKILL.md",
+      "computedHash": "c491b4f287224c452e01f1f3e3ae3109dc7fd5f633f2ae7d11f569d7065ef084"
+    },
     "vercel-react-best-practices": {
       "source": "vercel-labs/agent-skills",
       "sourceType": "github",
