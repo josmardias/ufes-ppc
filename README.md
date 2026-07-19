@@ -21,6 +21,15 @@ npm run dev
 
 Regenerating the data (`npm run build-data`) requires [poppler-utils](https://poppler.freedesktop.org/) (`pdftotext`) installed locally, e.g. `apt-get install poppler-utils` or `brew install poppler`.
 
+## Testing
+
+```sh
+npm test          # unit tests (domain, storage, store)
+npm run test:e2e  # Playwright smoke suite, against a production build
+```
+
+`test:e2e` builds the app first and serves it via `vite preview`; run `npx playwright install --with-deps chromium` once beforehand to fetch the browser.
+
 ## Deploy
 
 Automatic deployment via GitHub Actions on every push to `main`.

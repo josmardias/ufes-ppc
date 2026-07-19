@@ -7,6 +7,11 @@ dist/
 # Node script output
 output/
 
+# Playwright
+test-results/
+playwright-report/
+blob-report/
+
 # System files
 .DS_Store
 Thumbs.db

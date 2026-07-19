@@ -6,6 +6,7 @@ import { Redirect, Route, Router, Switch } from 'wouter';
 import { useStore } from './store/index.js';
 import ProfileListPage from './pages/ProfileListPage.jsx';
 import PlannerPage from './pages/PlannerPage.jsx';
+import StorageConflictBanner from './components/StorageConflictBanner.jsx';
 
 // Served from a GitHub Pages subpath; keep wouter's base in sync with Vite's.
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
@@ -18,6 +19,7 @@ function PlannerRoute() {
 export default function App() {
   return (
     <Router base={base}>
+      <StorageConflictBanner />
       <Switch>
         <Route path="/" component={ProfileListPage} />
         <Route path="/profile" component={PlannerRoute} />
