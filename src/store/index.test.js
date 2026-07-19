@@ -247,3 +247,91 @@ describe('exportProfile / importProfile', () => {
     expect(result).toEqual({ ok: false, error: 'unknown-ppc' });
   });
 });
+
+describe('planner actions', () => {
+  async function setup() {
+    const { useStore } = await import('./index.js');
+    const { profile } = useStore
+      .getState()
+      .createProfile({ name: 'Maria', ingressYear: 2024, ingressYearSemester: 1, shift: 'morning' });
+    return { useStore, profileId: profile.id };
+  }
+
+  it('setProfilePpc persists the PPC while there are no Planned Semesters', async () => {
+    const { useStore, profileId } = await setup();
+    const result = useStore.getState().setProfilePpc(profileId, 'test-ppc');
+    expect(result.ok).toBe(true);
+    expect(useStore.getState().profiles[0].ppcId).toBe('test-ppc');
+
+    vi.resetModules();
+    const { useStore: reloadedStore } = await import('./index.js');
+    expect(reloadedStore.getState().profiles[0].ppcId).toBe('test-ppc');
+  });
+
+  it('setProfilePpc rejects switching once Planned Semesters exist', async () => {
+    const { useStore, profileId } = await setup();
+    useStore.getState().setProfilePpc(profileId, 'test-ppc');
+    useStore.getState().addPlannedSemester(profileId, []);
+
+    const result = useStore.getState().setProfilePpc(profileId, 'other-ppc');
+    expect(result).toEqual({ ok: false, error: 'has-semesters' });
+    expect(useStore.getState().profiles[0].ppcId).toBe('test-ppc');
+  });
+
+  it('addPlannedSemester appends a semester with the given sections and persists it', async () => {
+    const { useStore, profileId } = await setup();
+    const section = { id: 's1', kind: 'offering', subjectCode: 'MAT01', turma: '01', failed: false, audit: false };
+
+    useStore.getState().addPlannedSemester(profileId, [section]);
+
+    expect(useStore.getState().profiles[0].semesters).toEqual([{ sections: [section] }]);
+
+    vi.resetModules();
+    const { useStore: reloadedStore } = await import('./index.js');
+    expect(reloadedStore.getState().profiles[0].semesters).toEqual([{ sections: [section] }]);
+  });
+
+  it('addSectionToSemester and removeSectionFromSemester mutate the targeted semester and persist', async () => {
+    const { useStore, profileId } = await setup();
+    useStore.getState().addPlannedSemester(profileId, []);
+    const section = { id: 's1', kind: 'offering', subjectCode: 'MAT01', turma: '01', failed: false, audit: false };
+
+    useStore.getState().addSectionToSemester(profileId, 0, section);
+    expect(useStore.getState().profiles[0].semesters[0].sections).toEqual([section]);
+
+    useStore.getState().removeSectionFromSemester(profileId, 0, 's1');
+    expect(useStore.getState().profiles[0].semesters[0].sections).toEqual([]);
+  });
+
+  it('deleteLastSemester removes only the last semester and persists the change', async () => {
+    const { useStore, profileId } = await setup();
+    useStore.getState().addPlannedSemester(profileId, []);
+    useStore.getState().addPlannedSemester(profileId, []);
+
+    useStore.getState().deleteLastSemester(profileId);
+
+    expect(useStore.getState().profiles[0].semesters).toHaveLength(1);
+
+    vi.resetModules();
+    const { useStore: reloadedStore } = await import('./index.js');
+    expect(reloadedStore.getState().profiles[0].semesters).toHaveLength(1);
+  });
+
+  it('toggleFailedMark and toggleAuditMark flip the marks on the targeted section', async () => {
+    const { useStore, profileId } = await setup();
+    const section = { id: 's1', kind: 'offering', subjectCode: 'MAT01', turma: '01', failed: false, audit: false };
+    useStore.getState().addPlannedSemester(profileId, [section]);
+
+    useStore.getState().toggleFailedMark(profileId, 0, 's1');
+    expect(useStore.getState().profiles[0].semesters[0].sections[0].failed).toBe(true);
+
+    useStore.getState().toggleAuditMark(profileId, 0, 's1');
+    expect(useStore.getState().profiles[0].semesters[0].sections[0].audit).toBe(true);
+  });
+
+  it('setShiftFilter persists the toggle', async () => {
+    const { useStore, profileId } = await setup();
+    useStore.getState().setShiftFilter(profileId, 'afternoon');
+    expect(useStore.getState().profiles[0].shiftFilter).toBe('afternoon');
+  });
+});

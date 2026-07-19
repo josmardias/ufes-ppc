@@ -24,8 +24,22 @@
  */
 
 /**
+ * @typedef {Object} Session - one weekly meeting time (see docs/DOMAIN.md, Section)
+ * @property {"Seg"|"Ter"|"Qua"|"Qui"|"Sex"|"Sáb"|"Dom"} day
+ * @property {string} startTime - "HH:MM"
+ * @property {string} endTime - "HH:MM"
+ */
+
+/**
  * @typedef {Object} PlannedSection
- * @property {string} subjectCode - code the section was offered under (may be an equivalent)
+ * @property {string} id - generated, internal; stable identity for add/remove within a semester
+ * @property {"offering"|"custom"} kind
+ * @property {string|null} subjectCode - PPC subject code this section fulfills (may be an
+ *   equivalent code the offering Section was published under, for `offering` kind); null for an
+ *   unlinked Custom Section, which has no requisite effect
+ * @property {string} [turma] - Section id within the Offerings snapshot (`offering` kind only)
+ * @property {{name: string, sessions: Session[]}} [custom] - independent embedded copy, unaffected
+ *   by later edits to the catalog entry it was applied from (`custom` kind only)
  * @property {boolean} failed - Failed Mark (see docs/DOMAIN.md)
  * @property {boolean} audit - Audit Mark (see docs/DOMAIN.md)
  */
@@ -42,6 +56,7 @@
  * @property {string} name
  * @property {1|2|"both"} applicability - which Year Semester(s) it applies to
  * @property {string|null} subjectCode - optional Subject link
+ * @property {Session[]} sessions
  */
 
 /**

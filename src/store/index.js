@@ -11,10 +11,33 @@ import {
   renameProfileRecord,
   validateProfileName,
 } from '../domain/profile.js';
+import {
+  addPlannedSemester as addPlannedSemesterDomain,
+  addSectionToSemester as addSectionToSemesterDomain,
+  deleteLastPlannedSemester,
+  removeSectionFromSemester as removeSectionFromSemesterDomain,
+  toggleSectionMark,
+} from '../domain/semester.js';
 
 function persist(get) {
   const { schemaVersion, activeProfileId, profiles } = get();
   saveEnvelope({ schemaVersion, activeProfileId, profiles });
+}
+
+/**
+ * Finds the profile by id, applies `updater` to build its replacement, and
+ * writes the updated profile list through to storage. Returns the updated
+ * profile, or null if no profile with that id exists.
+ */
+function updateProfile(get, set, id, updater) {
+  const { profiles } = get();
+  const profile = profiles.find((p) => p.id === id);
+  if (!profile) return null;
+
+  const updated = updater(profile);
+  set({ profiles: profiles.map((p) => (p.id === id ? updated : p)) });
+  persist(get);
+  return updated;
 }
 
 export const useStore = create((set, get) => ({
@@ -128,6 +151,64 @@ export const useStore = create((set, get) => ({
     set({ profiles: nextProfiles });
     persist(get);
     return { ok: true, profile: imported };
+  },
+
+  /**
+   * Sets the Course Curriculum (PPC) a profile follows (UC-11 step 3). Only
+   * allowed while the profile has no Planned Semesters; switching to a
+   * different PPC additionally requires no Credit Entries (see
+   * docs/DOMAIN.md, Student).
+   * @returns {{ ok: true, profile: import('../domain/types.js').ProfileRecord }
+   *   |{ ok: false, error: 'not-found'|'has-semesters'|'has-credit-entries' }}
+   */
+  setProfilePpc(id, ppcId) {
+    const { profiles } = get();
+    const profile = profiles.find((p) => p.id === id);
+    if (!profile) return { ok: false, error: 'not-found' };
+    if (profile.semesters.length > 0) return { ok: false, error: 'has-semesters' };
+    if (profile.ppcId !== ppcId && profile.creditEntries.length > 0) return { ok: false, error: 'has-credit-entries' };
+
+    const updated = updateProfile(get, set, id, (p) => ({ ...p, ppcId }));
+    return { ok: true, profile: updated };
+  },
+
+  /** Persists the Shift filter toggle (UC-12); pass `null` to clear it. */
+  setShiftFilter(id, shiftFilter) {
+    updateProfile(get, set, id, (profile) => ({ ...profile, shiftFilter }));
+  },
+
+  /**
+   * Creates the next Planned Semester containing exactly `sections` (UC-11).
+   * `sections` must already be built PlannedSection objects (see
+   * domain/semester.js, createPlannedSection).
+   */
+  addPlannedSemester(id, sections) {
+    updateProfile(get, set, id, (profile) => addPlannedSemesterDomain(profile, sections));
+  },
+
+  /** Removes the last Planned Semester and all its contents (UC-14). */
+  deleteLastSemester(id) {
+    updateProfile(get, set, id, deleteLastPlannedSemester);
+  },
+
+  /** Adds a Section to a Planned Semester (UC-12). */
+  addSectionToSemester(id, semesterIndex, section) {
+    updateProfile(get, set, id, (profile) => addSectionToSemesterDomain(profile, semesterIndex, section));
+  },
+
+  /** Removes a Section from a Planned Semester by id (UC-13). */
+  removeSectionFromSemester(id, semesterIndex, sectionId) {
+    updateProfile(get, set, id, (profile) => removeSectionFromSemesterDomain(profile, semesterIndex, sectionId));
+  },
+
+  /** Toggles a Failed Mark on a Planned Section (UC-22/23). */
+  toggleFailedMark(id, semesterIndex, sectionId) {
+    updateProfile(get, set, id, (profile) => toggleSectionMark(profile, semesterIndex, sectionId, 'failed'));
+  },
+
+  /** Toggles an Audit Mark on a Planned Section (UC-20/21). */
+  toggleAuditMark(id, semesterIndex, sectionId) {
+    updateProfile(get, set, id, (profile) => toggleSectionMark(profile, semesterIndex, sectionId, 'audit'));
   },
 }));
 

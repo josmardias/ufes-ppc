@@ -1,30 +1,241 @@
-// The planner for the active profile (see docs/USE_CASES.md, Schedule Planner).
-// The Schedule Planner itself (UC-09 onward) is not implemented yet; this
-// page surfaces the active profile's data and says so plainly instead of
-// rendering a bare, unexplained stub.
+// The Schedule Planner for the active profile (UC-09 through UC-14, UC-20
+// through UC-23, UC-25, UC-26 — see docs/USE_CASES.md). Composes the
+// semester list, the weekly grid, and the dialogs that drive every edit.
 
+import { useMemo, useState } from 'react';
 import { useActiveProfile } from '../hooks/useActiveProfile.js';
-import { getPpc } from '../data/index.js';
+import { useStore } from '../store/index.js';
+import { getOfferings, getPpc } from '../data/index.js';
 import { SHIFT_LABELS, formatIngress } from '../domain/format.js';
+import { evaluatePlan } from '../domain/evaluation.js';
+import { createPlannedSection, currentSemesterIndex } from '../domain/semester.js';
+import { effectiveShiftFilter, sectionsOverlap } from '../domain/schedule.js';
+import SemesterList from '../components/planner/SemesterList.jsx';
+import WeeklyGrid from '../components/planner/WeeklyGrid.jsx';
+import NoScheduleStrip from '../components/planner/NoScheduleStrip.jsx';
+import SectionDetailDialog from '../components/planner/SectionDetailDialog.jsx';
+import AddSectionDialog from '../components/planner/AddSectionDialog.jsx';
+import AddSemesterDialog from '../components/planner/AddSemesterDialog.jsx';
+import ConfirmDialog from '../components/ConfirmDialog.jsx';
+import { IconPlus, IconTrash } from '../components/icons.jsx';
+
+const BUTTON_FOCUS_CLASS = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2';
+const PRIMARY_BUTTON_CLASS = `inline-flex items-center gap-1.5 rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800 ${BUTTON_FOCUS_CLASS} focus-visible:ring-slate-500`;
+const SECONDARY_BUTTON_CLASS = `inline-flex items-center gap-1.5 rounded border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 ${BUTTON_FOCUS_CLASS} focus-visible:ring-slate-400`;
+const DANGER_BUTTON_CLASS = `inline-flex items-center gap-1.5 rounded px-2 py-1 text-sm text-red-600 hover:bg-red-50 hover:text-red-700 ${BUTTON_FOCUS_CLASS} focus-visible:ring-red-400`;
 
 export default function PlannerPage() {
   const profile = useActiveProfile();
+  const setProfilePpc = useStore((state) => state.setProfilePpc);
+  const addPlannedSemester = useStore((state) => state.addPlannedSemester);
+  const deleteLastSemester = useStore((state) => state.deleteLastSemester);
+  const addSectionToSemester = useStore((state) => state.addSectionToSemester);
+  const removeSectionFromSemester = useStore((state) => state.removeSectionFromSemester);
+  const toggleFailedMark = useStore((state) => state.toggleFailedMark);
+  const toggleAuditMark = useStore((state) => state.toggleAuditMark);
+  const setShiftFilter = useStore((state) => state.setShiftFilter);
+
   const ppc = profile?.ppcId ? getPpc(profile.ppcId) : null;
 
+  const evaluation = useMemo(() => {
+    if (!profile || !ppc) return null;
+    return evaluatePlan(profile, ppc, { 1: getOfferings(ppc.id, 1), 2: getOfferings(ppc.id, 2) });
+  }, [profile, ppc]);
+
+  const defaultIndex = profile && evaluation ? (currentSemesterIndex(profile) ?? evaluation.semesters.length - 1) : 0;
+  const [selectedIndex, setSelectedIndex] = useState(defaultIndex);
+  const [selection, setSelection] = useState(null); // { semesterIndex, section }
+  const [addSemesterOpen, setAddSemesterOpen] = useState(false);
+  const [addSectionOpen, setAddSectionOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+
+  if (!profile) return null;
+
+  const semesters = evaluation?.semesters ?? [];
+  const clampedIndex = Math.min(selectedIndex, Math.max(semesters.length - 1, 0));
+  const semester = semesters[clampedIndex] ?? null;
+  const isLastSemester = clampedIndex === semesters.length - 1;
+  const currentIndex = currentSemesterIndex(profile);
+
+  function handleAddSemesterConfirm(ppcId, sections) {
+    if (profile.ppcId !== ppcId) setProfilePpc(profile.id, ppcId);
+    const newIndex = profile.semesters.length;
+    addPlannedSemester(profile.id, sections);
+    setAddSemesterOpen(false);
+    setSelectedIndex(newIndex);
+  }
+
+  function handleAddSection(sectionTemplate) {
+    addSectionToSemester(profile.id, clampedIndex, createPlannedSection(sectionTemplate));
+    setAddSectionOpen(false);
+  }
+
+  function handleDeleteLastSemester() {
+    deleteLastSemester(profile.id);
+    setDeleteConfirmOpen(false);
+    setSelectedIndex((index) => Math.max(index - 1, 0));
+  }
+
+  function closeSelection() {
+    setSelection(null);
+  }
+
+  function handleRemoveSection(semesterIndex, sectionId) {
+    removeSectionFromSemester(profile.id, semesterIndex, sectionId);
+    if (selection?.section.id === sectionId) closeSelection();
+  }
+
+  // Derived data for the Section detail dialog's resolution flows (UC-25, UC-26).
+  const selectedSection = selection?.section ?? null;
+  const selectedSemester = selection ? semesters[selection.semesterIndex] : null;
+  const conflictSections =
+    selectedSection && selectedSemester
+      ? selectedSemester.sections.filter(
+          (s) => s.id !== selectedSection.id && sectionsOverlap(s.sessions, selectedSection.sessions),
+        )
+      : [];
+  const duplicateSections =
+    selectedSection && selectedSemester && selectedSection.resolvedSubjectCode
+      ? selectedSemester.sections.filter(
+          (s) => s.id !== selectedSection.id && s.resolvedSubjectCode === selectedSection.resolvedSubjectCode,
+        )
+      : [];
+  let redundantSource = null;
+  if (selectedSection?.signals.redundantEnrollment && selectedSection.resolvedSubjectCode && selectedSemester) {
+    const entry = selectedSemester.fulfillmentBefore.get(selectedSection.resolvedSubjectCode);
+    if (entry?.source.kind === 'credit') {
+      redundantSource = { label: 'um Aproveitamento', kind: 'credit' };
+    } else if (entry?.source.kind === 'section') {
+      const sourceSemester = semesters[entry.source.semesterIndex];
+      redundantSource = {
+        label: `${entry.source.semesterIndex + 1}º período (${sourceSemester.year}/${sourceSemester.yearSemester})`,
+        kind: 'section',
+        semesterIndex: entry.source.semesterIndex,
+        sectionId: entry.source.sectionId,
+      };
+    }
+  }
+
   return (
-    <main className="mx-auto max-w-2xl p-6">
+    <main className="mx-auto max-w-5xl p-6">
       <h1 className="text-2xl font-semibold text-pretty wrap-break-word text-slate-900">{profile.name}</h1>
       <p className="mt-1 text-sm text-slate-600">
         Ingresso {formatIngress(profile)} · Turno {SHIFT_LABELS[profile.shift]}
         {ppc ? ` · ${ppc.name}` : ''}
       </p>
 
-      <div className="mt-8 rounded-lg border border-dashed border-slate-300 px-6 py-10 text-center">
-        <p className="font-medium text-slate-700">Planejador de matrícula em construção</p>
-        <p className="mt-1 text-sm text-pretty text-slate-500">
-          Em breve você poderá montar seu cronograma semestre a semestre por aqui.
-        </p>
-      </div>
+      {semesters.length === 0 ? (
+        <div className="mt-8 flex flex-col items-center gap-3 rounded-lg border border-dashed border-slate-300 px-6 py-12 text-center">
+          <p className="font-medium text-slate-700">Nenhum período planejado ainda</p>
+          <p className="max-w-sm text-sm text-pretty text-slate-500">
+            Adicione o primeiro período para começar a montar seu cronograma.
+          </p>
+          <button type="button" onClick={() => setAddSemesterOpen(true)} className={PRIMARY_BUTTON_CLASS}>
+            <IconPlus className="size-4" />
+            Adicionar período
+          </button>
+        </div>
+      ) : (
+        <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-[16rem_1fr]">
+          <aside>
+            <SemesterList semesters={semesters} selectedIndex={clampedIndex} currentIndex={currentIndex} onSelect={setSelectedIndex} />
+            <button
+              type="button"
+              onClick={() => setAddSemesterOpen(true)}
+              className={`mt-3 w-full justify-center ${SECONDARY_BUTTON_CLASS}`}
+            >
+              <IconPlus className="size-4" />
+              Adicionar período
+            </button>
+          </aside>
+
+          <section>
+            <div className="flex items-center justify-between gap-4">
+              <h2 className="text-lg font-semibold text-slate-900">
+                {clampedIndex + 1}º período · {semester.year}/{semester.yearSemester}
+              </h2>
+              <div className="flex gap-2">
+                <button type="button" onClick={() => setAddSectionOpen(true)} className={SECONDARY_BUTTON_CLASS}>
+                  <IconPlus className="size-4" />
+                  Adicionar turma
+                </button>
+                {isLastSemester && (
+                  <button type="button" onClick={() => setDeleteConfirmOpen(true)} className={DANGER_BUTTON_CLASS}>
+                    <IconTrash className="size-4" />
+                    Excluir período
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+              <WeeklyGrid ppc={ppc} sections={semester.sections} onSelect={(section) => setSelection({ semesterIndex: clampedIndex, section })} />
+              <NoScheduleStrip
+                ppc={ppc}
+                sections={semester.sections.filter((s) => s.sessions.length === 0)}
+                onSelect={(section) => setSelection({ semesterIndex: clampedIndex, section })}
+              />
+            </div>
+          </section>
+        </div>
+      )}
+
+      <AddSemesterDialog
+        open={addSemesterOpen}
+        profile={profile}
+        lastSemesterHasSignals={semesters.length > 0 && semesters[semesters.length - 1].status !== 'clean'}
+        onShiftFilterChange={(value) => setShiftFilter(profile.id, value)}
+        onConfirm={handleAddSemesterConfirm}
+        onClose={() => setAddSemesterOpen(false)}
+      />
+
+      {semester && (
+        <AddSectionDialog
+          open={addSectionOpen}
+          ppc={ppc}
+          offerings={getOfferings(ppc.id, semester.yearSemester)}
+          yearSemester={semester.yearSemester}
+          fulfillmentBefore={semester.fulfillmentBefore}
+          sameSemesterCodes={semester.sameSemesterCodes}
+          customSections={profile.customSections}
+          currentSections={semester.sections}
+          shiftFilter={effectiveShiftFilter(profile)}
+          onShiftFilterChange={(value) => setShiftFilter(profile.id, value)}
+          onConfirm={handleAddSection}
+          onClose={() => setAddSectionOpen(false)}
+        />
+      )}
+
+      <SectionDetailDialog
+        open={selection != null}
+        section={selectedSection}
+        ppc={ppc}
+        conflictSections={conflictSections}
+        duplicateSections={duplicateSections}
+        redundantSource={redundantSource}
+        onClose={closeSelection}
+        onRemove={() => selection && handleRemoveSection(selection.semesterIndex, selection.section.id)}
+        onRemoveOther={(sectionId) => selection && handleRemoveSection(selection.semesterIndex, sectionId)}
+        onToggleFailed={() => {
+          if (selection) toggleFailedMark(profile.id, selection.semesterIndex, selection.section.id);
+        }}
+        onToggleAudit={() => {
+          if (selection) toggleAuditMark(profile.id, selection.semesterIndex, selection.section.id);
+        }}
+        onMarkSourceAudit={() => {
+          if (redundantSource?.kind === 'section') toggleAuditMark(profile.id, redundantSource.semesterIndex, redundantSource.sectionId);
+        }}
+      />
+
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        title="Excluir período"
+        message="Tem certeza que deseja excluir este período e todo o seu conteúdo? Esta ação não pode ser desfeita."
+        confirmLabel="Excluir"
+        danger
+        onConfirm={handleDeleteLastSemester}
+        onCancel={() => setDeleteConfirmOpen(false)}
+      />
     </main>
   );
 }
