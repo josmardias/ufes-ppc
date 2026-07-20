@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { buildCandidateSubjects, pruneCorequisiteLookahead } from './eligibility.js';
+import { buildCandidateSubjects, excludeAlreadyPlannedSections, pruneCorequisiteLookahead } from './eligibility.js';
 
 const ppc = {
   id: 'test-ppc',
   subjects: [
-    { code: 'MAT01', name: 'Cálculo I', prerequisites: [], corequisites: [], equivalents: [] },
-    { code: 'MAT02', name: 'Cálculo II', prerequisites: ['MAT01'], corequisites: [], equivalents: [] },
+    { code: 'MAT01', name: 'Cálculo I', prerequisites: [], corequisites: [], equivalents: [], suggestedSemester: 1 },
+    { code: 'MAT02', name: 'Cálculo II', prerequisites: ['MAT01'], corequisites: [], equivalents: [], suggestedSemester: 2 },
     { code: 'ELE01', name: 'Circuitos I', prerequisites: [], corequisites: ['ELE02'], equivalents: [] },
     { code: 'ELE02', name: 'Lab. Circuitos I', prerequisites: [], corequisites: [], equivalents: [] },
   ],
@@ -141,6 +141,158 @@ describe('buildCandidateSubjects', () => {
       customSections: [{ id: 'c1', name: 'Trabalho', applicability: 1, subjectCode: null, sessions: [] }],
     });
     expect(result.find((c) => c.subjectName === 'Trabalho')).toBeDefined();
+  });
+
+  it('includes a Subject suggested at or before the semester being planned when the semester filter is "suggested"', () => {
+    const result = candidates({ semesterFilter: 'suggested', semesterNumber: 1 });
+    expect(result.find((c) => c.subjectCode === 'MAT01')).toBeDefined();
+  });
+
+  it('includes a Subject suggested for the current semester when the semester filter is "suggested"', () => {
+    const result = candidates({
+      semesterFilter: 'suggested',
+      semesterNumber: 2,
+      fulfillmentBefore: new Map([['MAT01', { audit: false }]]),
+    });
+    expect(result.find((c) => c.subjectCode === 'MAT02')).toBeDefined();
+  });
+
+  it('excludes a Subject suggested for a semester after the one being planned when the semester filter is "suggested"', () => {
+    const result = candidates({
+      semesterFilter: 'suggested',
+      semesterNumber: 1,
+      fulfillmentBefore: new Map([['MAT01', { audit: false }]]),
+    });
+    expect(result.find((c) => c.subjectCode === 'MAT02')).toBeUndefined();
+  });
+
+  it('includes a Subject suggested for a later semester when the semester filter is "advance"', () => {
+    const result = candidates({
+      semesterFilter: 'advance',
+      semesterNumber: 1,
+      fulfillmentBefore: new Map([['MAT01', { audit: false }]]),
+    });
+    expect(result.find((c) => c.subjectCode === 'MAT02')).toBeDefined();
+  });
+
+  it('includes a Subject with no Suggested Semester regardless of the semester filter', () => {
+    const result = candidates({ semesterFilter: 'suggested', semesterNumber: 1 });
+    expect(result.find((c) => c.subjectCode === 'ELE01')).toBeDefined();
+  });
+
+  it('includes a Required Subject and excludes an Optional one when the classification filter is "required"', () => {
+    const classifiedPpc = {
+      id: 'test-ppc',
+      subjects: [
+        { code: 'MAT01', name: 'Cálculo I', prerequisites: [], corequisites: [], equivalents: [], classification: 'required' },
+        { code: 'ELE01', name: 'Circuitos I', prerequisites: [], corequisites: [], equivalents: [], classification: 'optional' },
+      ],
+    };
+    const result = candidates({
+      ppc: classifiedPpc,
+      classificationFilter: 'required',
+      offerings: {
+        subjects: [
+          { code: 'MAT01', sections: [{ turma: '01', shift: 'day', sessions: [] }] },
+          { code: 'ELE01', sections: [{ turma: '01', shift: 'day', sessions: [] }] },
+        ],
+      },
+    });
+    expect(result.find((c) => c.subjectCode === 'MAT01')).toBeDefined();
+    expect(result.find((c) => c.subjectCode === 'ELE01')).toBeUndefined();
+  });
+
+  it('includes both Required and Optional Subjects when the classification filter is "all"', () => {
+    const classifiedPpc = {
+      id: 'test-ppc',
+      subjects: [
+        { code: 'MAT01', name: 'Cálculo I', prerequisites: [], corequisites: [], equivalents: [], classification: 'required' },
+        { code: 'ELE01', name: 'Circuitos I', prerequisites: [], corequisites: [], equivalents: [], classification: 'optional' },
+      ],
+    };
+    const result = candidates({
+      ppc: classifiedPpc,
+      classificationFilter: 'all',
+      offerings: {
+        subjects: [
+          { code: 'MAT01', sections: [{ turma: '01', shift: 'day', sessions: [] }] },
+          { code: 'ELE01', sections: [{ turma: '01', shift: 'day', sessions: [] }] },
+        ],
+      },
+    });
+    expect(result.find((c) => c.subjectCode === 'MAT01')).toBeDefined();
+    expect(result.find((c) => c.subjectCode === 'ELE01')).toBeDefined();
+  });
+
+  it('does not restrict Custom Sections by the classification filter', () => {
+    const result = candidates({
+      classificationFilter: 'required',
+      customSections: [{ id: 'c1', name: 'Trabalho', applicability: 1, subjectCode: null, sessions: [] }],
+    });
+    expect(result.find((c) => c.subjectName === 'Trabalho')).toBeDefined();
+  });
+});
+
+describe('excludeAlreadyPlannedSections', () => {
+  it('excludes an offering Section already present by Subject code + turma', () => {
+    const result = excludeAlreadyPlannedSections(
+      [
+        {
+          subjectCode: 'MAT01',
+          subjectName: 'Cálculo I',
+          stale: false,
+          sections: [{ kind: 'offering', subjectCode: 'MAT01', turma: '01', sessions: [] }],
+        },
+      ],
+      [{ id: 'p1', kind: 'offering', subjectCode: 'MAT01', turma: '01', failed: false, audit: false }],
+    );
+    expect(result).toEqual([]);
+  });
+
+  it('keeps a different turma of an already-planned Subject (a Duplicate Subject, not excluded here)', () => {
+    const result = excludeAlreadyPlannedSections(
+      [
+        {
+          subjectCode: 'MAT01',
+          subjectName: 'Cálculo I',
+          stale: false,
+          sections: [{ kind: 'offering', subjectCode: 'MAT01', turma: '02', sessions: [] }],
+        },
+      ],
+      [{ id: 'p1', kind: 'offering', subjectCode: 'MAT01', turma: '01', failed: false, audit: false }],
+    );
+    expect(result).toHaveLength(1);
+  });
+
+  it('excludes a Custom Section already present by embedded name + sessions', () => {
+    const sessions = [{ day: 'Seg', startTime: '08:00', endTime: '10:00' }];
+    const result = excludeAlreadyPlannedSections(
+      [
+        {
+          subjectCode: null,
+          subjectName: 'Trabalho',
+          stale: false,
+          sections: [{ kind: 'custom', subjectCode: null, sourceCustomId: 'c1', custom: { name: 'Trabalho', sessions }, sessions }],
+        },
+      ],
+      [{ id: 'p1', kind: 'custom', subjectCode: null, custom: { name: 'Trabalho', sessions }, failed: false, audit: false }],
+    );
+    expect(result).toEqual([]);
+  });
+
+  it('drops a Subject entirely once every Section is excluded', () => {
+    const result = excludeAlreadyPlannedSections(
+      [
+        {
+          subjectCode: 'MAT01',
+          subjectName: 'Cálculo I',
+          stale: false,
+          sections: [{ kind: 'offering', subjectCode: 'MAT01', turma: '01', sessions: [] }],
+        },
+      ],
+      [{ id: 'p1', kind: 'offering', subjectCode: 'MAT01', turma: '01', failed: false, audit: false }],
+    );
+    expect(result.find((c) => c.subjectCode === 'MAT01')).toBeUndefined();
   });
 });
 

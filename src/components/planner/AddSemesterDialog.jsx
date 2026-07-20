@@ -10,7 +10,14 @@ import { evaluatePlan } from '../../domain/evaluation.js';
 import { buildCandidateSubjects, candidateSectionKey, pruneCorequisiteLookahead } from '../../domain/eligibility.js';
 import { effectiveShiftFilter, sectionsOverlap } from '../../domain/schedule.js';
 import { createPlannedSection, formatYearSemesterLabel, semesterPosition } from '../../domain/semester.js';
-import { COURSE_FILTER_OPTIONS, SHIFT_FILTER_OPTIONS } from '../../domain/format.js';
+import {
+  CLASSIFICATION_FILTER_LABEL,
+  COURSE_FILTER_LABEL,
+  SEMESTER_FILTER_LABEL,
+  SHIFT_FILTER_OPTIONS,
+} from '../../domain/format.js';
+import FilterCheckbox from './FilterCheckbox.jsx';
+import FilterToggle from './FilterToggle.jsx';
 import WeeklyGrid from './WeeklyGrid.jsx';
 
 const BUTTON_FOCUS_CLASS = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2';
@@ -30,7 +37,10 @@ export default function AddSemesterDialog({ open, profile, lastSemesterHasSignal
   const [selectedPpcId, setSelectedPpcId] = useState(profile.ppcId);
   const [shiftFilter, setShiftFilter] = useState(effectiveShiftFilter(profile));
   const [courseFilter, setCourseFilter] = useState('own');
+  const [semesterFilter, setSemesterFilter] = useState('suggested');
+  const [classificationFilter, setClassificationFilter] = useState('required');
   const [selectedKeys, setSelectedKeys] = useState(new Set());
+  const [highlightedKey, setHighlightedKey] = useState(null);
   const seenKeysRef = useRef(new Set());
 
   useEffect(() => {
@@ -38,7 +48,10 @@ export default function AddSemesterDialog({ open, profile, lastSemesterHasSignal
       setSelectedPpcId(profile.ppcId);
       setShiftFilter(effectiveShiftFilter(profile));
       setCourseFilter('own');
+      setSemesterFilter('suggested');
+      setClassificationFilter('required');
       setSelectedKeys(new Set());
+      setHighlightedKey(null);
       seenKeysRef.current = new Set();
       ref.current?.showModal();
     } else if (ref.current?.open) {
@@ -72,9 +85,23 @@ export default function AddSemesterDialog({ open, profile, lastSemesterHasSignal
       // time (UC-11 step 3), it isn't persisted yet — the PPC under review
       // is always the source of truth for its own course id.
       profileCourseId: ppc?.courseId ?? null,
+      semesterFilter,
+      semesterNumber: newIndex + 1,
+      classificationFilter,
     });
     return pruneCorequisiteLookahead(built, ppc, fulfillmentBefore);
-  }, [ppc, offerings, position, fulfillmentBefore, profile.customSections, shiftFilter, courseFilter]);
+  }, [
+    ppc,
+    offerings,
+    position,
+    fulfillmentBefore,
+    profile.customSections,
+    shiftFilter,
+    courseFilter,
+    semesterFilter,
+    newIndex,
+    classificationFilter,
+  ]);
 
   // Every newly-visible Section is pre-selected (UC-11 step 5); manual
   // (de)selections are preserved for Sections that remain visible across
@@ -100,6 +127,18 @@ export default function AddSemesterDialog({ open, profile, lastSemesterHasSignal
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
       else next.add(key);
+      return next;
+    });
+  }
+
+  function selectAllVisible() {
+    setSelectedKeys((prev) => {
+      const next = new Set(prev);
+      for (const candidate of candidates) {
+        for (const section of candidate.sections) {
+          next.add(candidateSectionKey(section));
+        }
+      }
       return next;
     });
   }
@@ -159,8 +198,8 @@ export default function AddSemesterDialog({ open, profile, lastSemesterHasSignal
   }
 
   return (
-    <dialog ref={ref} onClose={onClose} className="overscroll-contain w-[min(64rem,95vw)] rounded-lg p-0 backdrop:bg-slate-900/40">
-      <div className="flex max-h-[85vh] flex-col gap-4 p-6">
+    <dialog ref={ref} onClose={onClose} className="overscroll-contain w-[min(80rem,96vw)] rounded-lg p-0 backdrop:bg-slate-900/40">
+      <div className="flex max-h-[92vh] flex-col gap-4 p-6">
         <h2 className="text-lg font-semibold text-slate-900">Adicionar período</h2>
 
         {lastSemesterHasSignals && (
@@ -192,88 +231,103 @@ export default function AddSemesterDialog({ open, profile, lastSemesterHasSignal
             <div className="flex flex-wrap items-center justify-between gap-4">
               <p className="text-sm text-slate-600">{position && formatYearSemesterLabel(position)}</p>
               <div className="flex flex-wrap items-center gap-4">
-                <fieldset className="flex items-center gap-2 text-sm text-slate-600">
-                  <legend className="sr-only">Curso</legend>
-                  {COURSE_FILTER_OPTIONS.map((option) => (
-                    <label key={option.value} className="flex items-center gap-1">
-                      <input
-                        type="radio"
-                        name="add-semester-course"
-                        checked={courseFilter === option.value}
-                        onChange={() => setCourseFilter(option.value)}
-                        className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
-                      />
-                      {option.label}
-                    </label>
-                  ))}
-                </fieldset>
-                <fieldset className="flex items-center gap-2 text-sm text-slate-600">
-                  <legend className="sr-only">Turno</legend>
-                  {SHIFT_FILTER_OPTIONS.map((option) => (
-                    <label key={option.value} className="flex items-center gap-1">
-                      <input
-                        type="radio"
-                        name="add-semester-shift"
-                        checked={shiftFilter === option.value}
-                        onChange={() => handleShiftFilterChange(option.value)}
-                        className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
-                      />
-                      {option.label}
-                    </label>
-                  ))}
-                </fieldset>
+                <FilterCheckbox
+                  label={COURSE_FILTER_LABEL}
+                  checked={courseFilter === 'own'}
+                  onChange={(checked) => setCourseFilter(checked ? 'own' : 'all')}
+                />
+                <FilterCheckbox
+                  label={SEMESTER_FILTER_LABEL}
+                  checked={semesterFilter === 'advance'}
+                  onChange={(checked) => setSemesterFilter(checked ? 'advance' : 'suggested')}
+                />
+                <FilterCheckbox
+                  label={CLASSIFICATION_FILTER_LABEL}
+                  checked={classificationFilter === 'all'}
+                  onChange={(checked) => setClassificationFilter(checked ? 'all' : 'required')}
+                />
+                <FilterToggle
+                  legend="Turno"
+                  name="add-semester-shift"
+                  options={SHIFT_FILTER_OPTIONS}
+                  value={shiftFilter}
+                  onChange={handleShiftFilterChange}
+                />
               </div>
             </div>
 
-            <div className="grid flex-1 grid-cols-1 gap-4 overflow-hidden md:grid-cols-2">
-              <div className="overflow-y-auto pr-2">
-                {candidates.length === 0 ? (
-                  <p className="text-sm text-slate-500">Nenhuma disciplina elegível encontrada para este período.</p>
-                ) : (
-                  <ul className="space-y-3">
-                    {candidates.map((candidate) => {
-                      const isDuplicate = duplicateSubjectCodes.has(candidate.subjectCode);
-                      return (
-                        <li key={candidate.subjectCode ?? candidate.subjectName}>
-                          <p className={`text-sm font-semibold ${isDuplicate ? 'text-amber-700' : 'text-slate-800'}`}>
-                            {candidate.subjectName}
-                            {isDuplicate && ' — disciplina duplicada'}
-                          </p>
-                          <ul className="mt-1 space-y-1">
-                            {candidate.sections.map((section) => {
-                              const key = candidateSectionKey(section);
-                              return (
-                                <li key={key}>
-                                  <label
-                                    className={`flex items-center gap-2 rounded px-2 py-1 text-sm hover:bg-slate-50 ${conflictingKeys.has(key) ? 'text-red-700' : 'text-slate-700'}`}
-                                  >
-                                    <input
-                                      type="checkbox"
-                                      checked={selectedKeys.has(key)}
-                                      onChange={() => toggleSection(key)}
-                                      className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
-                                    />
-                                    {section.kind === 'offering' ? `Turma ${section.turma} — ${section.professor}` : section.custom.name}
-                                    {section.kind === 'offering' &&
-                                      courseFilter === 'all' &&
-                                      section.targetCourseId !== (ppc?.courseId ?? null) &&
-                                      section.targetCourseName &&
-                                      ` (${section.targetCourseName})`}
-                                    {conflictingKeys.has(key) && ' (conflito de horário)'}
-                                  </label>
-                                </li>
-                              );
-                            })}
-                          </ul>
-                        </li>
-                      );
-                    })}
-                  </ul>
+            <div className="grid flex-1 grid-cols-1 gap-4 overflow-hidden md:grid-cols-[20rem_1fr]">
+              <div className="flex min-h-0 flex-col">
+                {candidates.length > 0 && (
+                  <div className="flex justify-start pb-2">
+                    <button
+                      type="button"
+                      onClick={selectAllVisible}
+                      className={`text-xs font-medium text-slate-600 hover:underline rounded ${BUTTON_FOCUS_CLASS} focus-visible:ring-slate-400`}
+                    >
+                      Selecionar todas
+                    </button>
+                  </div>
                 )}
+                <div className="min-h-0 flex-1 overflow-y-auto pr-2">
+                  {candidates.length === 0 ? (
+                    <p className="text-sm text-slate-500">Nenhuma disciplina elegível encontrada para este período.</p>
+                  ) : (
+                    <ul className="space-y-3">
+                      {candidates.map((candidate) => {
+                        const isDuplicate = duplicateSubjectCodes.has(candidate.subjectCode);
+                        return (
+                          <li key={candidate.subjectCode ?? candidate.subjectName}>
+                            <p className={`text-sm font-semibold ${isDuplicate ? 'text-amber-700' : 'text-slate-800'}`}>
+                              {candidate.subjectName}
+                              {isDuplicate && ' — disciplina duplicada'}
+                            </p>
+                            <ul className="mt-1 space-y-1">
+                              {candidate.sections.map((section) => {
+                                const key = candidateSectionKey(section);
+                                return (
+                                  <li key={key}>
+                                    <label
+                                      onMouseEnter={() => setHighlightedKey(key)}
+                                      onMouseLeave={() => setHighlightedKey((current) => (current === key ? null : current))}
+                                      className={`flex items-center gap-2 rounded px-2 py-1 text-sm hover:bg-slate-50 ${conflictingKeys.has(key) ? 'text-red-700' : 'text-slate-700'} ${highlightedKey === key ? 'ring-2 ring-slate-500' : ''}`}
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        checked={selectedKeys.has(key)}
+                                        onChange={() => toggleSection(key)}
+                                        onFocus={() => setHighlightedKey(key)}
+                                        onBlur={() => setHighlightedKey((current) => (current === key ? null : current))}
+                                        className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
+                                      />
+                                      {section.kind === 'offering' ? `Turma ${section.turma}` : section.custom.name}
+                                      {section.kind === 'offering' &&
+                                        courseFilter === 'all' &&
+                                        section.targetCourseId !== (ppc?.courseId ?? null) &&
+                                        section.targetCourseName &&
+                                        ` (${section.targetCourseName})`}
+                                      {conflictingKeys.has(key) && ' (conflito de horário)'}
+                                    </label>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </div>
               </div>
 
               <div className="overflow-y-auto border-t border-slate-100 pt-3 md:border-t-0 md:border-l md:pt-0 md:pl-4">
-                <WeeklyGrid ppc={ppc} sections={previewSections} onSelect={() => {}} />
+                <WeeklyGrid
+                  ppc={ppc}
+                  sections={previewSections}
+                  onSelect={() => {}}
+                  highlightedSectionId={highlightedKey}
+                  onHoverSection={setHighlightedKey}
+                />
               </div>
             </div>
           </>

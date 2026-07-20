@@ -46,11 +46,14 @@ export const SHIFT_FILTER_OPTIONS = [
   { value: 'day', label: 'Dia inteiro' },
 ];
 
-/** Course filter toggle options (see docs/DOMAIN.md, Section). */
-export const COURSE_FILTER_OPTIONS = [
-  { value: 'own', label: 'Meu curso' },
-  { value: 'all', label: 'Todos os cursos' },
-];
+/** Course filter checkbox label (see docs/DOMAIN.md, Section): checked restricts to the profile's own course. */
+export const COURSE_FILTER_LABEL = 'Turmas do meu curso';
+
+/** Semester filter checkbox label (see docs/DOMAIN.md, Suggested Semester): checked also shows Subjects suggested for a later semester. */
+export const SEMESTER_FILTER_LABEL = 'Mostrar adiantadas';
+
+/** Classification filter checkbox label (see docs/DOMAIN.md, Subject): checked also shows Optional Subjects. */
+export const CLASSIFICATION_FILTER_LABEL = 'Optativas';
 
 export const SIGNAL_LABELS = {
   unmetRequisite: 'Requisito não atendido',

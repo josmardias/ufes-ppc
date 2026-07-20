@@ -5,8 +5,15 @@
 // before adding it.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { buildCandidateSubjects, candidateSectionKey } from '../../domain/eligibility.js';
-import { COURSE_FILTER_OPTIONS, SHIFT_FILTER_OPTIONS } from '../../domain/format.js';
+import { buildCandidateSubjects, candidateSectionKey, excludeAlreadyPlannedSections } from '../../domain/eligibility.js';
+import {
+  CLASSIFICATION_FILTER_LABEL,
+  COURSE_FILTER_LABEL,
+  SEMESTER_FILTER_LABEL,
+  SHIFT_FILTER_OPTIONS,
+} from '../../domain/format.js';
+import FilterCheckbox from './FilterCheckbox.jsx';
+import FilterToggle from './FilterToggle.jsx';
 import WeeklyGrid from './WeeklyGrid.jsx';
 
 const BUTTON_FOCUS_CLASS = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2';
@@ -23,6 +30,7 @@ const BUTTON_FOCUS_CLASS = 'focus-visible:outline-none focus-visible:ring-2 focu
  *   currentSections: Array, // already-planned, evaluated sections of the target semester
  *   shiftFilter: "morning"|"afternoon"|"day",
  *   profileCourseId: string|null,
+ *   semesterNumber: number, // 1-based ordinal of the semester being planned, matched against a Subject's Suggested Semester
  *   onShiftFilterChange: (value: string) => void,
  *   onConfirm: (sectionTemplate: object) => void,
  *   onClose: () => void,
@@ -39,6 +47,7 @@ export default function AddSectionDialog({
   currentSections,
   shiftFilter,
   profileCourseId,
+  semesterNumber,
   onShiftFilterChange,
   onConfirm,
   onClose,
@@ -46,33 +55,53 @@ export default function AddSectionDialog({
   const ref = useRef(null);
   const [chosenKey, setChosenKey] = useState(null);
   const [courseFilter, setCourseFilter] = useState('own');
+  const [semesterFilter, setSemesterFilter] = useState('suggested');
+  const [classificationFilter, setClassificationFilter] = useState('required');
 
   useEffect(() => {
     if (open) {
       setChosenKey(null);
       setCourseFilter('own');
+      setSemesterFilter('suggested');
+      setClassificationFilter('required');
       ref.current?.showModal();
     } else if (ref.current?.open) {
       ref.current.close();
     }
   }, [open]);
 
-  const candidates = useMemo(
-    () =>
-      buildCandidateSubjects({
-        ppc,
-        offerings,
-        yearSemester,
-        fulfillmentBefore,
-        sameSemesterCodes,
-        customSections,
-        shiftFilter,
-        checkCorequisites: true,
-        courseFilter,
-        profileCourseId,
-      }),
-    [ppc, offerings, yearSemester, fulfillmentBefore, sameSemesterCodes, customSections, shiftFilter, courseFilter, profileCourseId],
-  );
+  const candidates = useMemo(() => {
+    const built = buildCandidateSubjects({
+      ppc,
+      offerings,
+      yearSemester,
+      fulfillmentBefore,
+      sameSemesterCodes,
+      customSections,
+      shiftFilter,
+      checkCorequisites: true,
+      courseFilter,
+      profileCourseId,
+      semesterFilter,
+      semesterNumber,
+      classificationFilter,
+    });
+    return excludeAlreadyPlannedSections(built, currentSections);
+  }, [
+    ppc,
+    offerings,
+    yearSemester,
+    fulfillmentBefore,
+    sameSemesterCodes,
+    customSections,
+    currentSections,
+    shiftFilter,
+    courseFilter,
+    profileCourseId,
+    semesterFilter,
+    semesterNumber,
+    classificationFilter,
+  ]);
 
   const chosen = candidates.flatMap((c) => c.sections).find((s) => candidateSectionKey(s) === chosenKey) ?? null;
 
@@ -83,45 +112,36 @@ export default function AddSectionDialog({
   }
 
   return (
-    <dialog ref={ref} className="overscroll-contain w-[min(64rem,95vw)] rounded-lg p-0 backdrop:bg-slate-900/40" onClose={onClose}>
-      <div className="flex max-h-[85vh] flex-col gap-4 p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <h2 className="text-lg font-semibold text-slate-900">Adicionar turma</h2>
-          <div className="flex flex-wrap items-center gap-4">
-            <fieldset className="flex items-center gap-2 text-sm text-slate-600">
-              <legend className="sr-only">Curso</legend>
-              {COURSE_FILTER_OPTIONS.map((option) => (
-                <label key={option.value} className="flex items-center gap-1">
-                  <input
-                    type="radio"
-                    name="add-section-course"
-                    checked={courseFilter === option.value}
-                    onChange={() => setCourseFilter(option.value)}
-                    className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
-                  />
-                  {option.label}
-                </label>
-              ))}
-            </fieldset>
-            <fieldset className="flex items-center gap-2 text-sm text-slate-600">
-              <legend className="sr-only">Turno</legend>
-              {SHIFT_FILTER_OPTIONS.map((option) => (
-                <label key={option.value} className="flex items-center gap-1">
-                  <input
-                    type="radio"
-                    name="add-section-shift"
-                    checked={shiftFilter === option.value}
-                    onChange={() => onShiftFilterChange(option.value)}
-                    className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
-                  />
-                  {option.label}
-                </label>
-              ))}
-            </fieldset>
-          </div>
+    <dialog ref={ref} className="overscroll-contain w-[min(80rem,96vw)] rounded-lg p-0 backdrop:bg-slate-900/40" onClose={onClose}>
+      <div className="flex max-h-[92vh] flex-col gap-4 p-6">
+        <h2 className="text-lg font-semibold text-slate-900">Adicionar turma</h2>
+
+        <div className="flex flex-wrap items-center justify-end gap-4">
+          <FilterCheckbox
+            label={COURSE_FILTER_LABEL}
+            checked={courseFilter === 'own'}
+            onChange={(checked) => setCourseFilter(checked ? 'own' : 'all')}
+          />
+          <FilterCheckbox
+            label={SEMESTER_FILTER_LABEL}
+            checked={semesterFilter === 'advance'}
+            onChange={(checked) => setSemesterFilter(checked ? 'advance' : 'suggested')}
+          />
+          <FilterCheckbox
+            label={CLASSIFICATION_FILTER_LABEL}
+            checked={classificationFilter === 'all'}
+            onChange={(checked) => setClassificationFilter(checked ? 'all' : 'required')}
+          />
+          <FilterToggle
+            legend="Turno"
+            name="add-section-shift"
+            options={SHIFT_FILTER_OPTIONS}
+            value={shiftFilter}
+            onChange={onShiftFilterChange}
+          />
         </div>
 
-        <div className="grid flex-1 grid-cols-1 gap-4 overflow-hidden md:grid-cols-2">
+        <div className="grid flex-1 grid-cols-1 gap-4 overflow-hidden md:grid-cols-[20rem_1fr]">
           <div className="overflow-y-auto pr-2">
             {candidates.length === 0 ? (
               <p className="text-sm text-slate-500">Nenhuma turma disponível para este período com o turno selecionado.</p>
@@ -145,7 +165,7 @@ export default function AddSectionDialog({
                                 onChange={() => setChosenKey(key)}
                                 className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
                               />
-                              {section.kind === 'offering' ? `Turma ${section.turma} — ${section.professor}` : section.custom.name}
+                              {section.kind === 'offering' ? `Turma ${section.turma}` : section.custom.name}
                               {section.kind === 'offering' &&
                                 courseFilter === 'all' &&
                                 section.targetCourseId !== profileCourseId &&

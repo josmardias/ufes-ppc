@@ -34,11 +34,17 @@ export function severityIcon(section) {
   return null;
 }
 
-/** A short, stable label for a Section: its resolved Subject code (or Custom Section name). */
+/**
+ * A short, stable label for a Section: its resolved Subject name (or Custom
+ * Section name). The Subject code alone (e.g. "ELE15966") isn't meaningful
+ * to a student at a glance, so the name is preferred here; callers that
+ * render this in tight spaces should truncate and offer the full text via
+ * `title`/`aria-label`.
+ */
 export function sectionShortLabel(section, ppc) {
   if (section.kind === 'custom') return section.custom.name;
   const subject = ppc.subjects.find((s) => s.code === section.resolvedSubjectCode);
-  return subject?.code ?? section.subjectCode ?? '?';
+  return subject?.name ?? section.subjectCode ?? '?';
 }
 
 /** A full, accessible label for a Section, used as the button's accessible name. */
@@ -65,12 +71,31 @@ export function sectionAccessibleLabel(section, ppc, session) {
  *   sections: Array, // evaluated sections carrying non-empty `sessions` (see domain/evaluation.js)
  *   onSelect: (section: object) => void,
  *   previewSessions?: import('../../domain/schedule.js').Session[],
+ *   highlightedSectionId?: string|null, // externally-driven highlight, e.g. hovering a matching item outside the grid
+ *   onHoverSection?: (sectionId: string|null) => void, // notifies the caller when hover starts/ends here, for bidirectional highlighting
  * }} props
  */
-export default function WeeklyGrid({ ppc, sections, onSelect, previewSessions = [] }) {
+export default function WeeklyGrid({ ppc, sections, onSelect, previewSessions = [], highlightedSectionId = null, onHoverSection }) {
   // Hover/focus highlights every sibling session of the same Section (UC-09,
-  // step 5), not just the one under the pointer.
+  // step 5), not just the one under the pointer. An externally-driven
+  // `highlightedSectionId` (e.g. hovering a matching item in a list next to
+  // the grid) takes precedence, and hovering here is mirrored back out via
+  // `onHoverSection` so both sides of such a pairing stay in sync.
   const [hoveredSectionId, setHoveredSectionId] = useState(null);
+  const activeHighlightId = highlightedSectionId ?? hoveredSectionId;
+
+  function handleHoverStart(sectionId) {
+    setHoveredSectionId(sectionId);
+    onHoverSection?.(sectionId);
+  }
+
+  function handleHoverEnd(sectionId) {
+    setHoveredSectionId((current) => {
+      if (current !== sectionId) return current;
+      onHoverSection?.(null);
+      return null;
+    });
+  }
 
   const scheduled = sections.filter((section) => section.sessions.length > 0);
   const allSessions = scheduled.flatMap((section) => section.sessions.map((session) => ({ section, session })));
@@ -202,12 +227,13 @@ export default function WeeklyGrid({ ppc, sections, onSelect, previewSessions = 
                   key={`${section.id}-${i}`}
                   type="button"
                   onClick={() => onSelect(section)}
-                  onMouseEnter={() => setHoveredSectionId(section.id)}
-                  onMouseLeave={() => setHoveredSectionId((current) => (current === section.id ? null : current))}
-                  onFocus={() => setHoveredSectionId(section.id)}
-                  onBlur={() => setHoveredSectionId((current) => (current === section.id ? null : current))}
+                  onMouseEnter={() => handleHoverStart(section.id)}
+                  onMouseLeave={() => handleHoverEnd(section.id)}
+                  onFocus={() => handleHoverStart(section.id)}
+                  onBlur={() => handleHoverEnd(section.id)}
                   aria-label={sectionAccessibleLabel(section, ppc, session)}
-                  className={`absolute overflow-hidden rounded border px-1 py-0.5 text-left text-[11px] leading-tight focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 ${severityClass(section)} ${section.failed ? 'opacity-70' : ''} ${hoveredSectionId === section.id ? 'ring-2 ring-slate-500' : ''}`}
+                  title={sectionShortLabel(section, ppc)}
+                  className={`absolute overflow-hidden rounded border px-1 py-0.5 text-left text-[11px] leading-tight focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 ${severityClass(section)} ${section.failed ? 'opacity-70' : ''} ${activeHighlightId === section.id ? 'ring-2 ring-slate-500' : ''}`}
                   style={{
                     top: (timeToMinutes(session.startTime) - startMinutes) * PIXELS_PER_MINUTE,
                     height: Math.max((timeToMinutes(session.endTime) - timeToMinutes(session.startTime)) * PIXELS_PER_MINUTE, 20),
@@ -215,9 +241,9 @@ export default function WeeklyGrid({ ppc, sections, onSelect, previewSessions = 
                     width: `calc(${100 / totalColumns}% - 2px)`,
                   }}
                 >
-                  <span className={`flex items-center gap-0.5 font-medium ${section.failed ? 'line-through' : ''}`}>
+                  <span className={`flex min-w-0 items-center gap-0.5 font-medium ${section.failed ? 'line-through' : ''}`}>
                     {Icon && <Icon className="size-2.5 shrink-0" />}
-                    {sectionShortLabel(section, ppc)}
+                    <span className="truncate">{sectionShortLabel(section, ppc)}</span>
                   </span>
                   <span className="block text-[10px] opacity-80">
                     {session.startTime}–{session.endTime}

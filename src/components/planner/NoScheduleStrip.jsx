@@ -21,6 +21,7 @@ export default function NoScheduleStrip({ ppc, sections, onSelect }) {
                 type="button"
                 onClick={() => onSelect(section)}
                 aria-label={sectionAccessibleLabel(section, ppc)}
+                title={sectionShortLabel(section, ppc)}
                 className={`flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 ${severityClass(section)} ${section.failed ? 'line-through opacity-70' : ''}`}
               >
                 {Icon && <Icon className="size-3 shrink-0" />}

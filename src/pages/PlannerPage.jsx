@@ -14,6 +14,7 @@ import SemesterList from '../components/planner/SemesterList.jsx';
 import WeeklyGrid from '../components/planner/WeeklyGrid.jsx';
 import NoScheduleStrip from '../components/planner/NoScheduleStrip.jsx';
 import SectionDetailDialog from '../components/planner/SectionDetailDialog.jsx';
+import ResolveConflictDialog from '../components/planner/ResolveConflictDialog.jsx';
 import AddSectionDialog from '../components/planner/AddSectionDialog.jsx';
 import AddSemesterDialog from '../components/planner/AddSemesterDialog.jsx';
 import ConfirmDialog from '../components/ConfirmDialog.jsx';
@@ -85,9 +86,21 @@ export default function PlannerPage() {
     if (selection?.section.id === sectionId) closeSelection();
   }
 
-  // Derived data for the Section detail dialog's resolution flows (UC-25, UC-26).
-  const selectedSection = selection?.section ?? null;
+  function handleResolveConflict(semesterIndex, removedIds) {
+    for (const sectionId of removedIds) {
+      removeSectionFromSemester(profile.id, semesterIndex, sectionId);
+    }
+    closeSelection();
+  }
+
+  // Derived data for the Section detail/resolution dialogs (UC-25, UC-26).
+  // Re-derived from the freshly evaluated semester (by id) rather than
+  // trusting the Section object snapshotted at click time, so toggling
+  // Failed/Audit updates this dialog's own state immediately.
   const selectedSemester = selection ? semesters[selection.semesterIndex] : null;
+  const selectedSection = selection
+    ? (selectedSemester?.sections.find((s) => s.id === selection.section.id) ?? null)
+    : null;
   const conflictSections =
     selectedSection && selectedSemester
       ? selectedSemester.sections.filter(
@@ -100,6 +113,17 @@ export default function PlannerPage() {
           (s) => s.id !== selectedSection.id && s.resolvedSubjectCode === selectedSection.resolvedSubjectCode,
         )
       : [];
+  // Priority order per UC-25: Schedule Conflicts before Duplicate Subjects.
+  const signalType = !selectedSection
+    ? null
+    : selectedSection.signals.scheduleConflict
+      ? 'conflict'
+      : selectedSection.signals.duplicateSubject
+        ? 'duplicate'
+        : null;
+  const resolutionSet = selectedSection
+    ? [selectedSection, ...(signalType === 'conflict' ? conflictSections : signalType === 'duplicate' ? duplicateSections : [])]
+    : [];
   let redundantSource = null;
   if (selectedSection?.signals.redundantEnrollment && selectedSection.resolvedSubjectCode && selectedSemester) {
     const entry = selectedSemester.fulfillmentBefore.get(selectedSection.resolvedSubjectCode);
@@ -201,6 +225,7 @@ export default function PlannerPage() {
           currentSections={semester.sections}
           shiftFilter={effectiveShiftFilter(profile)}
           profileCourseId={profile.courseId}
+          semesterNumber={clampedIndex + 1}
           onShiftFilterChange={(value) => setShiftFilter(profile.id, value)}
           onConfirm={handleAddSection}
           onClose={() => setAddSectionOpen(false)}
@@ -208,15 +233,12 @@ export default function PlannerPage() {
       )}
 
       <SectionDetailDialog
-        open={selection != null}
+        open={selection != null && signalType == null}
         section={selectedSection}
         ppc={ppc}
-        conflictSections={conflictSections}
-        duplicateSections={duplicateSections}
         redundantSource={redundantSource}
         onClose={closeSelection}
         onRemove={() => selection && handleRemoveSection(selection.semesterIndex, selection.section.id)}
-        onRemoveOther={(sectionId) => selection && handleRemoveSection(selection.semesterIndex, sectionId)}
         onToggleFailed={() => {
           if (selection) toggleFailedMark(profile.id, selection.semesterIndex, selection.section.id);
         }}
@@ -226,6 +248,16 @@ export default function PlannerPage() {
         onMarkSourceAudit={() => {
           if (redundantSource?.kind === 'section') toggleAuditMark(profile.id, redundantSource.semesterIndex, redundantSource.sectionId);
         }}
+      />
+
+      <ResolveConflictDialog
+        open={selection != null && signalType != null}
+        referenceSection={selectedSection}
+        resolutionSet={resolutionSet}
+        signalType={signalType}
+        ppc={ppc}
+        onClose={closeSelection}
+        onConfirm={(_keeperId, removedIds) => selection && handleResolveConflict(selection.semesterIndex, removedIds)}
       />
 
       <ConfirmDialog

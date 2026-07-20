@@ -11,7 +11,7 @@ import { sectionMatchesShiftFilter } from './schedule.js';
  * @property {string|null} subjectCode - canonical PPC Subject code, or null for an unlinked Custom Section
  * @property {string} subjectName
  * @property {boolean} stale - true for a Custom Section whose link no longer resolves in the PPC
- * @property {Array<{kind: "offering"|"custom", subjectCode: string|null, turma?: string, professor?: string,
+ * @property {Array<{kind: "offering"|"custom", subjectCode: string|null, turma?: string,
  *   shift?: string, targetCourseId?: string, targetCourseName?: string, sessions: import('./types.js').Session[],
  *   custom?: object}>} sections
  */
@@ -36,6 +36,11 @@ import { sectionMatchesShiftFilter } from './schedule.js';
  *   checkCorequisites: boolean,
  *   courseFilter?: "own"|"all" - Section target-course toggle (see docs/DOMAIN.md, Section); defaults to "own"
  *   profileCourseId?: string|null - the Student's course id, matched against a Section's `targetCourseId`
+ *   semesterFilter?: "suggested"|"advance" - Suggested Semester toggle (see docs/DOMAIN.md, Suggested Semester);
+ *     "suggested" (default) excludes Subjects suggested for a later semester than `semesterNumber`
+ *   semesterNumber?: number|null - the 1-based ordinal of the semester being planned, matched against a Subject's `suggestedSemester`
+ *   classificationFilter?: "required"|"all" - Subject classification toggle (see docs/DOMAIN.md, Subject);
+ *     "required" (default) restricts to Required Subjects; "all" also includes Optional ones
  * }} params
  * @returns {CandidateSubject[]}
  */
@@ -57,6 +62,32 @@ function matchesCourseFilter(targetCourseId, courseFilter, profileCourseId) {
   return targetCourseId === profileCourseId;
 }
 
+/**
+ * Whether a Subject matches the effective semester filter (see docs/DOMAIN.md,
+ * Suggested Semester): "suggested" restricts to Subjects with no Suggested
+ * Semester, or one at or before the semester being planned; "advance"
+ * matches everything, including Subjects suggested for a later semester. A
+ * Subject with no Suggested Semester, or a caller with no known semester
+ * number, always matches.
+ */
+function matchesSemesterFilter(suggestedSemester, semesterFilter, semesterNumber) {
+  if (semesterFilter !== 'suggested') return true;
+  if (suggestedSemester == null || semesterNumber == null) return true;
+  return suggestedSemester <= semesterNumber;
+}
+
+/**
+ * Whether a Subject matches the effective classification filter (see
+ * docs/DOMAIN.md, Subject): "required" restricts to Required Subjects;
+ * anything else (e.g. "all") matches everything, including Optional
+ * Subjects. A Subject with no known classification always matches.
+ */
+function matchesClassificationFilter(classification, classificationFilter) {
+  if (classificationFilter !== 'required') return true;
+  if (classification == null) return true;
+  return classification === 'required';
+}
+
 export function buildCandidateSubjects({
   ppc,
   offerings,
@@ -68,6 +99,9 @@ export function buildCandidateSubjects({
   checkCorequisites,
   courseFilter = 'own',
   profileCourseId = null,
+  semesterFilter = 'suggested',
+  semesterNumber = null,
+  classificationFilter = 'required',
 }) {
   function isEligible(subject) {
     const fulfilled = fulfillmentBefore.has(subject.code);
@@ -80,6 +114,8 @@ export function buildCandidateSubjects({
       );
       if (!coreqsSatisfied) return false;
     }
+    if (!matchesSemesterFilter(subject.suggestedSemester, semesterFilter, semesterNumber)) return false;
+    if (!matchesClassificationFilter(subject.classification, classificationFilter)) return false;
     return true;
   }
 
@@ -104,7 +140,6 @@ export function buildCandidateSubjects({
         kind: 'offering',
         subjectCode: offeredSubject.code,
         turma: section.turma,
-        professor: section.professor,
         shift: section.shift,
         targetCourseId: section.targetCourseId,
         targetCourseName: section.targetCourseName,
@@ -137,6 +172,45 @@ export function buildCandidateSubjects({
   }
 
   return candidates;
+}
+
+/**
+ * Whether a candidate Section is already present, as-is, in the target
+ * Planned Semester (`currentSections`, the persisted shape — see
+ * domain/semester.js, `createPlannedSection`). An offering Section matches
+ * by Subject code + turma; a Custom Section has no persisted link back to
+ * its catalog entry, so it matches by its embedded name and sessions
+ * instead (see docs/DOMAIN.md, Custom Section).
+ */
+function matchesPlannedSection(section, planned) {
+  if (planned.kind !== section.kind) return false;
+  if (section.kind === 'offering') return planned.subjectCode === section.subjectCode && planned.turma === section.turma;
+  return (
+    planned.custom.name === section.custom.name &&
+    JSON.stringify(planned.custom.sessions) === JSON.stringify(section.custom.sessions)
+  );
+}
+
+/**
+ * Removes candidate Sections already present in `currentSections` (UC-12
+ * step 2 refinement): adding the exact same Section again would be a
+ * pointless duplicate — distinct from choosing a *different* Section of the
+ * same Subject, which is allowed and separately flagged as a Duplicate
+ * Subject. Drops a Subject entirely once every one of its Sections is
+ * excluded this way.
+ * @param {CandidateSubject[]} candidates
+ * @param {import('./types.js').PlannedSection[]} currentSections
+ * @returns {CandidateSubject[]}
+ */
+export function excludeAlreadyPlannedSections(candidates, currentSections) {
+  return candidates
+    .map((candidate) => ({
+      ...candidate,
+      sections: candidate.sections.filter(
+        (section) => !currentSections.some((planned) => matchesPlannedSection(section, planned)),
+      ),
+    }))
+    .filter((candidate) => candidate.sections.length > 0);
 }
 
 /**
