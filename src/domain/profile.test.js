@@ -38,6 +38,7 @@ describe('createProfileRecord', () => {
     expect(profile.ingressYearSemester).toBe(1);
     expect(profile.shift).toBe('morning');
     expect(profile.ppcId).toBeNull();
+    expect(profile.courseId).toBeNull();
     expect(profile.shiftFilter).toBeNull();
     expect(profile.semesters).toEqual([]);
     expect(profile.creditEntries).toEqual([]);

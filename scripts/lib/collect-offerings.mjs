@@ -20,12 +20,24 @@ function buildRelevantCodeSet(ppc) {
 }
 
 /**
- * Strips the Enrollment Scope / target course / seat-count fields, which are
- * not part of the Offerings dataset (see docs/ARCHITECTURE.md, "Offerings
- * dataset") — this tool does not model enrollment eligibility. Also
- * validates that the stored `shift` matches what the Sections' own sessions
- * recompute to, per the "Validation" step in docs/ARCHITECTURE.md's Data
- * Pipeline section.
+ * Strips a cohort/entry-semester marker from a course code (e.g. "12 B" →
+ * "12", see docs/DOMAIN.md, Section) — the id must identify the course only,
+ * never a cohort. Codes with no such marker are returned unchanged.
+ */
+export function normalizeCourseId(rawCode) {
+  const trimmed = rawCode.trim();
+  const match = trimmed.match(/^(\d+)\s+[A-Z]+$/);
+  return match ? match[1] : trimmed;
+}
+
+/**
+ * Strips the Enrollment Scope and seat-count fields, which are not part of
+ * the Offerings dataset (see docs/ARCHITECTURE.md, "Offerings dataset") —
+ * this tool does not model enrollment eligibility. Keeps the Section's
+ * target course as `targetCourseId`/`targetCourseName` (id normalized, see
+ * `normalizeCourseId`). Also validates that the stored `shift` matches what
+ * the Sections' own sessions recompute to, per the "Validation" step in
+ * docs/ARCHITECTURE.md's Data Pipeline section.
  */
 function toSnapshotSection(section, subjectCode) {
   const recomputedShift = computeShift(section.sessions);
@@ -39,6 +51,8 @@ function toSnapshotSection(section, subjectCode) {
     professor: section.professor,
     sessions: section.sessions,
     shift: section.shift,
+    targetCourseId: normalizeCourseId(section.targetCourseCode),
+    targetCourseName: section.targetCourseName,
   };
 }
 

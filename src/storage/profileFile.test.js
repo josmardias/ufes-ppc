@@ -7,6 +7,7 @@ function sampleProfile(overrides = {}) {
     id: 'internal-id',
     name: 'Maria',
     ppcId: null,
+    courseId: null,
     ingressYear: 2024,
     ingressYearSemester: 1,
     shift: 'morning',
@@ -26,6 +27,7 @@ describe('serializeProfileForExport', () => {
       profile: {
         name: 'Maria',
         ppcId: null,
+        courseId: null,
         ingressYear: 2024,
         ingressYearSemester: 1,
         shift: 'morning',
@@ -59,7 +61,7 @@ describe('parseProfileFile', () => {
   });
 
   it('accepts a profile referencing a known PPC', () => {
-    const exported = serializeProfileForExport(sampleProfile({ ppcId: 'engenharia-eletrica-2022' }));
+    const exported = serializeProfileForExport(sampleProfile({ ppcId: 'engenharia-eletrica-2022', courseId: '06' }));
     const result = parseProfileFile(JSON.stringify(exported));
     expect(result.ok).toBe(true);
   });

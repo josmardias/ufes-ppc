@@ -46,6 +46,12 @@ export const SHIFT_FILTER_OPTIONS = [
   { value: 'day', label: 'Dia inteiro' },
 ];
 
+/** Course filter toggle options (see docs/DOMAIN.md, Section). */
+export const COURSE_FILTER_OPTIONS = [
+  { value: 'own', label: 'Meu curso' },
+  { value: 'all', label: 'Todos os cursos' },
+];
+
 export const SIGNAL_LABELS = {
   unmetRequisite: 'Requisito não atendido',
   scheduleConflict: 'Conflito de horário',

@@ -278,6 +278,20 @@ describe('planner actions', () => {
     expect(useStore.getState().profiles[0].ppcId).toBe('test-ppc');
   });
 
+  it('setProfilePpc derives courseId from the chosen PPC', async () => {
+    const { useStore, profileId } = await setup();
+    const result = useStore.getState().setProfilePpc(profileId, 'engenharia-eletrica-2022');
+    expect(result.ok).toBe(true);
+    expect(useStore.getState().profiles[0].courseId).toBe('06');
+  });
+
+  it('setProfilePpc sets courseId to null for an unknown PPC', async () => {
+    const { useStore, profileId } = await setup();
+    const result = useStore.getState().setProfilePpc(profileId, 'test-ppc');
+    expect(result.ok).toBe(true);
+    expect(useStore.getState().profiles[0].courseId).toBeNull();
+  });
+
   it('addPlannedSemester appends a semester with the given sections and persists it', async () => {
     const { useStore, profileId } = await setup();
     const section = { id: 's1', kind: 'offering', subjectCode: 'MAT01', turma: '01', failed: false, audit: false };

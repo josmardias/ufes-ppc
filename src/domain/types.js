@@ -9,6 +9,8 @@
  * @property {string} id - generated, internal — never taken from imports
  * @property {string} name
  * @property {string|null} ppcId
+ * @property {string|null} courseId - official UFES course code, derived from the PPC dataset
+ *   whenever `ppcId` is set (see docs/ARCHITECTURE.md, `ProfileRecord`); null while `ppcId` is null
  * @property {number} ingressYear
  * @property {1|2} ingressYearSemester
  * @property {"day"|"morning"|"afternoon"} shift

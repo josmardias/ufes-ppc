@@ -15,6 +15,7 @@ export function validateImportedProfile(profile) {
   if (typeof profile !== 'object' || profile === null) return 'invalid';
   if (typeof profile.name !== 'string' || !profile.name.trim()) return 'invalid';
   if (profile.ppcId !== null && typeof profile.ppcId !== 'string') return 'invalid';
+  if (profile.courseId !== null && typeof profile.courseId !== 'string') return 'invalid';
   if (!Number.isInteger(profile.ingressYear)) return 'invalid';
   if (profile.ingressYearSemester !== 1 && profile.ingressYearSemester !== 2) return 'invalid';
   if (!SHIFTS.includes(profile.shift)) return 'invalid';

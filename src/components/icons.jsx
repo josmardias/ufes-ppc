@@ -99,3 +99,25 @@ export function IconUsers(props) {
     </Icon>
   );
 }
+
+/** Warning severity (see docs/DOMAIN.md, Planned Semester) — paired with color so signals stay legible for color-blind users. */
+export function IconAlertTriangle(props) {
+  return (
+    <Icon {...props}>
+      <path d="M12 3.5l9.5 16.5H2.5z" />
+      <path d="M12 10v4" />
+      <path d="M12 17.2v.1" />
+    </Icon>
+  );
+}
+
+/** Error severity (see docs/DOMAIN.md, Planned Semester) — paired with color so signals stay legible for color-blind users. */
+export function IconAlertCircle(props) {
+  return (
+    <Icon {...props}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7.5v5" />
+      <path d="M12 16v.1" />
+    </Icon>
+  );
+}

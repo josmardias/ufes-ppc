@@ -5,6 +5,7 @@
 import { create } from 'zustand';
 import { STORAGE_KEY, loadEnvelope, saveEnvelope } from '../storage/envelope.js';
 import { parseProfileFile, serializeProfileForExport } from '../storage/profileFile.js';
+import { getPpc } from '../data/index.js';
 import {
   cloneProfileRecord,
   createProfileRecord,
@@ -154,10 +155,11 @@ export const useStore = create((set, get) => ({
   },
 
   /**
-   * Sets the Course Curriculum (PPC) a profile follows (UC-11 step 3). Only
-   * allowed while the profile has no Planned Semesters; switching to a
+   * Sets the Course Curriculum (PPC) a profile follows (UC-11 step 3, UC-24).
+   * Only allowed while the profile has no Planned Semesters; switching to a
    * different PPC additionally requires no Credit Entries (see
-   * docs/DOMAIN.md, Student).
+   * docs/DOMAIN.md, Student). Also (re-)derives the profile's `courseId`
+   * from the chosen PPC (see docs/ARCHITECTURE.md, `ProfileRecord`).
    * @returns {{ ok: true, profile: import('../domain/types.js').ProfileRecord }
    *   |{ ok: false, error: 'not-found'|'has-semesters'|'has-credit-entries' }}
    */
@@ -168,7 +170,7 @@ export const useStore = create((set, get) => ({
     if (profile.semesters.length > 0) return { ok: false, error: 'has-semesters' };
     if (profile.ppcId !== ppcId && profile.creditEntries.length > 0) return { ok: false, error: 'has-credit-entries' };
 
-    const updated = updateProfile(get, set, id, (p) => ({ ...p, ppcId }));
+    const updated = updateProfile(get, set, id, (p) => ({ ...p, ppcId, courseId: getPpc(ppcId)?.courseId ?? null }));
     return { ok: true, profile: updated };
   },
 

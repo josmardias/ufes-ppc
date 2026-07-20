@@ -11,21 +11,10 @@ import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { collectCourseSnapshot } from './lib/collect-offerings.mjs';
+import { COURSES as courses } from './lib/courses-config.mjs';
 
 const scriptsDir = dirname(fileURLToPath(import.meta.url));
 const outputDir = join(scriptsDir, 'output');
-
-// Per-course config: the PPC to filter by and which source semester fills
-// which Year Semester slot (see docs/ARCHITECTURE.md, "Data Pipeline").
-const courses = [
-  {
-    ppcId: 'engenharia-eletrica-2022',
-    yearSemesters: {
-      1: { year: 2026, semester: 1 },
-      2: { year: 2025, semester: 2 },
-    },
-  },
-];
 
 function readJson(path) {
   return JSON.parse(readFileSync(path, 'utf8'));

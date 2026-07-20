@@ -4,6 +4,7 @@
 // both from scripts/validate-data.mjs and from tests.
 
 import { computeShift } from './parse-offerings.mjs';
+import { normalizeCourseId } from './collect-offerings.mjs';
 
 const CODE_RE = /^[A-Z]{2,5}\d{4,6}$/;
 const CLASSIFICATIONS = new Set(['required', 'optional']);
@@ -24,6 +25,9 @@ export function validatePpc(ppc) {
     errors.push('missing/empty subjects array');
     return errors;
   }
+
+  if (typeof ppc.courseId !== 'string' || !ppc.courseId) errors.push('missing/invalid courseId');
+  if (typeof ppc.courseName !== 'string' || !ppc.courseName) errors.push('missing/invalid courseName');
 
   const codes = new Set(ppc.subjects.map((s) => s.code));
   const seen = new Set();
@@ -85,6 +89,14 @@ export function validateOfferings(snapshot, relevantCodes) {
     }
     for (const section of s.sections) {
       const secLabel = `${label} turma ${section.turma ?? '?'}`;
+      if (typeof section.targetCourseId !== 'string' || !section.targetCourseId) {
+        errors.push(`${secLabel}: missing/invalid targetCourseId`);
+      } else if (normalizeCourseId(section.targetCourseId) !== section.targetCourseId) {
+        errors.push(`${secLabel}: targetCourseId "${section.targetCourseId}" still carries a cohort marker`);
+      }
+      if (typeof section.targetCourseName !== 'string' || !section.targetCourseName) {
+        errors.push(`${secLabel}: missing/invalid targetCourseName`);
+      }
       if (!Array.isArray(section.sessions)) {
         errors.push(`${secLabel}: sessions must be an array`);
         continue;

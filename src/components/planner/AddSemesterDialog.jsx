@@ -7,10 +7,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ppcs, getOfferings } from '../../data/index.js';
 import { evaluatePlan } from '../../domain/evaluation.js';
-import { buildCandidateSubjects, candidateSectionKey } from '../../domain/eligibility.js';
+import { buildCandidateSubjects, candidateSectionKey, pruneCorequisiteLookahead } from '../../domain/eligibility.js';
 import { effectiveShiftFilter, sectionsOverlap } from '../../domain/schedule.js';
 import { createPlannedSection, formatYearSemesterLabel, semesterPosition } from '../../domain/semester.js';
-import { SHIFT_FILTER_OPTIONS } from '../../domain/format.js';
+import { COURSE_FILTER_OPTIONS, SHIFT_FILTER_OPTIONS } from '../../domain/format.js';
 import WeeklyGrid from './WeeklyGrid.jsx';
 
 const BUTTON_FOCUS_CLASS = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2';
@@ -29,6 +29,7 @@ export default function AddSemesterDialog({ open, profile, lastSemesterHasSignal
   const ref = useRef(null);
   const [selectedPpcId, setSelectedPpcId] = useState(profile.ppcId);
   const [shiftFilter, setShiftFilter] = useState(effectiveShiftFilter(profile));
+  const [courseFilter, setCourseFilter] = useState('own');
   const [selectedKeys, setSelectedKeys] = useState(new Set());
   const seenKeysRef = useRef(new Set());
 
@@ -36,6 +37,7 @@ export default function AddSemesterDialog({ open, profile, lastSemesterHasSignal
     if (open) {
       setSelectedPpcId(profile.ppcId);
       setShiftFilter(effectiveShiftFilter(profile));
+      setCourseFilter('own');
       setSelectedKeys(new Set());
       seenKeysRef.current = new Set();
       ref.current?.showModal();
@@ -56,7 +58,7 @@ export default function AddSemesterDialog({ open, profile, lastSemesterHasSignal
 
   const candidates = useMemo(() => {
     if (!ppc || !position) return [];
-    return buildCandidateSubjects({
+    const built = buildCandidateSubjects({
       ppc,
       offerings,
       yearSemester: position.yearSemester,
@@ -65,8 +67,14 @@ export default function AddSemesterDialog({ open, profile, lastSemesterHasSignal
       customSections: profile.customSections,
       shiftFilter,
       checkCorequisites: false,
+      courseFilter,
+      // Not `profile.courseId`: while the PPC is being chosen for the first
+      // time (UC-11 step 3), it isn't persisted yet — the PPC under review
+      // is always the source of truth for its own course id.
+      profileCourseId: ppc?.courseId ?? null,
     });
-  }, [ppc, offerings, position, fulfillmentBefore, profile.customSections, shiftFilter]);
+    return pruneCorequisiteLookahead(built, ppc, fulfillmentBefore);
+  }, [ppc, offerings, position, fulfillmentBefore, profile.customSections, shiftFilter, courseFilter]);
 
   // Every newly-visible Section is pre-selected (UC-11 step 5); manual
   // (de)selections are preserved for Sections that remain visible across
@@ -143,6 +151,8 @@ export default function AddSemesterDialog({ open, profile, lastSemesterHasSignal
     };
   });
 
+  const issueCount = previewSections.filter((s) => s.signals.scheduleConflict || s.signals.duplicateSubject).length;
+
   function handleConfirm() {
     const sections = chosen.map(({ section }) => createPlannedSection(section));
     onConfirm(selectedPpcId, sections);
@@ -179,23 +189,40 @@ export default function AddSemesterDialog({ open, profile, lastSemesterHasSignal
           </fieldset>
         ) : (
           <>
-            <div className="flex items-center justify-between gap-4">
+            <div className="flex flex-wrap items-center justify-between gap-4">
               <p className="text-sm text-slate-600">{position && formatYearSemesterLabel(position)}</p>
-              <fieldset className="flex items-center gap-2 text-sm text-slate-600">
-                <legend className="sr-only">Turno</legend>
-                {SHIFT_FILTER_OPTIONS.map((option) => (
-                  <label key={option.value} className="flex items-center gap-1">
-                    <input
-                      type="radio"
-                      name="add-semester-shift"
-                      checked={shiftFilter === option.value}
-                      onChange={() => handleShiftFilterChange(option.value)}
-                      className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
-                    />
-                    {option.label}
-                  </label>
-                ))}
-              </fieldset>
+              <div className="flex flex-wrap items-center gap-4">
+                <fieldset className="flex items-center gap-2 text-sm text-slate-600">
+                  <legend className="sr-only">Curso</legend>
+                  {COURSE_FILTER_OPTIONS.map((option) => (
+                    <label key={option.value} className="flex items-center gap-1">
+                      <input
+                        type="radio"
+                        name="add-semester-course"
+                        checked={courseFilter === option.value}
+                        onChange={() => setCourseFilter(option.value)}
+                        className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
+                      />
+                      {option.label}
+                    </label>
+                  ))}
+                </fieldset>
+                <fieldset className="flex items-center gap-2 text-sm text-slate-600">
+                  <legend className="sr-only">Turno</legend>
+                  {SHIFT_FILTER_OPTIONS.map((option) => (
+                    <label key={option.value} className="flex items-center gap-1">
+                      <input
+                        type="radio"
+                        name="add-semester-shift"
+                        checked={shiftFilter === option.value}
+                        onChange={() => handleShiftFilterChange(option.value)}
+                        className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
+                      />
+                      {option.label}
+                    </label>
+                  ))}
+                </fieldset>
+              </div>
             </div>
 
             <div className="grid flex-1 grid-cols-1 gap-4 overflow-hidden md:grid-cols-2">
@@ -227,6 +254,11 @@ export default function AddSemesterDialog({ open, profile, lastSemesterHasSignal
                                       className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
                                     />
                                     {section.kind === 'offering' ? `Turma ${section.turma} — ${section.professor}` : section.custom.name}
+                                    {section.kind === 'offering' &&
+                                      courseFilter === 'all' &&
+                                      section.targetCourseId !== (ppc?.courseId ?? null) &&
+                                      section.targetCourseName &&
+                                      ` (${section.targetCourseName})`}
                                     {conflictingKeys.has(key) && ' (conflito de horário)'}
                                   </label>
                                 </li>
@@ -247,7 +279,12 @@ export default function AddSemesterDialog({ open, profile, lastSemesterHasSignal
           </>
         )}
 
-        <div className="flex justify-end gap-2 border-t border-slate-100 pt-3">
+        <div className="flex items-center justify-end gap-3 border-t border-slate-100 pt-3">
+          {ppc && issueCount > 0 && (
+            <p className="text-sm text-amber-700">
+              {issueCount} {issueCount === 1 ? 'pendência na seleção' : 'pendências na seleção'}
+            </p>
+          )}
           <button
             type="button"
             onClick={onClose}

@@ -11,6 +11,7 @@ import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { assemblePpc } from './lib/assemble-ppc.mjs';
+import { COURSES } from './lib/courses-config.mjs';
 
 const scriptsDir = dirname(fileURLToPath(import.meta.url));
 const outputDir = join(scriptsDir, 'output');
@@ -24,7 +25,12 @@ if (subjectsFiles.length === 0) {
 
 for (const file of subjectsFiles) {
   const merged = JSON.parse(readFileSync(join(outputDir, file), 'utf8'));
-  const ppc = assemblePpc(merged);
+  const course = COURSES.find((c) => c.ppcId === merged.ppcId);
+  if (!course) {
+    console.error(`No course config found for PPC "${merged.ppcId}" in scripts/lib/courses-config.mjs.`);
+    process.exit(1);
+  }
+  const ppc = assemblePpc(merged, course);
 
   console.log(
     `${ppc.id}: assembled ${ppc.subjects.length} subjects ` +

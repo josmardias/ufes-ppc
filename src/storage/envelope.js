@@ -2,10 +2,12 @@
 // "src/storage" and "Persistence"). This is the only module allowed to call
 // `localStorage`; it is called only by src/store.
 
+import { getPpc } from '../data/index.js';
+
 export const STORAGE_KEY = 'ufes-ppc:envelope';
 
 /** Bumped on breaking shape changes; see the `migrations` map below. */
-export const CURRENT_SCHEMA_VERSION = 1;
+export const CURRENT_SCHEMA_VERSION = 2;
 
 /** @returns {import('../domain/types.js').Envelope} */
 export function defaultEnvelope() {
@@ -13,10 +15,26 @@ export function defaultEnvelope() {
 }
 
 /**
- * Sequential migration functions, keyed by the schema version they migrate
- * FROM (e.g. `1: migrateV1toV2`). Empty until the first breaking change.
+ * Adds `ProfileRecord.courseId` (see docs/ARCHITECTURE.md, `ProfileRecord`):
+ * the official UFES course code, derived from the PPC dataset referenced by
+ * `ppcId` (null while `ppcId` is null, or if it no longer resolves).
  */
-const migrations = {};
+function migrateV1toV2(envelope) {
+  return {
+    ...envelope,
+    schemaVersion: 2,
+    profiles: envelope.profiles.map((profile) => ({
+      ...profile,
+      courseId: profile.ppcId ? (getPpc(profile.ppcId)?.courseId ?? null) : null,
+    })),
+  };
+}
+
+/**
+ * Sequential migration functions, keyed by the schema version they migrate
+ * FROM (e.g. `1: migrateV1toV2`).
+ */
+const migrations = { 1: migrateV1toV2 };
 
 /**
  * Applies sequential migrations to bring an envelope-shaped object up to

@@ -5,3 +5,11 @@
 button {
   touch-action: manipulation;
 }
+
+/* Tailwind's preflight resets the user-agent `margin: auto` that normally
+   centers an open <dialog> in the viewport, leaving it pinned to the
+   top-left (see docs/ARCHITECTURE.md, "src/components"). Restoring it here
+   covers every dialog in the app without a per-component wrapper. */
+dialog {
+  margin: auto;
+}

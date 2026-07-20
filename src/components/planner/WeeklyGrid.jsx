@@ -4,8 +4,10 @@
 // without sessions (e.g. Estágio) are not placed here — the caller renders
 // them in a separate "no schedule" strip (see PlannerPage.jsx).
 
+import { useState } from 'react';
 import { WEEKDAY_LABELS, WEEKDAY_ORDER } from '../../domain/format.js';
 import { timeToMinutes } from '../../domain/schedule.js';
+import { IconAlertCircle, IconAlertTriangle } from '../icons.jsx';
 
 const PIXELS_PER_MINUTE = 1;
 const DEFAULT_START_HOUR = 7;
@@ -17,6 +19,19 @@ export function severityClass(section) {
     return 'border-amber-400 bg-amber-50 text-amber-800 hover:bg-amber-100';
   }
   return 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50';
+}
+
+/**
+ * The severity icon paired with `severityClass`'s color (see docs/DOMAIN.md,
+ * Planned Semester) so a signal stays legible without relying on color
+ * alone. Returns `null` for a clean Section.
+ */
+export function severityIcon(section) {
+  if (section.signals?.unmetRequisite) return IconAlertCircle;
+  if (section.signals?.scheduleConflict || section.signals?.duplicateSubject || section.signals?.redundantEnrollment) {
+    return IconAlertTriangle;
+  }
+  return null;
 }
 
 /** A short, stable label for a Section: its resolved Subject code (or Custom Section name). */
@@ -53,6 +68,10 @@ export function sectionAccessibleLabel(section, ppc, session) {
  * }} props
  */
 export default function WeeklyGrid({ ppc, sections, onSelect, previewSessions = [] }) {
+  // Hover/focus highlights every sibling session of the same Section (UC-09,
+  // step 5), not just the one under the pointer.
+  const [hoveredSectionId, setHoveredSectionId] = useState(null);
+
   const scheduled = sections.filter((section) => section.sessions.length > 0);
   const allSessions = scheduled.flatMap((section) => section.sessions.map((session) => ({ section, session })));
   const usesSaturday = allSessions.some(({ session }) => session.day === 'Sáb' || session.day === 'Sab');
@@ -176,28 +195,36 @@ export default function WeeklyGrid({ ppc, sections, onSelect, previewSessions = 
                 />
               ))}
 
-            {layoutSessionsForDay(sessionsForDay(day)).map(({ section, session, colIndex, totalColumns }, i) => (
-              <button
-                key={`${section.id}-${i}`}
-                type="button"
-                onClick={() => onSelect(section)}
-                aria-label={sectionAccessibleLabel(section, ppc, session)}
-                className={`absolute overflow-hidden rounded border px-1 py-0.5 text-left text-[11px] leading-tight focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 ${severityClass(section)} ${section.failed ? 'opacity-70' : ''}`}
-                style={{
-                  top: (timeToMinutes(session.startTime) - startMinutes) * PIXELS_PER_MINUTE,
-                  height: Math.max((timeToMinutes(session.endTime) - timeToMinutes(session.startTime)) * PIXELS_PER_MINUTE, 20),
-                  left: `calc(${(colIndex / totalColumns) * 100}% + 1px)`,
-                  width: `calc(${100 / totalColumns}% - 2px)`,
-                }}
-              >
-                <span className={`block font-medium ${section.failed ? 'line-through' : ''}`}>
-                  {sectionShortLabel(section, ppc)}
-                </span>
-                <span className="block text-[10px] opacity-80">
-                  {session.startTime}–{session.endTime}
-                </span>
-              </button>
-            ))}
+            {layoutSessionsForDay(sessionsForDay(day)).map(({ section, session, colIndex, totalColumns }, i) => {
+              const Icon = severityIcon(section);
+              return (
+                <button
+                  key={`${section.id}-${i}`}
+                  type="button"
+                  onClick={() => onSelect(section)}
+                  onMouseEnter={() => setHoveredSectionId(section.id)}
+                  onMouseLeave={() => setHoveredSectionId((current) => (current === section.id ? null : current))}
+                  onFocus={() => setHoveredSectionId(section.id)}
+                  onBlur={() => setHoveredSectionId((current) => (current === section.id ? null : current))}
+                  aria-label={sectionAccessibleLabel(section, ppc, session)}
+                  className={`absolute overflow-hidden rounded border px-1 py-0.5 text-left text-[11px] leading-tight focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 ${severityClass(section)} ${section.failed ? 'opacity-70' : ''} ${hoveredSectionId === section.id ? 'ring-2 ring-slate-500' : ''}`}
+                  style={{
+                    top: (timeToMinutes(session.startTime) - startMinutes) * PIXELS_PER_MINUTE,
+                    height: Math.max((timeToMinutes(session.endTime) - timeToMinutes(session.startTime)) * PIXELS_PER_MINUTE, 20),
+                    left: `calc(${(colIndex / totalColumns) * 100}% + 1px)`,
+                    width: `calc(${100 / totalColumns}% - 2px)`,
+                  }}
+                >
+                  <span className={`flex items-center gap-0.5 font-medium ${section.failed ? 'line-through' : ''}`}>
+                    {Icon && <Icon className="size-2.5 shrink-0" />}
+                    {sectionShortLabel(section, ppc)}
+                  </span>
+                  <span className="block text-[10px] opacity-80">
+                    {session.startTime}–{session.endTime}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         ))}
       </div>

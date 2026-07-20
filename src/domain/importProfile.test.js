@@ -5,6 +5,7 @@ function validProfile(overrides = {}) {
   return {
     name: 'Maria',
     ppcId: null,
+    courseId: null,
     ingressYear: 2024,
     ingressYearSemester: 1,
     shift: 'morning',
@@ -22,7 +23,11 @@ describe('validateImportedProfile', () => {
   });
 
   it('accepts a well-formed profile referencing a known PPC', () => {
-    expect(validateImportedProfile(validProfile({ ppcId: 'engenharia-eletrica-2022' }))).toBeNull();
+    expect(validateImportedProfile(validProfile({ ppcId: 'engenharia-eletrica-2022', courseId: '06' }))).toBeNull();
+  });
+
+  it('rejects an invalid courseId', () => {
+    expect(validateImportedProfile(validProfile({ courseId: 42 }))).toBe('invalid');
   });
 
   it('rejects a profile referencing an unknown PPC', () => {

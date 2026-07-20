@@ -6,7 +6,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { buildCandidateSubjects, candidateSectionKey } from '../../domain/eligibility.js';
-import { SHIFT_FILTER_OPTIONS } from '../../domain/format.js';
+import { COURSE_FILTER_OPTIONS, SHIFT_FILTER_OPTIONS } from '../../domain/format.js';
 import WeeklyGrid from './WeeklyGrid.jsx';
 
 const BUTTON_FOCUS_CLASS = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2';
@@ -22,6 +22,7 @@ const BUTTON_FOCUS_CLASS = 'focus-visible:outline-none focus-visible:ring-2 focu
  *   customSections: Array,
  *   currentSections: Array, // already-planned, evaluated sections of the target semester
  *   shiftFilter: "morning"|"afternoon"|"day",
+ *   profileCourseId: string|null,
  *   onShiftFilterChange: (value: string) => void,
  *   onConfirm: (sectionTemplate: object) => void,
  *   onClose: () => void,
@@ -37,16 +38,19 @@ export default function AddSectionDialog({
   customSections,
   currentSections,
   shiftFilter,
+  profileCourseId,
   onShiftFilterChange,
   onConfirm,
   onClose,
 }) {
   const ref = useRef(null);
   const [chosenKey, setChosenKey] = useState(null);
+  const [courseFilter, setCourseFilter] = useState('own');
 
   useEffect(() => {
     if (open) {
       setChosenKey(null);
+      setCourseFilter('own');
       ref.current?.showModal();
     } else if (ref.current?.open) {
       ref.current.close();
@@ -64,8 +68,10 @@ export default function AddSectionDialog({
         customSections,
         shiftFilter,
         checkCorequisites: true,
+        courseFilter,
+        profileCourseId,
       }),
-    [ppc, offerings, yearSemester, fulfillmentBefore, sameSemesterCodes, customSections, shiftFilter],
+    [ppc, offerings, yearSemester, fulfillmentBefore, sameSemesterCodes, customSections, shiftFilter, courseFilter, profileCourseId],
   );
 
   const chosen = candidates.flatMap((c) => c.sections).find((s) => candidateSectionKey(s) === chosenKey) ?? null;
@@ -79,23 +85,40 @@ export default function AddSectionDialog({
   return (
     <dialog ref={ref} className="overscroll-contain w-[min(64rem,95vw)] rounded-lg p-0 backdrop:bg-slate-900/40" onClose={onClose}>
       <div className="flex max-h-[85vh] flex-col gap-4 p-6">
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-wrap items-start justify-between gap-4">
           <h2 className="text-lg font-semibold text-slate-900">Adicionar turma</h2>
-          <fieldset className="flex items-center gap-2 text-sm text-slate-600">
-            <legend className="sr-only">Turno</legend>
-            {SHIFT_FILTER_OPTIONS.map((option) => (
-              <label key={option.value} className="flex items-center gap-1">
-                <input
-                  type="radio"
-                  name="add-section-shift"
-                  checked={shiftFilter === option.value}
-                  onChange={() => onShiftFilterChange(option.value)}
-                  className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
-                />
-                {option.label}
-              </label>
-            ))}
-          </fieldset>
+          <div className="flex flex-wrap items-center gap-4">
+            <fieldset className="flex items-center gap-2 text-sm text-slate-600">
+              <legend className="sr-only">Curso</legend>
+              {COURSE_FILTER_OPTIONS.map((option) => (
+                <label key={option.value} className="flex items-center gap-1">
+                  <input
+                    type="radio"
+                    name="add-section-course"
+                    checked={courseFilter === option.value}
+                    onChange={() => setCourseFilter(option.value)}
+                    className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
+                  />
+                  {option.label}
+                </label>
+              ))}
+            </fieldset>
+            <fieldset className="flex items-center gap-2 text-sm text-slate-600">
+              <legend className="sr-only">Turno</legend>
+              {SHIFT_FILTER_OPTIONS.map((option) => (
+                <label key={option.value} className="flex items-center gap-1">
+                  <input
+                    type="radio"
+                    name="add-section-shift"
+                    checked={shiftFilter === option.value}
+                    onChange={() => onShiftFilterChange(option.value)}
+                    className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
+                  />
+                  {option.label}
+                </label>
+              ))}
+            </fieldset>
+          </div>
         </div>
 
         <div className="grid flex-1 grid-cols-1 gap-4 overflow-hidden md:grid-cols-2">
@@ -123,6 +146,11 @@ export default function AddSectionDialog({
                                 className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
                               />
                               {section.kind === 'offering' ? `Turma ${section.turma} — ${section.professor}` : section.custom.name}
+                              {section.kind === 'offering' &&
+                                courseFilter === 'all' &&
+                                section.targetCourseId !== profileCourseId &&
+                                section.targetCourseName &&
+                                ` (${section.targetCourseName})`}
                             </label>
                           </li>
                         );

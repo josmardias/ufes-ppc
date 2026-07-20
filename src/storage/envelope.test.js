@@ -31,3 +31,47 @@ describe('envelope storage', () => {
     expect(() => loadEnvelope()).toThrow(/No migration available/);
   });
 });
+
+describe('migrateV1toV2 (adds ProfileRecord.courseId)', () => {
+  it('derives courseId from the PPC referenced by ppcId', () => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        schemaVersion: 1,
+        activeProfileId: null,
+        profiles: [{ id: 'p1', ppcId: 'engenharia-eletrica-2022', semesters: [] }],
+      }),
+    );
+
+    const envelope = loadEnvelope();
+
+    expect(envelope.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+    expect(envelope.profiles[0].courseId).toBe('06');
+  });
+
+  it('sets courseId to null when ppcId is null', () => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ schemaVersion: 1, activeProfileId: null, profiles: [{ id: 'p1', ppcId: null, semesters: [] }] }),
+    );
+
+    const envelope = loadEnvelope();
+
+    expect(envelope.profiles[0].courseId).toBeNull();
+  });
+
+  it('sets courseId to null when ppcId no longer resolves', () => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        schemaVersion: 1,
+        activeProfileId: null,
+        profiles: [{ id: 'p1', ppcId: 'does-not-exist', semesters: [] }],
+      }),
+    );
+
+    const envelope = loadEnvelope();
+
+    expect(envelope.profiles[0].courseId).toBeNull();
+  });
+});

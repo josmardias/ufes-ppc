@@ -28,6 +28,7 @@ export function createProfileRecord({ name, ingressYear, ingressYearSemester, sh
     id: crypto.randomUUID(),
     name: name.trim(),
     ppcId: null,
+    courseId: null,
     ingressYear,
     ingressYearSemester,
     shift,

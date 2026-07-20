@@ -200,6 +200,7 @@ export default function PlannerPage() {
           customSections={profile.customSections}
           currentSections={semester.sections}
           shiftFilter={effectiveShiftFilter(profile)}
+          profileCourseId={profile.courseId}
           onShiftFilterChange={(value) => setShiftFilter(profile.id, value)}
           onConfirm={handleAddSection}
           onClose={() => setAddSectionOpen(false)}
