@@ -201,7 +201,7 @@ Domain terms follow the same convention as `DOMAIN.md`: English name with PT-BR 
 
 The planner presents a Planned Semester as a **weekly schedule**: each Section's sessions are placed on a day × time grid, and Sections without sessions (e.g. Estágio) appear in a separate "no schedule" strip alongside it. The list of Planned Semesters stays visible next to the schedule, each entry carrying its status — clean, warnings only, or errors (see `DOMAIN.md`, Planned Semester) — and the semester matching the real-world current date (derived from the ingress information) is discreetly marked. A planning signal always flags a Section as a whole: every session of a flagged Section shows the signal's severity, not just the conflicting one.
 
-**Any** Planned Semester can be edited — Sections added (UC-12) or removed (UC-13), Failed Marks (UC-22, UC-23) and Audit Marks (UC-20, UC-21) toggled. Every edit re-evaluates the planning signals for that semester and all later ones, cascading recursively (see `DOMAIN.md`, Unmet Requisite). The typical rhythm: real-world grades arrive, the user marks a Section as failed in the semester where it happened, then sweeps forward through the later semesters resolving the signals that surfaced — re-adding the failed Subject somewhere (UC-12), choosing which of the conflicting Sections to keep (UC-25) — until every semester is clean again. Only the **last** Planned Semester can be deleted (UC-14).
+**Any** Planned Semester can be edited — Sections added (UC-12) or removed (UC-13), Failed Marks (UC-22, UC-23) and Audit Marks (UC-20, UC-21) toggled. Every edit re-evaluates the planning signals for that semester and all later ones, cascading recursively (see `DOMAIN.md`, Unmet Requisite). The typical rhythm: real-world grades arrive, the user marks a Section as failed in the semester where it happened, then sweeps forward through the later semesters resolving the signals that surfaced — re-adding the failed Subject somewhere (UC-12), choosing which of the conflicting Sections to keep, or pruning some without electing one (UC-25) — until every semester is clean again. Only the **last** Planned Semester can be deleted (UC-14).
 
 ### UC-09 — View Schedule Planner
 
@@ -217,7 +217,7 @@ The planner presents a Planned Semester as a **weekly schedule**: each Section's
 2. The system presents the list of the Student's Planned Semesters, each with its status — clean, warnings only, or errors — and marks the one corresponding to the real-world current date, when the plan reaches it.
 3. The system presents the selected Planned Semester as a weekly schedule: sessions on the day × time grid, session-less Sections in the "no schedule" strip, Failed Marks and Audit Marks indicated.
 4. Sections flagged by planning signals are visually distinguished by severity — warning (Schedule Conflict, Duplicate Subject, Redundant Enrollment) or error (Unmet Requisite) — across **all** their sessions.
-5. Selecting a session (or a strip chip) emphasizes the sibling sessions of the same Section and opens its details: the resolution flow when flagged (UC-25, UC-26), otherwise the Section's data and its actions — remove (UC-13), Failed Mark (UC-22, UC-23), Audit Mark (UC-20, UC-21).
+5. Selecting a session (or a strip chip) emphasizes the sibling sessions of the same Section and opens its details: the resolution flow when the clicked session collides in time or the Section is a Duplicate Subject (UC-25); otherwise the Section's data and its actions — remove (UC-13), Failed Mark (UC-22, UC-23), Audit Mark (UC-20, UC-21), and the Redundant Enrollment resolution when flagged (UC-26). A Section that collides only at other sessions opens its plain details from a collision-free session — the resolution flow is one click away, on the colliding ones.
 
 **Notes:**
 - The grid shows Monday–Friday, adding Saturday only when some Section in the semester holds a Saturday session; its time range covers all sessions in the semester.
@@ -335,6 +335,7 @@ The planner presents a Planned Semester as a **weekly schedule**: each Section's
 - Removing a Section whose Subject is a co-requisite for another Section remaining in the same semester will surface a new Unmet Requisite. The system highlights this but does not block the removal.
 - Removing a Section from an earlier Planned Semester may surface Unmet Requisites in later semesters, cascading recursively through Sections that depended on it. These are surfaced as information, never as a block.
 - Removing a Section also removes any Failed Mark or Audit Mark it carries.
+- A Section can also be removed from inside the resolution flow (UC-25) — same semantics, applied immediately to one Section at a time.
 
 **Alternative Flow — User cancels:**
 - No changes are made.
@@ -373,26 +374,33 @@ The planner presents a Planned Semester as a **weekly schedule**: each Section's
 
 **Actor:** User
 
-**Goal:** Starting from a flagged Section, choose which of a set of mutually exclusive Sections to keep — resolving a Schedule Conflict or a Duplicate Subject in one confirmation.
+**Goal:** Starting from a clicked session, act on the set of mutually exclusive Sections it participates in — electing one Section to keep in one confirmation, pruning individual Sections immediately without committing to a keeper, or combining both.
 
 **Preconditions:**
 - The Schedule Planner is open.
-- The selected Planned Semester contains a Section flagged with a Schedule Conflict or a Duplicate Subject.
+- In the selected Planned Semester, the clicked session overlaps another Section's session in time, or the clicked Section is flagged as a Duplicate Subject.
 
 **Main Flow:**
-1. The user selects a flagged Section (any of its sessions).
-2. The system isolates the resolution set, one signal type at a time, in priority order: if the Section has Schedule Conflicts, the set is the Section plus every Section overlapping it in time; otherwise, if it is a Duplicate Subject, the set is all Sections of that Subject in the semester. Everything outside the set is de-emphasized, and the clicked Section is highlighted as the reference.
-3. The system presents the details of the involved Sections; the user chooses which Section to keep, changing the choice freely — nothing is persisted while deciding.
-4. The user confirms.
-5. The system removes, among the involved Sections, those in conflict with the kept one — and only those — persists the change, and re-evaluates planning signals for this semester and all later ones.
+1. The user selects a session of a Section (or its strip chip).
+2. The system determines the resolution pass, one signal type at a time, in priority order — and with it the **anchor** and the **resolution set**:
+   - **Schedule Conflict pass** — when the clicked session overlaps other Sections' sessions in time. The anchor is the clicked session's time window (day and time range, captured at that moment); the set is every Section with a session overlapping that window. Sections colliding with the clicked Section only at other times are **not** included — each collision is resolved from its own session.
+   - **Duplicate Subject pass** — otherwise, when the Section is flagged as a Duplicate Subject. The anchor is the Subject; the set is every Section fulfilling that Subject in the semester.
+   - Otherwise no resolution pass applies: the Section's plain details open instead (UC-09 step 5), even if the Section is flagged for collisions at other sessions.
+3. The system presents the details of the involved Sections, marking the clicked one as the entry point. Everything outside the set is de-emphasized. The set stays derived from the **anchor** — not from the clicked Section — for as long as the flow is open.
+4. The user acts, combining the two actions freely:
+   - **Prune:** the user removes an individual Section — any member, including the clicked one. The removal is immediate, with UC-13 semantics: persisted at once, Failed and Audit Marks dropped, planning signals re-evaluated for this semester and all later ones. The set re-derives from the anchor and the flow continues.
+   - **Elect a keeper:** the user chooses which Section to keep — staged, changeable freely, nothing persisted while deciding — and confirms. The system removes, among the members, exactly those in conflict with the keeper **within the anchor**: in a Schedule Conflict pass, the members whose window-overlapping sessions overlap the keeper's window-overlapping sessions; in a Duplicate Subject pass, all other members. The system persists the change and re-evaluates planning signals for this semester and all later ones.
+5. The flow ends when the anchor no longer holds a conflict — after a keeper confirmation, or once pruning leaves no overlapping pair inside the window (or a single Section of the Subject).
 
 **Notes:**
-- Removal is keeper-relative: a Section in the set that does not itself conflict with the kept one survives. Example — A overlaps B, B overlaps C, A and C don't touch: resolving from B and keeping A removes only B, and C remains. Remaining signals are resolved in further passes.
+- Removal is keeper-relative and anchor-scoped: a member that does not conflict with the keeper inside the anchor survives. Example — inside the window, A overlaps B and B overlaps C, but A and C don't touch: keeping A removes only B, and C remains.
+- Consequences are local to the anchor: conflicts among surviving members at **other** times — including with the keeper — stay flagged on the schedule and are resolved by clicking those sessions, where the user may still decide differently.
+- Anchoring to the time window or Subject, rather than to the clicked Section, makes pruning the clicked Section itself unremarkable — the flow stays open while the anchor still holds a conflict.
 - A Section flagged with several signal types is resolved in successive passes — Schedule Conflicts first, then Duplicate Subjects.
-- Resolution is never mandatory: the user may cancel and keep the conflicting Sections while weighing options (see `DOMAIN.md`, Planned Semester).
+- Resolution is never mandatory: the user may close the flow and keep the conflicting Sections while weighing options (see `DOMAIN.md`, Planned Semester).
 
 **Alternative Flow — User cancels:**
-- No changes are made.
+- The staged keeper election is discarded. Prunes already performed persist — each was an explicit, immediate removal (UC-13).
 
 ---
 
