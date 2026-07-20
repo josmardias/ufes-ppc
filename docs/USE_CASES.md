@@ -259,17 +259,19 @@ The planner presents a Planned Semester as a **weekly schedule**: each Section's
 2. If the last Planned Semester has any planning signal, the system warns that eligibility for the new semester will be computed as if all flagged Sections are kept, and asks whether to continue (a soft gate — never a block).
 3. If no Course Curriculum (PPC) is recorded for this Student yet, the system presents a flat list of the available PPCs; the user picks one and the system persists it to the Student profile before proceeding.
 4. The system determines the label (Year Semester) and number (position in the plan) for the new Planned Semester based on the Student's ingress information and existing Planned Semesters.
-5. The system presents a review screen listing every available Section for that Year Semester, grouped by Subject and **all pre-selected**: Sections from the curated Offering snapshot (including ones under equivalent codes) of Subjects not yet fulfilled — or whose fulfillment carries an open Audit Mark (UC-20) — and whose prerequisites are satisfied at that point in the plan. Co-requisites are not checked at this step. Custom Sections (UC-17) with matching applicability are included — linked ones under the same rules, unlinked ones unconditionally.
-6. The list is scoped by the effective shift filter — the persisted toggle if set, the profile shift otherwise. The user may change it at any time; the system persists the change on the profile (see UC-12).
-7. As the user adjusts the selection, the system continuously indicates the signals the current selection would produce — Duplicate Subjects (several Sections selected under one Subject group) and Schedule Conflicts among selected Sections.
-8. The user confirms.
-9. The system creates the new Planned Semester containing exactly the selected Sections and persists it. Nothing is persisted before this point.
-10. The user iterates on the weekly schedule — adding and removing Sections (UC-12, UC-13), resolving signals (UC-25, UC-26) — until the semester is clean.
+5. The system presents a review screen listing every available Section for that Year Semester, grouped by Subject and **all pre-selected**: Sections from the curated Offering snapshot (including ones under equivalent codes) of Subjects not yet fulfilled — or whose fulfillment carries an open Audit Mark (UC-20) — and whose prerequisites are satisfied at that point in the plan. Custom Sections (UC-17) with matching applicability are included — linked ones under the same rules, unlinked ones unconditionally.
+6. The list is scoped by two filters: the effective **shift filter** — the persisted toggle if set, the profile shift otherwise; the user may change it at any time and the system persists the change on the profile (see UC-12) — and a **course toggle** — Sections targeted at the Student's own course only (the default every time the screen opens; not persisted) or Sections targeted at any course. Own-course means the Section's target course id matches the profile's course id — PPC-version-agnostic (see `DOMAIN.md`, Section).
+7. A Subject with co-requisites is listed only when each co-requisite is either already fulfilled at that point in the plan or itself present in the list — selecting it could otherwise only produce an Unmet Requisite. Exclusions **cascade**: a Subject removed by this rule may remove Subjects that co-required it, until the list is stable. The rule is evaluated against the visible pool, so changing a filter re-runs it — hiding a co-requisite's Sections also hides its dependents. It prunes the *listing* only; the user remains free to deselect a listed co-requisite while keeping its dependent selected (surfacing the error after creation).
+8. As the user adjusts the selection, the system continuously indicates the signals the current selection would produce — Duplicate Subjects (several Sections selected under one Subject group) and Schedule Conflicts among selected Sections.
+9. The user confirms.
+10. The system creates the new Planned Semester containing exactly the selected Sections and persists it. Nothing is persisted before this point.
+11. The user iterates on the weekly schedule — adding and removing Sections (UC-12, UC-13), resolving signals (UC-25, UC-26) — until the semester is clean.
 
 **Filter and selection rules:**
-- The filter defines the candidate pool; the selection lives inside it. Day-shift Sections appear under every filter option.
-- Widening the filter (e.g. morning → whole day) reveals the new Sections pre-selected; narrowing it removes the now-hidden Sections from the selection — nothing outside the visible pool is ever included.
+- The two filters together define the candidate pool; the selection lives inside it. Day-shift Sections appear under every shift filter option.
+- Widening either filter (e.g. morning → whole day, or own course → all courses) reveals the new Sections pre-selected; narrowing removes the now-hidden Sections from the selection — nothing outside the visible pool is ever included.
 - Manual deselections are preserved for Sections that remain visible across filter changes.
+- Filter changes also re-run the co-requisite look-ahead rule (step 7), which may add or remove whole Subject groups beyond the filters' direct effect.
 
 **Notes:**
 - Pre-selecting **all** alternative Sections (turmas) of a Subject is deliberate: the grouping makes the redundancy obvious, and the user chooses whether to prune on the review screen or later on the weekly schedule (UC-25). A freshly created semester therefore typically starts with Duplicate Subject warnings.
@@ -296,7 +298,7 @@ The planner presents a Planned Semester as a **weekly schedule**: each Section's
 **Main Flow:**
 1. The user requests to add a Section to the selected Planned Semester.
 2. The system presents the Sections available for that semester's Year Semester (from the curated Offering snapshot) whose Subject prerequisites are satisfied by non-failed Sections in earlier Planned Semesters or Credit Entries, and whose Subject co-requisites are satisfied by earlier Planned Semesters or the selected one (considering Equivalences). Subjects already fulfilled at that point in the plan — a non-failed Section in an earlier Planned Semester or a Credit Entry — are excluded, unless their fulfillment carries an Audit Mark still open at the selected semester (UC-20). The Student's Custom Sections with matching applicability are also presented — linked ones under the same requisite rules, unlinked ones unconditionally.
-3. The list is filtered by the effective shift filter: the profile's shift by default, or the persisted toggle (morning, afternoon, or whole day) once the user sets it. Day-shift Sections appear under every filter option. The user may change the toggle at any time; the system persists it on the profile.
+3. The list is filtered by the effective shift filter — the profile's shift by default, or the persisted toggle (morning, afternoon, or whole day) once the user sets it; day-shift Sections appear under every filter option; the user may change the toggle at any time and the system persists it on the profile — and by the same course toggle as UC-11: the Student's own course only (default, not persisted; matched by course id, PPC-version-agnostic) or any course.
 4. While browsing, the user can preview a candidate: the system shows the candidate's sessions in place on the weekly schedule, so fits and collisions are visible before adding.
 5. The user selects a Section.
 6. The system adds the Section to the Planned Semester and persists the change. Adding a Custom Section creates an independent copy inside the semester — later catalog edits do not affect it.
@@ -677,6 +679,7 @@ Failed Marks (Reprovação) let the Student make the plan reflect a real-life fa
 - Switching to a different PPC requires the profile to have **no Credit Entries** — they reference Subjects of the current PPC and must be removed first (UC-16).
 
 **Notes:**
+- Switching the PPC also updates the profile's derived course id to the new PPC's course (see `ARCHITECTURE.md`, `ProfileRecord`).
 - The Custom Section catalog survives a PPC switch. Entries whose Subject link does not resolve in the new PPC become stale — kept, shown de-emphasized, and treated as unlinked (UC-18). Switching back to the original PPC makes the links functional again.
 - Changing ingress information changes the Year Semester labels derived for future Planned Semesters.
 

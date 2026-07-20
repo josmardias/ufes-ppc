@@ -93,7 +93,7 @@ Each Section has a **target course** and an **Enrollment Scope (Escopo)** that t
 
 The Enrollment Scope of a Section may change between Enrollment Periods. It is common for a Section to open at Scope 1 during the First Enrollment Period and expand to Scope 2 during the Second Enrollment Period.
 
-> **Note:** Enrollment Scopes and target courses are described here for context only. This tool does not model or enforce enrollment eligibility.
+> **Note:** This tool does not model or enforce enrollment eligibility — Enrollment Scopes are context only. It does, however, record each Section's **target course** (course id and name — official documents sometimes suffix the course code with an entry-semester/cohort marker, which is stripped: the id identifies the course, never a cohort) and lets the Student filter available Sections to their own course (the default and common case) or include Sections targeted at other courses — realistic because Scopes commonly widen in the Second Enrollment Period, letting students take a Subject in another course's Section. Own-course matching compares the Section's target course id with the Student's course id and ignores the PPC version — all PPC versions of a course are the same course for Section-scope purposes.
 
 Each Section also has a **Shift (Turno)** classification, derived from its weekly sessions: **morning** if all sessions end at or before 13:00, **afternoon** if all sessions start at or after 13:00, and **day** otherwise. In this tool the classification is precomputed when the static datasets are generated, not derived at runtime.
 
@@ -114,7 +114,7 @@ A Student (Aluno) is enrolled in a single course at UFES and follows one version
 
 A student may enroll in Sections from other courses if the Enrollment Scope of those Sections allows it.
 
-In this tool, the profile references one specific PPC. It is chosen when the first Planned Semester is created (from a flat list of the available PPCs) and can only be changed while the plan has no Planned Semesters. Because Credit Entries reference PPC Subjects, they must also be deleted before switching to a different PPC.
+In this tool, the profile records the course, the curriculum version, and the ingress information as **separate facts**. The PPC is chosen when the first Planned Semester is created (from a flat list of the available PPCs) and can only be changed while the plan has no Planned Semesters; choosing it also records the **course id** — the official UFES course code, identical across all PPC versions of the same course. The course id is what Section target courses are matched against (see Section): for Section-scope purposes, all PPC versions of a course are the same course. Because Credit Entries reference PPC Subjects, they must also be deleted before switching to a different PPC.
 
 ### Academic Transcript (Histórico Escolar)
 An Academic Transcript (Histórico Escolar) is the official record of a student's academic history. It lists all Sections the student has attempted, including grades and professor information. For prerequisite and co-requisite purposes, only the Subjects the student has passed are relevant.

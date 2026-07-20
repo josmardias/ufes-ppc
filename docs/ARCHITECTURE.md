@@ -52,7 +52,7 @@ Contains all read and write operations against localStorage, plus the schema mig
 The Zustand store — the single owner of in-memory app state. On startup it loads the envelope through `src/storage`; every mutation is a store action that updates state and writes through to storage. Components and hooks subscribe to exactly the slice they render via selectors, so unrelated mutations do not trigger unrelated re-renders. The cross-tab `storage` event listener (see Persistence) also lives here. **Only the store calls `src/storage`.**
 
 ### `src/components`
-Reusable React components with no direct storage or store-internal access. Components receive data and callbacks as props or via hooks. Overlays (modals, confirm dialogs) use native platform primitives — `<dialog>`, popover — styled with Tailwind, rather than a component library.
+Reusable React components with no direct storage or store-internal access. Components receive data and callbacks as props or via hooks. Overlays (modals, confirm dialogs) use native platform primitives — `<dialog>`, popover — styled with Tailwind, rather than a component library. Modal dialogs must be **centered in the viewport** with a dimmed backdrop; note that Tailwind's preflight resets the user-agent `margin: auto` that normally centers an open `<dialog>`, so the centering styles must be applied explicitly (e.g. a shared dialog wrapper/class) — otherwise dialogs render at the top-left of the screen.
 
 ### `src/pages`
 Top-level components that correspond to the main screens of the application. They compose components and coordinate hooks.
@@ -64,7 +64,7 @@ Custom React hooks that connect the store to the UI: thin wrappers over store se
 Static datasets bundled with the application — no network requests, no user uploads. Two subfolders:
 
 - **`src/data/ppcs`** — Course Curricula (PPCs), one JSON file per PPC version (see PPC dataset below). Each PPC is identified by a **PPC id** (e.g. `engenharia-eletrica-2022`) and carries a display name; profiles reference this id. A PPC file reaches this folder one of two ways: hand-crafted and **committed directly** (the target for most future courses), or produced by `scripts/` and copied in by `scripts/copy-to-data.mjs` — today's case for Engenharia Elétrica, whose PPC is re-extracted from the official PDF rather than hand-authored, so it is **git-ignored** and regenerated on every build instead, same treatment as Offerings below.
-- **`src/data/offerings`** — Past Offerings, generated at build time by `scripts/` and copied in by `scripts/copy-to-data.mjs` (**git-ignored**, never committed — see Data Pipeline): a **single curated snapshot per (course, Year Semester)** — the Sections (with schedules and professors) that represent what that Year Semester typically looks like. Anomalies in the source data are fixed by parser exceptions in `scripts/`, not by fallback logic in the app. Enrollment Scopes and target courses are not part of the dataset — the tool does not model enrollment eligibility.
+- **`src/data/offerings`** — Past Offerings, generated at build time by `scripts/` and copied in by `scripts/copy-to-data.mjs` (**git-ignored**, never committed — see Data Pipeline): a **single curated snapshot per (course, Year Semester)** — the Sections (with schedules and professors) that represent what that Year Semester typically looks like. Anomalies in the source data are fixed by parser exceptions in `scripts/`, not by fallback logic in the app. Each Section records its target course id and name (see Offerings dataset below); Enrollment Scopes and seat counts are not part of the dataset — the tool does not model enrollment eligibility.
 
 Datasets are loaded **eagerly** by `src/data/index.js`: it builds the `ppcs` (keyed by PPC id) and `offerings` (keyed by PPC id, then Year Semester) registries with `import.meta.glob` (eager mode), plus `getPpc(id)` / `getOfferings(ppcId, yearSemester)` lookups — so all data access is synchronous and adding a dataset file requires no registry edits. Adding a course means adding its PPC file, its department PDFs, and one collector config entry in `scripts/` — no changes elsewhere.
 
@@ -82,6 +82,8 @@ One JSON file per PPC version, produced either by hand or by script-assisted ext
 {
   "id": "engenharia-eletrica-2023",
   "name": "Engenharia Elétrica 2023 — Vitória",
+  "courseId": "12",                  // official UFES course code — shared by all PPC versions of the course
+  "courseName": "Engenharia Elétrica",
   "subjects": [
     {
       "code": "ELE15934",
@@ -101,6 +103,7 @@ One JSON file per PPC version, produced either by hand or by script-assisted ext
 - Requisites are **flat AND lists** — UFES requisites are plain conjunctions; OR semantics exist only through equivalences.
 - `equivalents` lists the codes (typically old-curriculum or other-course codes, not present in `subjects`) whose completion satisfies this subject — directional, OR logic, PPC-scoped, per `DOMAIN.md`.
 - `minWorkloadHours` covers requisites that are thresholds rather than subjects (e.g. Estágio Supervisionado requires 2200h completed).
+- `courseId` is the official UFES course code, identical across every PPC version of the same course. It is copied onto the profile when the PPC is chosen and matched against Section target course ids at runtime (see Offerings dataset below) — never used for requisite evaluation.
 
 ### Offerings dataset
 
@@ -109,6 +112,8 @@ A snapshot is **year-agnostic**: it represents what a typical Year Semester look
 A Section is included in a course's snapshot when its subject code belongs to the course's PPC **or** appears in some PPC subject's `equivalents` list. Sections under equivalent codes are planned like any other and fulfill the target subject at evaluation time (see `DOMAIN.md`, Equivalence).
 
 Each Section in the dataset carries a **shift** (`morning` | `afternoon` | `day`), **precomputed by the generation scripts** (not derived at runtime): `morning` when all sessions end at or before 13:00, `afternoon` when all sessions start at or after 13:00, `day` otherwise.
+
+Each Section also carries its **target course** — `targetCourseId` and `targetCourseName`, taken from the source PDF's "Curso" cell. The id is **normalized at generation time**: official documents sometimes attach an entry-semester/cohort marker to the course code (e.g. `12 B`); the marker is stripped — `targetCourseId` identifies the course only, never a cohort. Whether a Section is *own-course* is resolved **at runtime**, by comparing `targetCourseId` with the profile's `courseId` (see `ProfileRecord`): matching is course-level and PPC-version-agnostic — every PPC version of a course is the same course for Section-scope purposes. This powers the course toggle when listing available Sections (UC-11, UC-12); it is presentation/filtering data only — the tool still does not model enrollment eligibility, and Enrollment Scopes and seat counts remain excluded from the dataset.
 
 ---
 
@@ -154,6 +159,7 @@ The store listens to the `storage` event. When another tab writes the envelope, 
   id: string,                // generated, internal — never taken from imports
   name: string,
   ppcId: string|null,
+  courseId: string|null,
   ingressYear: number,
   ingressYearSemester: 1|2,
   shift: "day"|"morning"|"afternoon",
@@ -164,9 +170,9 @@ The store listens to the `storage` event. When another tab writes the envelope, 
 }
 ```
 
-`name`, `ingressYear`, `ingressYearSemester`, and `shift` are provided by the user at profile creation (UC-02) and are never null. `ppcId` identifies the Course Curriculum the student follows in `src/data`; it is recorded when the first Planned Semester is created (UC-11) and is null until then — features that need the Course Curriculum, such as Credit Entries (UC-15), become available from that point on. While the profile has no Planned Semesters, profile data (including the PPC) is editable; switching to a different PPC additionally requires the profile to have no Credit Entries.
+`name`, `ingressYear`, `ingressYearSemester`, and `shift` are provided by the user at profile creation (UC-02) and are never null. `ppcId` identifies the Course Curriculum the student follows in `src/data`; it is recorded when the first Planned Semester is created (UC-11) and is null until then — features that need the Course Curriculum, such as Credit Entries (UC-15), become available from that point on. `courseId` is the official UFES course code, copied from the chosen PPC dataset whenever `ppcId` is set (and kept in sync if the PPC changes, UC-24); it is null while `ppcId` is null. The profile thus records course (`courseId`), curriculum version (`ppcId`), and ingress (`ingressYear` + `ingressYearSemester`) as separate facts: all PPC versions of a course share the same `courseId`, which is what Section target course ids are matched against (see Offerings dataset). Adding `courseId` is a schema change — bump `schemaVersion` and migrate existing profiles by deriving it from the PPC dataset referenced by `ppcId`. While the profile has no Planned Semesters, profile data (including the PPC) is editable; switching to a different PPC additionally requires the profile to have no Credit Entries.
 
-`shiftFilter` is the persisted Section-list filter override: null means "use the profile's `shift`". It is reset to null when the last Planned Semester is deleted.
+`shiftFilter` is the persisted Section-list filter override: null means "use the profile's `shift`". It is reset to null when the last Planned Semester is deleted. The course toggle on the same lists (own course vs. all courses, UC-11/UC-12) is deliberately **not** persisted — it resets to own-course each time, so the toggle state adds no `ProfileRecord` field (the `courseId` it matches against is a separate, persisted fact — see above).
 
 A `PlannedSemester` is the container for everything planned in it:
 
@@ -205,9 +211,9 @@ Stage 3: assembled PPC + Offerings JSONs ──validate──▶ pass/fail      
 Stage 4: validated JSONs ──copy──▶ src/data/ppcs, src/data/offerings
 ```
 
-- **Stage 1 — parsers.** One parser per department extracts that department's offering PDF into an intermediate JSON. One parser per PPC PDF extracts its required/optional subjects (`extract-subjects-*.mjs`) and its equivalences document (`extract-equivalencias-*.mjs`), merged into a single subjects JSON (`merge-equivalencias-*.mjs`). Anomalies in the source PDFs are fixed by **hardcoded exceptions inside the parser scripts** — never by fallback logic in the app.
-- **Stage 2 — collector / assemble.** `collect-course-offerings.mjs` builds each course's Year Semester Offerings snapshots. Its knowledge is a small per-course config array: the `ppcId` to filter by and which source semester fills which Year Semester slot (e.g. `2026-1 → YS1`, `2025-2 → YS2`). Departments are discovered automatically: the collector reads every department JSON available for the source semester and keeps Sections matching the PPC filter (subject ∈ PPC or ∈ some subject's `equivalents`). `assemble-ppc.mjs` reshapes each merged subjects JSON into the final PPC dataset shape (see PPC dataset below) — course-agnostic, runs over every subjects JSON found.
-- **Stage 3 — validation** (`validate-data.mjs`). Schema checks plus referential integrity (offering subject codes resolve against the matching PPC's own codes or its equivalents, prerequisite/corequisite codes resolve within the PPC, session times parse, shifts recompute correctly). **Any validation error fails the deploy** (non-zero exit). Because generated Offerings are never committed, this is the safety net against silent parser regressions; a committed snapshot fixture for one department is kept under Vitest to catch regressions before deploy.
+- **Stage 1 — parsers.** One parser per department extracts that department's offering PDF into an intermediate JSON, keeping each Section's "Curso" cell — target course code and name — alongside its schedule fields. One parser per PPC PDF extracts its required/optional subjects (`extract-subjects-*.mjs`) and its equivalences document (`extract-equivalencias-*.mjs`), merged into a single subjects JSON (`merge-equivalencias-*.mjs`). Anomalies in the source PDFs are fixed by **hardcoded exceptions inside the parser scripts** — never by fallback logic in the app.
+- **Stage 2 — collector / assemble.** `collect-course-offerings.mjs` builds each course's Year Semester Offerings snapshots. Its knowledge is a small per-course config array: the `ppcId` to filter by, the course's official **course id and name** (stamped into the assembled PPC dataset as `courseId`/`courseName`), and which source semester fills which Year Semester slot (e.g. `2026-1 → YS1`, `2025-2 → YS2`). Departments are discovered automatically: the collector reads every department JSON available for the source semester and keeps Sections matching the PPC filter (subject ∈ PPC or ∈ some subject's `equivalents`), keeping each Section's target course as `targetCourseId`/`targetCourseName` (id normalized — any entry-semester/cohort marker stripped) and dropping Enrollment Scope and seat counts. `assemble-ppc.mjs` reshapes each merged subjects JSON into the final PPC dataset shape (see PPC dataset below) — course-agnostic, runs over every subjects JSON found.
+- **Stage 3 — validation** (`validate-data.mjs`). Schema checks plus referential integrity (offering subject codes resolve against the matching PPC's own codes or its equivalents, prerequisite/corequisite codes resolve within the PPC, session times parse, shifts recompute correctly, every Section carries a `targetCourseId` free of cohort markers, and each PPC carries its `courseId`). **Any validation error fails the deploy** (non-zero exit). Because generated Offerings are never committed, this is the safety net against silent parser regressions; a committed snapshot fixture for one department is kept under Vitest to catch regressions before deploy.
 - **Stage 4 — copy** (`copy-to-data.mjs`). Copies the validated PPC and Offerings JSONs into `src/data/ppcs` and `src/data/offerings` respectively (see `src/data` above). `src/data/offerings` is always git-ignored and rewritten on every build; `src/data/ppcs` is git-ignored per-file for script-generated PPCs (Engenharia Elétrica today) and committed for hand-crafted ones.
 - A future hand-crafted course PPC skips Stages 1's PPC parser and Stage 2's assemble step, but still needs a collector config entry and a subjects JSON in the collector's expected (pre-assembly) shape to produce that course's Offerings — today's collector only reads from `scripts/output`, not from `src/data/ppcs` directly.
 
