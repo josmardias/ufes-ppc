@@ -12,7 +12,8 @@ const YEAR_SEMESTER_RE = /Per[ií]odo:\s*(\d{4})\/(\d)/;
 
 // A subject header line, e.g.:
 // "ELE03613 INSTALACOES TECNICAS II   ...   CH Total Disciplina: 60"
-const SUBJECT_RE = /^([A-Z]{2,5}\d{4,6})\s+(.+?)\s+CH Total Disciplina:\s*(\d+)\s*$/;
+const SUBJECT_RE =
+  /^([A-Z]{2,5}\d{4,6})\s+(.+?)\s+CH Total Disciplina:\s*(\d+)\s*$/;
 
 // A section (Turma) row, e.g.:
 // "01     1   02 - Arquitetura e Urbanismo   33   0   23   10   OURESTE ELIAS BATISTA   M"
@@ -22,7 +23,8 @@ const SECTION_RE =
   /^\s*(\S+(?:\s+N)?)\s+([1-5])\s+(.+?)\s+(-?\d+)\s+(-?\d+)\s+(\d+)\s+(\d+)\s+(.+?)\s+([A-Z])\s*$/;
 
 // A weekly session row trailing a section, e.g. "Seg   07:00   09:00".
-const SESSION_RE = /^\s*(Seg|Ter|Qua|Qui|Sex|Sáb|Sab|Dom)\s+(\d{2}:\d{2})\s+(\d{2}:\d{2})\s*$/;
+const SESSION_RE =
+  /^\s*(Seg|Ter|Qua|Qui|Sex|Sáb|Sab|Dom)\s+(\d{2}:\d{2})\s+(\d{2}:\d{2})\s*$/;
 
 /**
  * Splits a "Curso" cell (e.g. "12 B - Matemática - Bacharelado") into the
@@ -54,13 +56,19 @@ export function computeShift(sessions) {
 export function parseOfertaPdf(pdfPath) {
   const lines = extractPdfLines(pdfPath, { layout: true });
 
-  const department = lines.find((l) => DEPARTMENT_RE.test(l))?.match(DEPARTMENT_RE)?.[1] ?? null;
+  const department =
+    lines.find((l) => DEPARTMENT_RE.test(l))?.match(DEPARTMENT_RE)?.[1] ?? null;
   const yearSemesterLine = lines.find((l) => YEAR_SEMESTER_RE.test(l));
   const yearSemesterMatch = yearSemesterLine?.match(YEAR_SEMESTER_RE);
   if (!department || !yearSemesterMatch) {
-    throw new Error(`Could not determine department/Year Semester from ${pdfPath}.`);
+    throw new Error(
+      `Could not determine department/Year Semester from ${pdfPath}.`,
+    );
   }
-  const yearSemester = { year: Number(yearSemesterMatch[1]), semester: Number(yearSemesterMatch[2]) };
+  const yearSemester = {
+    year: Number(yearSemesterMatch[1]),
+    semester: Number(yearSemesterMatch[2]),
+  };
 
   const subjects = [];
   let currentSubject = null;
@@ -70,7 +78,12 @@ export function parseOfertaPdf(pdfPath) {
     const subjectMatch = line.match(SUBJECT_RE);
     if (subjectMatch) {
       const [, code, name, workloadHours] = subjectMatch;
-      currentSubject = { code, name: name.trim(), workloadHours: Number(workloadHours), sections: [] };
+      currentSubject = {
+        code,
+        name: name.trim(),
+        workloadHours: Number(workloadHours),
+        sections: [],
+      };
       subjects.push(currentSubject);
       currentSection = null;
       continue;
@@ -78,8 +91,18 @@ export function parseOfertaPdf(pdfPath) {
 
     const sectionMatch = line.match(SECTION_RE);
     if (sectionMatch && currentSubject) {
-      const [, turma, scope, curso, seatsOffered, seatsIncreased, seatsOccupied, seatsAvailable, professor, status] =
-        sectionMatch;
+      const [
+        ,
+        turma,
+        scope,
+        curso,
+        seatsOffered,
+        seatsIncreased,
+        seatsOccupied,
+        seatsAvailable,
+        professor,
+        status,
+      ] = sectionMatch;
       currentSection = {
         turma: turma.trim(),
         scope: Number(scope),

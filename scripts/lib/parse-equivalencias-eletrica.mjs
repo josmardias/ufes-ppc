@@ -13,7 +13,8 @@ import { extractPdfLines } from './pdf-text.mjs';
 
 const COURSE_META_RE = /^Curso:\s*\d+\s*-\s*(.+?)\s+Vers[aã]o:\s*(\d{4})/;
 const SUBJECT_HEADER_RE = /^([A-Z]{2,5}\d{4,6})\s+(.+)$/;
-const EQUIVALENCE_RE = /Equivalências:.*Disciplinas Vencida\s+([A-Z]{2,5}\d{4,6})\s+(.+)$/;
+const EQUIVALENCE_RE =
+  /Equivalências:.*Disciplinas Vencida\s+([A-Z]{2,5}\d{4,6})\s+(.+)$/;
 
 function slugify(text) {
   return text
@@ -36,7 +37,9 @@ export function parseEletricaEquivalenciasPdf(pdfPath) {
   const metaLine = lines.find((l) => COURSE_META_RE.test(l));
   const metaMatch = metaLine?.match(COURSE_META_RE);
   if (!metaMatch) {
-    throw new Error('Could not determine course name/version from the equivalences PDF header.');
+    throw new Error(
+      'Could not determine course name/version from the equivalences PDF header.',
+    );
   }
   const [, courseName, year] = metaMatch;
 
@@ -50,7 +53,9 @@ export function parseEletricaEquivalenciasPdf(pdfPath) {
     const eqMatch = line.match(EQUIVALENCE_RE);
     if (eqMatch) {
       if (!currentCode) {
-        throw new Error(`Equivalence line found before any subject header: "${line}"`);
+        throw new Error(
+          `Equivalence line found before any subject header: "${line}"`,
+        );
       }
       const [, equivCode] = eqMatch;
       const list = equivalences.get(currentCode) ?? [];

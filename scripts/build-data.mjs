@@ -24,5 +24,7 @@ const stages = [
 ];
 
 for (const stage of stages) {
-  execFileSync(process.execPath, [join(scriptsDir, stage)], { stdio: 'inherit' });
+  execFileSync(process.execPath, [join(scriptsDir, stage)], {
+    stdio: 'inherit',
+  });
 }

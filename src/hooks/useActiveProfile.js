@@ -4,5 +4,9 @@ import { useStore } from '../store/index.js';
 
 /** @returns {import('../domain/types.js').ProfileRecord|null} */
 export function useActiveProfile() {
-  return useStore((state) => state.profiles.find((profile) => profile.id === state.activeProfileId) ?? null);
+  return useStore(
+    (state) =>
+      state.profiles.find((profile) => profile.id === state.activeProfileId) ??
+      null,
+  );
 }

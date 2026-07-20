@@ -12,7 +12,10 @@
 export function validateProfileName(name, existingProfiles, excludeId) {
   const trimmed = name.trim();
   if (!trimmed) return 'empty';
-  const others = excludeId == null ? existingProfiles : existingProfiles.filter((profile) => profile.id !== excludeId);
+  const others =
+    excludeId == null
+      ? existingProfiles
+      : existingProfiles.filter((profile) => profile.id !== excludeId);
   if (others.some((profile) => profile.name === trimmed)) return 'duplicate';
   return null;
 }
@@ -23,7 +26,12 @@ export function validateProfileName(name, existingProfiles, excludeId) {
  * @param {{ name: string, ingressYear: number, ingressYearSemester: 1|2, shift: "day"|"morning"|"afternoon" }} input
  * @returns {import('./types.js').ProfileRecord}
  */
-export function createProfileRecord({ name, ingressYear, ingressYearSemester, shift }) {
+export function createProfileRecord({
+  name,
+  ingressYear,
+  ingressYearSemester,
+  shift,
+}) {
   return {
     id: crypto.randomUUID(),
     name: name.trim(),
@@ -47,7 +55,11 @@ export function createProfileRecord({ name, ingressYear, ingressYearSemester, sh
  * @returns {import('./types.js').ProfileRecord}
  */
 export function cloneProfileRecord(profile, newName) {
-  return { ...structuredClone(profile), id: crypto.randomUUID(), name: newName.trim() };
+  return {
+    ...structuredClone(profile),
+    id: crypto.randomUUID(),
+    name: newName.trim(),
+  };
 }
 
 /**

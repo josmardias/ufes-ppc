@@ -25,10 +25,14 @@ const ppcsDir = join(dataDir, 'ppcs');
 const offeringsDir = join(dataDir, 'offerings');
 
 const ppcFiles = readdirSync(outputDir).filter((f) => f.endsWith('.ppc.json'));
-const offeringsFiles = readdirSync(outputDir).filter((f) => /\.ys\d+\.offerings\.json$/.test(f));
+const offeringsFiles = readdirSync(outputDir).filter((f) =>
+  /\.ys\d+\.offerings\.json$/.test(f),
+);
 
 if (ppcFiles.length === 0 && offeringsFiles.length === 0) {
-  console.error(`Nothing to copy: no *.ppc.json or *.ys*.offerings.json found in ${outputDir}.`);
+  console.error(
+    `Nothing to copy: no *.ppc.json or *.ys*.offerings.json found in ${outputDir}.`,
+  );
   process.exit(1);
 }
 

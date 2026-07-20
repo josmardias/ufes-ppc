@@ -20,14 +20,17 @@ const TIME_RE = /^\d{2}:\d{2}$/;
 export function validatePpc(ppc) {
   const errors = [];
   if (typeof ppc.id !== 'string' || !ppc.id) errors.push('missing/invalid id');
-  if (typeof ppc.name !== 'string' || !ppc.name) errors.push('missing/invalid name');
+  if (typeof ppc.name !== 'string' || !ppc.name)
+    errors.push('missing/invalid name');
   if (!Array.isArray(ppc.subjects) || ppc.subjects.length === 0) {
     errors.push('missing/empty subjects array');
     return errors;
   }
 
-  if (typeof ppc.courseId !== 'string' || !ppc.courseId) errors.push('missing/invalid courseId');
-  if (typeof ppc.courseName !== 'string' || !ppc.courseName) errors.push('missing/invalid courseName');
+  if (typeof ppc.courseId !== 'string' || !ppc.courseId)
+    errors.push('missing/invalid courseId');
+  if (typeof ppc.courseName !== 'string' || !ppc.courseName)
+    errors.push('missing/invalid courseName');
 
   const codes = new Set(ppc.subjects.map((s) => s.code));
   const seen = new Set();
@@ -37,24 +40,39 @@ export function validatePpc(ppc) {
     if (seen.has(s.code)) errors.push(`${label}: duplicate subject code`);
     seen.add(s.code);
 
-    if (typeof s.name !== 'string' || !s.name) errors.push(`${label}: missing name`);
-    if (typeof s.workloadHours !== 'number') errors.push(`${label}: missing/invalid workloadHours`);
-    if (!CLASSIFICATIONS.has(s.classification)) errors.push(`${label}: invalid classification`);
-    if (s.suggestedSemester !== null && typeof s.suggestedSemester !== 'number') {
+    if (typeof s.name !== 'string' || !s.name)
+      errors.push(`${label}: missing name`);
+    if (typeof s.workloadHours !== 'number')
+      errors.push(`${label}: missing/invalid workloadHours`);
+    if (!CLASSIFICATIONS.has(s.classification))
+      errors.push(`${label}: invalid classification`);
+    if (
+      s.suggestedSemester !== null &&
+      typeof s.suggestedSemester !== 'number'
+    ) {
       errors.push(`${label}: invalid suggestedSemester`);
     }
     if (s.minWorkloadHours !== null && typeof s.minWorkloadHours !== 'number') {
       errors.push(`${label}: invalid minWorkloadHours`);
     }
-    if (!Array.isArray(s.prerequisites)) errors.push(`${label}: prerequisites must be an array`);
-    if (!Array.isArray(s.corequisites)) errors.push(`${label}: corequisites must be an array`);
-    if (!Array.isArray(s.equivalents)) errors.push(`${label}: equivalents must be an array`);
+    if (!Array.isArray(s.prerequisites))
+      errors.push(`${label}: prerequisites must be an array`);
+    if (!Array.isArray(s.corequisites))
+      errors.push(`${label}: corequisites must be an array`);
+    if (!Array.isArray(s.equivalents))
+      errors.push(`${label}: equivalents must be an array`);
 
     for (const req of s.prerequisites ?? []) {
-      if (!codes.has(req)) errors.push(`${label}: prerequisite ${req} does not resolve to a subject in this PPC`);
+      if (!codes.has(req))
+        errors.push(
+          `${label}: prerequisite ${req} does not resolve to a subject in this PPC`,
+        );
     }
     for (const req of s.corequisites ?? []) {
-      if (!codes.has(req)) errors.push(`${label}: corequisite ${req} does not resolve to a subject in this PPC`);
+      if (!codes.has(req))
+        errors.push(
+          `${label}: corequisite ${req} does not resolve to a subject in this PPC`,
+        );
     }
   }
   return errors;
@@ -70,8 +88,10 @@ export function validatePpc(ppc) {
  */
 export function validateOfferings(snapshot, relevantCodes) {
   const errors = [];
-  if (typeof snapshot.ppcId !== 'string' || !snapshot.ppcId) errors.push('missing/invalid ppcId');
-  if (snapshot.yearSemester !== 1 && snapshot.yearSemester !== 2) errors.push('yearSemester must be 1 or 2');
+  if (typeof snapshot.ppcId !== 'string' || !snapshot.ppcId)
+    errors.push('missing/invalid ppcId');
+  if (snapshot.yearSemester !== 1 && snapshot.yearSemester !== 2)
+    errors.push('yearSemester must be 1 or 2');
   if (!Array.isArray(snapshot.subjects)) {
     errors.push('missing subjects array');
     return errors;
@@ -81,7 +101,9 @@ export function validateOfferings(snapshot, relevantCodes) {
     const label = s.code ?? '<no code>';
     if (!CODE_RE.test(s.code)) errors.push(`${label}: invalid code format`);
     if (relevantCodes && !relevantCodes.has(s.code)) {
-      errors.push(`${label}: subject code does not resolve to the PPC (own subjects or equivalents)`);
+      errors.push(
+        `${label}: subject code does not resolve to the PPC (own subjects or equivalents)`,
+      );
     }
     if (!Array.isArray(s.sections)) {
       errors.push(`${label}: sections must be an array`);
@@ -89,12 +111,22 @@ export function validateOfferings(snapshot, relevantCodes) {
     }
     for (const section of s.sections) {
       const secLabel = `${label} turma ${section.turma ?? '?'}`;
-      if (typeof section.targetCourseId !== 'string' || !section.targetCourseId) {
+      if (
+        typeof section.targetCourseId !== 'string' ||
+        !section.targetCourseId
+      ) {
         errors.push(`${secLabel}: missing/invalid targetCourseId`);
-      } else if (normalizeCourseId(section.targetCourseId) !== section.targetCourseId) {
-        errors.push(`${secLabel}: targetCourseId "${section.targetCourseId}" still carries a cohort marker`);
+      } else if (
+        normalizeCourseId(section.targetCourseId) !== section.targetCourseId
+      ) {
+        errors.push(
+          `${secLabel}: targetCourseId "${section.targetCourseId}" still carries a cohort marker`,
+        );
       }
-      if (typeof section.targetCourseName !== 'string' || !section.targetCourseName) {
+      if (
+        typeof section.targetCourseName !== 'string' ||
+        !section.targetCourseName
+      ) {
         errors.push(`${secLabel}: missing/invalid targetCourseName`);
       }
       if (!Array.isArray(section.sessions)) {
@@ -102,8 +134,12 @@ export function validateOfferings(snapshot, relevantCodes) {
         continue;
       }
       for (const session of section.sessions) {
-        if (!DAYS.has(session.day)) errors.push(`${secLabel}: invalid session day "${session.day}"`);
-        if (!TIME_RE.test(session.startTime) || !TIME_RE.test(session.endTime)) {
+        if (!DAYS.has(session.day))
+          errors.push(`${secLabel}: invalid session day "${session.day}"`);
+        if (
+          !TIME_RE.test(session.startTime) ||
+          !TIME_RE.test(session.endTime)
+        ) {
           errors.push(`${secLabel}: invalid session time format`);
         } else if (session.startTime >= session.endTime) {
           errors.push(`${secLabel}: session startTime not before endTime`);
@@ -111,7 +147,9 @@ export function validateOfferings(snapshot, relevantCodes) {
       }
       const recomputedShift = computeShift(section.sessions);
       if (recomputedShift !== section.shift) {
-        errors.push(`${secLabel}: shift mismatch (stored "${section.shift}", recomputed "${recomputedShift}")`);
+        errors.push(
+          `${secLabel}: shift mismatch (stored "${section.shift}", recomputed "${recomputedShift}")`,
+        );
       }
     }
   }

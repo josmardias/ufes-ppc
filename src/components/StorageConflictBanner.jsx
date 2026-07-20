@@ -8,7 +8,11 @@ export default function StorageConflictBanner() {
   if (!changed) return null;
 
   return (
-    <div role="status" aria-live="polite" className="flex items-center justify-between gap-4 bg-amber-100 px-4 py-2 text-sm text-amber-900">
+    <div
+      role="status"
+      aria-live="polite"
+      className="flex items-center justify-between gap-4 bg-amber-100 px-4 py-2 text-sm text-amber-900"
+    >
       <span>Os dados foram alterados em outra aba.</span>
       <button
         type="button"

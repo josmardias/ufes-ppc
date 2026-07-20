@@ -22,7 +22,9 @@ function readJson(path) {
 
 const ppcFiles = readdirSync(outputDir).filter((f) => f.endsWith('.ppc.json'));
 if (ppcFiles.length === 0) {
-  console.error(`No *.ppc.json files found in ${outputDir}. Run assemble-ppc.mjs first.`);
+  console.error(
+    `No *.ppc.json files found in ${outputDir}. Run assemble-ppc.mjs first.`,
+  );
   process.exit(1);
 }
 
@@ -51,13 +53,17 @@ for (const file of ppcFiles) {
   relevantCodesByPpcId.set(ppc.id, codes);
 }
 
-const offeringsFiles = readdirSync(outputDir).filter((f) => /\.ys\d+\.offerings\.json$/.test(f));
+const offeringsFiles = readdirSync(outputDir).filter((f) =>
+  /\.ys\d+\.offerings\.json$/.test(f),
+);
 for (const file of offeringsFiles) {
   const snapshot = readJson(join(outputDir, file));
   const relevantCodes = relevantCodesByPpcId.get(snapshot.ppcId) ?? null;
   if (!relevantCodes) {
     hasErrors = true;
-    console.error(`${file}:\n  - no matching PPC "${snapshot.ppcId}" found among ${ppcFiles.join(', ')}`);
+    console.error(
+      `${file}:\n  - no matching PPC "${snapshot.ppcId}" found among ${ppcFiles.join(', ')}`,
+    );
     continue;
   }
 
@@ -67,8 +73,13 @@ for (const file of offeringsFiles) {
     console.error(`${file}:`);
     for (const e of errors) console.error(`  - ${e}`);
   } else {
-    const sectionCount = snapshot.subjects.reduce((n, s) => n + s.sections.length, 0);
-    console.log(`${file}: OK (${snapshot.subjects.length} subjects, ${sectionCount} sections)`);
+    const sectionCount = snapshot.subjects.reduce(
+      (n, s) => n + s.sections.length,
+      0,
+    );
+    console.log(
+      `${file}: OK (${snapshot.subjects.length} subjects, ${sectionCount} sections)`,
+    );
   }
 }
 

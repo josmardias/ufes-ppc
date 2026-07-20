@@ -15,10 +15,14 @@ import { fileURLToPath } from 'node:url';
 const scriptsDir = dirname(fileURLToPath(import.meta.url));
 const outputDir = join(scriptsDir, 'output');
 
-const equivalenceFiles = readdirSync(outputDir).filter((f) => f.endsWith('.equivalences.json'));
+const equivalenceFiles = readdirSync(outputDir).filter((f) =>
+  f.endsWith('.equivalences.json'),
+);
 
 if (equivalenceFiles.length === 0) {
-  console.error(`No *.equivalences.json files found in ${outputDir}. Run extract-equivalencias-eletrica.mjs first.`);
+  console.error(
+    `No *.equivalences.json files found in ${outputDir}. Run extract-equivalencias-eletrica.mjs first.`,
+  );
   process.exit(1);
 }
 
@@ -30,11 +34,15 @@ for (const equivFile of equivalenceFiles) {
   try {
     subjectsRaw = readFileSync(subjectsPath, 'utf8');
   } catch {
-    console.error(`Skipping ${equivFile}: no matching ${ppcId}.subjects.json in ${outputDir}. Run extract-subjects-eletrica.mjs first.`);
+    console.error(
+      `Skipping ${equivFile}: no matching ${ppcId}.subjects.json in ${outputDir}. Run extract-subjects-eletrica.mjs first.`,
+    );
     continue;
   }
 
-  const { equivalences } = JSON.parse(readFileSync(join(outputDir, equivFile), 'utf8'));
+  const { equivalences } = JSON.parse(
+    readFileSync(join(outputDir, equivFile), 'utf8'),
+  );
   const subjects = JSON.parse(subjectsRaw);
   const allSubjects = [...subjects.required, ...subjects.optional];
   const subjectCodes = new Set(allSubjects.map((s) => s.code));
@@ -49,15 +57,21 @@ for (const equivFile of equivalenceFiles) {
     updated++;
   }
 
-  const unmatched = Object.keys(equivalences).filter((code) => !subjectCodes.has(code));
+  const unmatched = Object.keys(equivalences).filter(
+    (code) => !subjectCodes.has(code),
+  );
   if (unmatched.length > 0) {
-    console.warn(`  ${ppcId}: ${unmatched.length} equivalence code(s) not found in subjects.json: ${unmatched.join(', ')}`);
+    console.warn(
+      `  ${ppcId}: ${unmatched.length} equivalence code(s) not found in subjects.json: ${unmatched.join(', ')}`,
+    );
   }
 
   writeFileSync(subjectsPath, JSON.stringify(subjects, null, 2) + '\n', 'utf8');
   console.log(
     `${ppcId}: merged equivalents into ${updated} subject(s)` +
-      (overwritten ? ` (overwrote ${overwritten} pre-existing non-empty equivalents)` : '') +
+      (overwritten
+        ? ` (overwrote ${overwritten} pre-existing non-empty equivalents)`
+        : '') +
       '.',
   );
   console.log(`  wrote ${subjectsPath}`);

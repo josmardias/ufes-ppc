@@ -24,12 +24,19 @@ const CENTER_LINE_RE =
  * Reads course name/year from the cover page (raw reading-order text).
  */
 function parseCourseMeta(rawLines) {
-  const titleIdx = rawLines.findIndex((l) => l.trim() === 'Projeto Pedagógico de Curso');
-  const courseName = rawLines.slice(titleIdx + 1).find((l) => l.trim())?.trim();
+  const titleIdx = rawLines.findIndex(
+    (l) => l.trim() === 'Projeto Pedagógico de Curso',
+  );
+  const courseName = rawLines
+    .slice(titleIdx + 1)
+    .find((l) => l.trim())
+    ?.trim();
   const yearLine = rawLines.find((l) => l.includes('Ano Versão:'));
   const year = Number(yearLine?.match(/Ano Versão:\s*(\d{4})/)?.[1]);
   if (!courseName || !year) {
-    throw new Error('Could not determine course name/year from the PDF cover page.');
+    throw new Error(
+      'Could not determine course name/year from the PDF cover page.',
+    );
   }
   return { courseName, year };
 }
@@ -71,9 +78,19 @@ function classifyFragmentTokens(text) {
     if (idx >= 0) tokens.push({ idx, type, value: null });
   }
   const vencidaMatch = text.match(/vencida:\s*(\d+)/);
-  if (vencidaMatch) tokens.push({ idx: vencidaMatch.index, type: 'workload-value', value: Number(vencidaMatch[1]) });
+  if (vencidaMatch)
+    tokens.push({
+      idx: vencidaMatch.index,
+      type: 'workload-value',
+      value: Number(vencidaMatch[1]),
+    });
   const codeMatch = text.match(CODE_RE);
-  if (codeMatch) tokens.push({ idx: codeMatch.index, type: 'code-value', value: codeMatch[1] });
+  if (codeMatch)
+    tokens.push({
+      idx: codeMatch.index,
+      type: 'code-value',
+      value: codeMatch[1],
+    });
   tokens.sort((a, b) => a.idx - b.idx);
   return tokens;
 }
@@ -87,15 +104,25 @@ function classifyFragmentTokens(text) {
 function findTableSections(layoutLines) {
   const headerIdx = [];
   layoutLines.forEach((line, i) => {
-    if (line.includes('Pré-Requisitos') && line.includes('Tipo')) headerIdx.push(i);
+    if (line.includes('Pré-Requisitos') && line.includes('Tipo'))
+      headerIdx.push(i);
   });
   if (headerIdx.length !== 4) {
-    throw new Error(`Expected 4 requisites tables (TCC, Estágio, Obrigatórias, Optativas), found ${headerIdx.length}.`);
+    throw new Error(
+      `Expected 4 requisites tables (TCC, Estágio, Obrigatórias, Optativas), found ${headerIdx.length}.`,
+    );
   }
   const endMarker = layoutLines.findIndex(
-    (line, i) => i > headerIdx[headerIdx.length - 1] && line.includes('Atividades Complementares'),
+    (line, i) =>
+      i > headerIdx[headerIdx.length - 1] &&
+      line.includes('Atividades Complementares'),
   );
-  const sectionClassifications = ['required', 'required', 'required', 'optional'];
+  const sectionClassifications = [
+    'required',
+    'required',
+    'required',
+    'optional',
+  ];
   return headerIdx.map((h, i) => ({
     classification: sectionClassifications[i],
     start: h + 1,
@@ -134,7 +161,8 @@ function parseTableSection(layoutLines, { start, end, classification }) {
       centers.push({
         lineIdx: i,
         code,
-        suggestedSemester: period === '-' ? null : Number(period.replace('º', '')),
+        suggestedSemester:
+          period === '-' ? null : Number(period.replace('º', '')),
         workloadHours: Number(chs),
         prerequisites: [],
         corequisites: [],
@@ -143,7 +171,9 @@ function parseTableSection(layoutLines, { start, end, classification }) {
       inlineText = inline;
     }
     for (const token of classifyFragmentTokens(inlineText)) {
-      const bucket = token.type.startsWith('workload') ? workloadStream : itemStream;
+      const bucket = token.type.startsWith('workload')
+        ? workloadStream
+        : itemStream;
       bucket.push({ lineIdx: i, ...token });
     }
   }
@@ -154,7 +184,10 @@ function parseTableSection(layoutLines, { start, end, classification }) {
   let beforeBuffer = [];
   let centerCursor = 0;
   for (const item of itemStream) {
-    while (centerCursor < centers.length && centers[centerCursor].lineIdx <= item.lineIdx) {
+    while (
+      centerCursor < centers.length &&
+      centers[centerCursor].lineIdx <= item.lineIdx
+    ) {
       const center = centers[centerCursor];
       pendingAfterCenter = center;
       pendingAfterRemaining = beforeBuffer.length;
@@ -175,7 +208,10 @@ function parseTableSection(layoutLines, { start, end, classification }) {
     for (let i = 0; i + 1 < items.length; i += 2) {
       const [label, value] = [items[i], items[i + 1]];
       if (value.type !== 'code-value') continue; // unexpected shape; skip defensively
-      (label.type === 'coreq-label' ? center.corequisites : center.prerequisites).push(value.value);
+      (label.type === 'coreq-label'
+        ? center.corequisites
+        : center.prerequisites
+      ).push(value.value);
     }
   }
 
@@ -187,7 +223,10 @@ function parseTableSection(layoutLines, { start, end, classification }) {
       pendingWorkloadLine = token.lineIdx;
       continue;
     }
-    const anchor = pendingWorkloadLine != null ? Math.round((pendingWorkloadLine + token.lineIdx) / 2) : token.lineIdx;
+    const anchor =
+      pendingWorkloadLine != null
+        ? Math.round((pendingWorkloadLine + token.lineIdx) / 2)
+        : token.lineIdx;
     const nearest = centers.reduce((best, c) =>
       Math.abs(c.lineIdx - anchor) < Math.abs(best.lineIdx - anchor) ? c : best,
     );
@@ -220,19 +259,23 @@ export function parseEletricaPpcPdf(pdfPath) {
   const names = buildNameMap(rawLines);
   const sections = findTableSections(layoutLines);
 
-  const subjects = sections.flatMap((section) => parseTableSection(layoutLines, section)).map((s) => ({
-    code: s.code,
-    name: names.get(s.code) ?? null,
-    workloadHours: s.workloadHours,
-    classification: s.classification,
-    suggestedSemester: s.suggestedSemester,
-    prerequisites: s.prerequisites,
-    corequisites: s.corequisites,
-    minWorkloadHours: s.minWorkloadHours,
-    equivalents: [],
-  }));
+  const subjects = sections
+    .flatMap((section) => parseTableSection(layoutLines, section))
+    .map((s) => ({
+      code: s.code,
+      name: names.get(s.code) ?? null,
+      workloadHours: s.workloadHours,
+      classification: s.classification,
+      suggestedSemester: s.suggestedSemester,
+      prerequisites: s.prerequisites,
+      corequisites: s.corequisites,
+      minWorkloadHours: s.minWorkloadHours,
+      equivalents: [],
+    }));
 
-  const missingNames = subjects.filter((s) => s.name == null).map((s) => s.code);
+  const missingNames = subjects
+    .filter((s) => s.name == null)
+    .map((s) => s.code);
   if (missingNames.length) {
     console.warn(`No ementa name found for: ${missingNames.join(', ')}`);
   }

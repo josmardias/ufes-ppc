@@ -1,7 +1,12 @@
 // The "no schedule" strip alongside the weekly grid (UC-09): Sections with
 // no weekly sessions (e.g. Estágio, TCC) appear here as chips instead.
 
-import { sectionAccessibleLabel, sectionShortLabel, severityClass, severityIcon } from './WeeklyGrid.jsx';
+import {
+  sectionAccessibleLabel,
+  sectionShortLabel,
+  severityClass,
+  severityIcon,
+} from './WeeklyGrid.jsx';
 
 /**
  * Session-less Sections can only reach the Duplicate Subject pass or the
@@ -14,7 +19,9 @@ export default function NoScheduleStrip({ ppc, sections, onSelect }) {
 
   return (
     <div className="mt-4 border-t border-slate-100 pt-3">
-      <h3 className="text-xs font-semibold tracking-wide text-slate-400 uppercase">Sem horário fixo</h3>
+      <h3 className="text-xs font-semibold tracking-wide text-slate-400 uppercase">
+        Sem horário fixo
+      </h3>
       <ul className="mt-2 flex flex-wrap gap-2">
         {sections.map((section) => {
           const Icon = severityIcon(section);

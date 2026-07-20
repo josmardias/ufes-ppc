@@ -33,7 +33,12 @@ describe('sectionsOverlap', () => {
   });
 
   it('returns false when either side has no sessions', () => {
-    expect(sectionsOverlap([], [{ day: 'Seg', startTime: '08:00', endTime: '10:00' }])).toBe(false);
+    expect(
+      sectionsOverlap(
+        [],
+        [{ day: 'Seg', startTime: '08:00', endTime: '10:00' }],
+      ),
+    ).toBe(false);
   });
 });
 
@@ -98,19 +103,27 @@ describe('sectionOverlapsWindow', () => {
 
 describe('sectionsConflictInWindow', () => {
   it('detects a conflict between adjacent members of the chain', () => {
-    expect(sectionsConflictInWindow(sectionA.sessions, sectionB.sessions, windowB)).toBe(true);
-    expect(sectionsConflictInWindow(sectionB.sessions, sectionC.sessions, windowB)).toBe(true);
+    expect(
+      sectionsConflictInWindow(sectionA.sessions, sectionB.sessions, windowB),
+    ).toBe(true);
+    expect(
+      sectionsConflictInWindow(sectionB.sessions, sectionC.sessions, windowB),
+    ).toBe(true);
   });
 
   it('does not flag members that both overlap the window but not each other', () => {
-    expect(sectionsConflictInWindow(sectionA.sessions, sectionC.sessions, windowB)).toBe(false);
+    expect(
+      sectionsConflictInWindow(sectionA.sessions, sectionC.sessions, windowB),
+    ).toBe(false);
   });
 
   it('ignores an overlap between the two Sections that falls outside the window', () => {
     // Sanity check: A and C really do overlap on Wednesday...
     expect(sectionsOverlap(sectionA.sessions, sectionC.sessions)).toBe(true);
     // ...but that overlap is outside windowB, so it must not count here.
-    expect(sectionsConflictInWindow(sectionA.sessions, sectionC.sessions, windowB)).toBe(false);
+    expect(
+      sectionsConflictInWindow(sectionA.sessions, sectionC.sessions, windowB),
+    ).toBe(false);
   });
 
   it('does not flag sessions that only touch at the boundary', () => {
@@ -123,13 +136,26 @@ describe('sectionsConflictInWindow', () => {
 
 describe('sectionsConflictForPass', () => {
   it('delegates to the window-scoped rule for a Schedule Conflict pass', () => {
-    expect(sectionsConflictForPass(sectionA, sectionB, 'conflict', windowB)).toBe(true);
-    expect(sectionsConflictForPass(sectionA, sectionC, 'conflict', windowB)).toBe(false);
+    expect(
+      sectionsConflictForPass(sectionA, sectionB, 'conflict', windowB),
+    ).toBe(true);
+    expect(
+      sectionsConflictForPass(sectionA, sectionC, 'conflict', windowB),
+    ).toBe(false);
   });
 
   it('compares resolved Subject codes for a Duplicate Subject pass, ignoring the window', () => {
-    expect(sectionsConflictForPass(sectionA, sectionB, 'duplicate', null)).toBe(true);
-    expect(sectionsConflictForPass(sectionA, { ...sectionC, resolvedSubjectCode: 'ELE02' }, 'duplicate', null)).toBe(false);
+    expect(sectionsConflictForPass(sectionA, sectionB, 'duplicate', null)).toBe(
+      true,
+    );
+    expect(
+      sectionsConflictForPass(
+        sectionA,
+        { ...sectionC, resolvedSubjectCode: 'ELE02' },
+        'duplicate',
+        null,
+      ),
+    ).toBe(false);
   });
 
   it('never flags Sections with no resolved Subject as duplicates', () => {
@@ -141,34 +167,63 @@ describe('sectionsConflictForPass', () => {
 
 describe('keeperRemovalIds', () => {
   it('removes only the adjacent member, keeping the non-overlapping third one (non-transitive chain)', () => {
-    expect(keeperRemovalIds([sectionA, sectionB, sectionC], 'A', 'conflict', windowB)).toEqual(['B']);
+    expect(
+      keeperRemovalIds(
+        [sectionA, sectionB, sectionC],
+        'A',
+        'conflict',
+        windowB,
+      ),
+    ).toEqual(['B']);
   });
 
   it('keeps a member whose only overlap with the keeper falls outside the window', () => {
     // A and C overlap on Wednesday (outside windowB), yet keeping A must not remove C.
-    const removed = keeperRemovalIds([sectionA, sectionB, sectionC], 'A', 'conflict', windowB);
+    const removed = keeperRemovalIds(
+      [sectionA, sectionB, sectionC],
+      'A',
+      'conflict',
+      windowB,
+    );
     expect(removed).not.toContain('C');
   });
 
   it('removes every other member for a Duplicate Subject pass, regardless of schedule', () => {
     const a = { id: 'a', resolvedSubjectCode: 'MAT01', sessions: [] };
-    const b = { id: 'b', resolvedSubjectCode: 'MAT01', sessions: [{ day: 'Seg', startTime: '08:00', endTime: '10:00' }] };
-    const c = { id: 'c', resolvedSubjectCode: 'MAT01', sessions: [{ day: 'Ter', startTime: '08:00', endTime: '10:00' }] };
-    expect(keeperRemovalIds([a, b, c], 'a', 'duplicate', null).sort()).toEqual(['b', 'c']);
+    const b = {
+      id: 'b',
+      resolvedSubjectCode: 'MAT01',
+      sessions: [{ day: 'Seg', startTime: '08:00', endTime: '10:00' }],
+    };
+    const c = {
+      id: 'c',
+      resolvedSubjectCode: 'MAT01',
+      sessions: [{ day: 'Ter', startTime: '08:00', endTime: '10:00' }],
+    };
+    expect(keeperRemovalIds([a, b, c], 'a', 'duplicate', null).sort()).toEqual([
+      'b',
+      'c',
+    ]);
   });
 
   it('returns an empty array when the keeper id matches no member', () => {
-    expect(keeperRemovalIds([sectionA, sectionB], 'missing', 'conflict', windowA)).toEqual([]);
+    expect(
+      keeperRemovalIds([sectionA, sectionB], 'missing', 'conflict', windowA),
+    ).toEqual([]);
   });
 });
 
 describe('stillConflicted', () => {
   it('is true when at least one overlapping pair remains within the window', () => {
-    expect(stillConflicted([sectionA, sectionB], 'conflict', windowA)).toBe(true);
+    expect(stillConflicted([sectionA, sectionB], 'conflict', windowA)).toBe(
+      true,
+    );
   });
 
   it('is false once pruning leaves no overlapping pair inside the window', () => {
-    expect(stillConflicted([sectionA, sectionC], 'conflict', windowB)).toBe(false);
+    expect(stillConflicted([sectionA, sectionC], 'conflict', windowB)).toBe(
+      false,
+    );
   });
 
   it('is false for a single remaining member', () => {
@@ -203,11 +258,15 @@ describe('sectionMatchesShiftFilter', () => {
 
 describe('effectiveShiftFilter', () => {
   it('uses the persisted toggle when set', () => {
-    expect(effectiveShiftFilter({ shift: 'morning', shiftFilter: 'afternoon' })).toBe('afternoon');
+    expect(
+      effectiveShiftFilter({ shift: 'morning', shiftFilter: 'afternoon' }),
+    ).toBe('afternoon');
   });
 
   it('falls back to the profile shift when no toggle is set', () => {
-    expect(effectiveShiftFilter({ shift: 'morning', shiftFilter: null })).toBe('morning');
+    expect(effectiveShiftFilter({ shift: 'morning', shiftFilter: null })).toBe(
+      'morning',
+    );
   });
 });
 
@@ -224,14 +283,21 @@ describe('plannedSectionSessions', () => {
     subjects: [
       {
         code: 'ELE01',
-        sections: [{ turma: '01', sessions: [{ day: 'Seg', startTime: '08:00', endTime: '10:00' }] }],
+        sections: [
+          {
+            turma: '01',
+            sessions: [{ day: 'Seg', startTime: '08:00', endTime: '10:00' }],
+          },
+        ],
       },
     ],
   };
 
   it('resolves an offering Section by subject code and turma', () => {
     const section = { kind: 'offering', subjectCode: 'ELE01', turma: '01' };
-    expect(plannedSectionSessions(section, offerings)).toEqual([{ day: 'Seg', startTime: '08:00', endTime: '10:00' }]);
+    expect(plannedSectionSessions(section, offerings)).toEqual([
+      { day: 'Seg', startTime: '08:00', endTime: '10:00' },
+    ]);
   });
 
   it('returns an empty array for an unresolved offering Section', () => {
@@ -240,7 +306,10 @@ describe('plannedSectionSessions', () => {
   });
 
   it('returns the embedded sessions for a Custom Section', () => {
-    const section = { kind: 'custom', custom: { name: 'Estágio', sessions: [] } };
+    const section = {
+      kind: 'custom',
+      custom: { name: 'Estágio', sessions: [] },
+    };
     expect(plannedSectionSessions(section, offerings)).toEqual([]);
   });
 });
@@ -264,7 +333,9 @@ describe('plannedSectionOffering', () => {
 
   it('resolves the raw Offerings-dataset Section by subject code and turma', () => {
     const section = { kind: 'offering', subjectCode: 'ELE01', turma: '01' };
-    expect(plannedSectionOffering(section, offerings)).toEqual(offerings.subjects[0].sections[0]);
+    expect(plannedSectionOffering(section, offerings)).toEqual(
+      offerings.subjects[0].sections[0],
+    );
   });
 
   it('returns null for an unresolved offering Section', () => {
@@ -273,7 +344,10 @@ describe('plannedSectionOffering', () => {
   });
 
   it('returns null for a Custom Section', () => {
-    const section = { kind: 'custom', custom: { name: 'Estágio', sessions: [] } };
+    const section = {
+      kind: 'custom',
+      custom: { name: 'Estágio', sessions: [] },
+    };
     expect(plannedSectionOffering(section, offerings)).toBeNull();
   });
 });

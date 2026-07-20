@@ -66,7 +66,12 @@ function toSnapshotSection(section, subjectCode) {
  * (a Subject simply not offered that term), never written to the snapshot
  * itself.
  */
-export function collectCourseSnapshot({ ppc, yearSemester, sourceSemester, departmentOfferings }) {
+export function collectCourseSnapshot({
+  ppc,
+  yearSemester,
+  sourceSemester,
+  departmentOfferings,
+}) {
   const relevantCodes = buildRelevantCodeSet(ppc);
   const foundCodes = new Set();
   const subjects = [];
@@ -79,13 +84,17 @@ export function collectCourseSnapshot({ ppc, yearSemester, sourceSemester, depar
         code: subject.code,
         name: subject.name,
         workloadHours: subject.workloadHours,
-        sections: subject.sections.map((s) => toSnapshotSection(s, subject.code)),
+        sections: subject.sections.map((s) =>
+          toSnapshotSection(s, subject.code),
+        ),
       });
     }
   }
 
   subjects.sort((a, b) => a.code.localeCompare(b.code));
-  const missingCodes = [...relevantCodes].filter((c) => !foundCodes.has(c)).sort();
+  const missingCodes = [...relevantCodes]
+    .filter((c) => !foundCodes.has(c))
+    .sort();
 
   const snapshot = { ppcId: ppc.ppcId, yearSemester, sourceSemester, subjects };
   return { snapshot, missingCodes };

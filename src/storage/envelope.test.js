@@ -2,7 +2,13 @@
 // in-memory localStorage stub rather than a full DOM environment.
 
 import { beforeEach, describe, expect, it } from 'vitest';
-import { CURRENT_SCHEMA_VERSION, STORAGE_KEY, defaultEnvelope, loadEnvelope, saveEnvelope } from './envelope.js';
+import {
+  CURRENT_SCHEMA_VERSION,
+  STORAGE_KEY,
+  defaultEnvelope,
+  loadEnvelope,
+  saveEnvelope,
+} from './envelope.js';
 import { InMemoryStorage } from '../test/inMemoryStorage.js';
 
 beforeEach(() => {
@@ -15,7 +21,11 @@ describe('envelope storage', () => {
   });
 
   it('round-trips a saved envelope', () => {
-    const envelope = { schemaVersion: CURRENT_SCHEMA_VERSION, activeProfileId: 'p1', profiles: [{ id: 'p1' }] };
+    const envelope = {
+      schemaVersion: CURRENT_SCHEMA_VERSION,
+      activeProfileId: 'p1',
+      profiles: [{ id: 'p1' }],
+    };
     saveEnvelope(envelope);
     expect(loadEnvelope()).toEqual(envelope);
     expect(localStorage.getItem(STORAGE_KEY)).toBeTypeOf('string');
@@ -27,7 +37,10 @@ describe('envelope storage', () => {
   });
 
   it('throws when the stored schema version has no migration path', () => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ schemaVersion: 0, activeProfileId: null, profiles: [] }));
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ schemaVersion: 0, activeProfileId: null, profiles: [] }),
+    );
     expect(() => loadEnvelope()).toThrow(/No migration available/);
   });
 });
@@ -39,7 +52,9 @@ describe('migrateV1toV2 (adds ProfileRecord.courseId)', () => {
       JSON.stringify({
         schemaVersion: 1,
         activeProfileId: null,
-        profiles: [{ id: 'p1', ppcId: 'engenharia-eletrica-2022', semesters: [] }],
+        profiles: [
+          { id: 'p1', ppcId: 'engenharia-eletrica-2022', semesters: [] },
+        ],
       }),
     );
 
@@ -52,7 +67,11 @@ describe('migrateV1toV2 (adds ProfileRecord.courseId)', () => {
   it('sets courseId to null when ppcId is null', () => {
     localStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({ schemaVersion: 1, activeProfileId: null, profiles: [{ id: 'p1', ppcId: null, semesters: [] }] }),
+      JSON.stringify({
+        schemaVersion: 1,
+        activeProfileId: null,
+        profiles: [{ id: 'p1', ppcId: null, semesters: [] }],
+      }),
     );
 
     const envelope = loadEnvelope();

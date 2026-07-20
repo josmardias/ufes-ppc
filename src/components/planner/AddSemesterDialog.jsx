@@ -7,9 +7,20 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ppcs, getOfferings } from '../../data/index.js';
 import { evaluatePlan } from '../../domain/evaluation.js';
-import { buildCandidateSubjects, candidateSectionKey, pruneCorequisiteLookahead } from '../../domain/eligibility.js';
-import { effectiveShiftFilter, sectionsOverlap } from '../../domain/schedule.js';
-import { createPlannedSection, formatYearSemesterLabel, semesterPosition } from '../../domain/semester.js';
+import {
+  buildCandidateSubjects,
+  candidateSectionKey,
+  pruneCorequisiteLookahead,
+} from '../../domain/eligibility.js';
+import {
+  effectiveShiftFilter,
+  sectionsOverlap,
+} from '../../domain/schedule.js';
+import {
+  createPlannedSection,
+  formatYearSemesterLabel,
+  semesterPosition,
+} from '../../domain/semester.js';
 import {
   CLASSIFICATION_FILTER_LABEL,
   COURSE_FILTER_LABEL,
@@ -20,7 +31,8 @@ import FilterCheckbox from './FilterCheckbox.jsx';
 import FilterToggle from './FilterToggle.jsx';
 import WeeklyGrid from './WeeklyGrid.jsx';
 
-const BUTTON_FOCUS_CLASS = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2';
+const BUTTON_FOCUS_CLASS =
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2';
 
 /**
  * @param {{
@@ -32,7 +44,14 @@ const BUTTON_FOCUS_CLASS = 'focus-visible:outline-none focus-visible:ring-2 focu
  *   onClose: () => void,
  * }} props
  */
-export default function AddSemesterDialog({ open, profile, lastSemesterHasSignals, onShiftFilterChange, onConfirm, onClose }) {
+export default function AddSemesterDialog({
+  open,
+  profile,
+  lastSemesterHasSignals,
+  onShiftFilterChange,
+  onConfirm,
+  onClose,
+}) {
   const ref = useRef(null);
   const [selectedPpcId, setSelectedPpcId] = useState(profile.ppcId);
   const [shiftFilter, setShiftFilter] = useState(effectiveShiftFilter(profile));
@@ -67,14 +86,26 @@ export default function AddSemesterDialog({ open, profile, lastSemesterHasSignal
   // unstable reference there defeats that memoization and causes an
   // infinite render loop via the pre-selection effect.
   const position = useMemo(
-    () => (ppc ? semesterPosition(profile.ingressYear, profile.ingressYearSemester, newIndex) : null),
+    () =>
+      ppc
+        ? semesterPosition(
+            profile.ingressYear,
+            profile.ingressYearSemester,
+            newIndex,
+          )
+        : null,
     [ppc, profile.ingressYear, profile.ingressYearSemester, newIndex],
   );
-  const offerings = position ? getOfferings(ppc.id, position.yearSemester) : undefined;
+  const offerings = position
+    ? getOfferings(ppc.id, position.yearSemester)
+    : undefined;
 
   const fulfillmentBefore = useMemo(() => {
     if (!ppc) return null;
-    return evaluatePlan(profile, ppc, { 1: getOfferings(ppc.id, 1), 2: getOfferings(ppc.id, 2) }).fulfillmentAfter;
+    return evaluatePlan(profile, ppc, {
+      1: getOfferings(ppc.id, 1),
+      2: getOfferings(ppc.id, 2),
+    }).fulfillmentAfter;
   }, [ppc, profile]);
 
   const candidates = useMemo(() => {
@@ -173,13 +204,20 @@ export default function AddSemesterDialog({ open, profile, lastSemesterHasSignal
 
   const duplicateSubjectCodes = new Set(
     candidates
-      .filter((c) => c.subjectCode && c.sections.filter((s) => selectedKeys.has(candidateSectionKey(s))).length > 1)
+      .filter(
+        (c) =>
+          c.subjectCode &&
+          c.sections.filter((s) => selectedKeys.has(candidateSectionKey(s)))
+            .length > 1,
+      )
       .map((c) => c.subjectCode),
   );
   const conflictingKeys = new Set();
   for (let i = 0; i < chosen.length; i++) {
     for (let j = i + 1; j < chosen.length; j++) {
-      if (sectionsOverlap(chosen[i].section.sessions, chosen[j].section.sessions)) {
+      if (
+        sectionsOverlap(chosen[i].section.sessions, chosen[j].section.sessions)
+      ) {
         conflictingKeys.add(candidateSectionKey(chosen[i].section));
         conflictingKeys.add(candidateSectionKey(chosen[j].section));
       }
@@ -207,7 +245,9 @@ export default function AddSemesterDialog({ open, profile, lastSemesterHasSignal
     };
   });
 
-  const issueCount = previewSections.filter((s) => s.signals.scheduleConflict || s.signals.duplicateSubject).length;
+  const issueCount = previewSections.filter(
+    (s) => s.signals.scheduleConflict || s.signals.duplicateSubject,
+  ).length;
 
   function handleConfirm() {
     const sections = chosen.map(({ section }) => createPlannedSection(section));
@@ -215,20 +255,28 @@ export default function AddSemesterDialog({ open, profile, lastSemesterHasSignal
   }
 
   return (
-    <dialog ref={ref} onClose={onClose} className="overscroll-contain w-[min(80rem,96vw)] rounded-lg p-0 backdrop:bg-slate-900/40">
+    <dialog
+      ref={ref}
+      onClose={onClose}
+      className="overscroll-contain w-[min(80rem,96vw)] rounded-lg p-0 backdrop:bg-slate-900/40"
+    >
       <div className="flex max-h-[92vh] flex-col gap-4 p-6">
-        <h2 className="text-lg font-semibold text-slate-900">Adicionar período</h2>
+        <h2 className="text-lg font-semibold text-slate-900">
+          Adicionar período
+        </h2>
 
         {lastSemesterHasSignals && (
           <p className="rounded bg-amber-50 px-3 py-2 text-sm text-amber-900">
-            O último período tem pendências. A elegibilidade do novo período será calculada considerando as turmas
-            atuais como estão.
+            O último período tem pendências. A elegibilidade do novo período
+            será calculada considerando as turmas atuais como estão.
           </p>
         )}
 
         {!ppc ? (
           <fieldset className="flex flex-col gap-1">
-            <legend className="text-sm font-medium text-slate-700">Escolha o Projeto Pedagógico de Curso (PPC)</legend>
+            <legend className="text-sm font-medium text-slate-700">
+              Escolha o Projeto Pedagógico de Curso (PPC)
+            </legend>
             <ul className="mt-1 space-y-1">
               {Object.values(ppcs).map((option) => (
                 <li key={option.id}>
@@ -246,22 +294,30 @@ export default function AddSemesterDialog({ open, profile, lastSemesterHasSignal
         ) : (
           <>
             <div className="flex flex-wrap items-center justify-between gap-4">
-              <p className="text-sm text-slate-600">{position && formatYearSemesterLabel(position)}</p>
+              <p className="text-sm text-slate-600">
+                {position && formatYearSemesterLabel(position)}
+              </p>
               <div className="flex flex-wrap items-center gap-4">
                 <FilterCheckbox
                   label={COURSE_FILTER_LABEL}
                   checked={courseFilter === 'own'}
-                  onChange={(checked) => setCourseFilter(checked ? 'own' : 'all')}
+                  onChange={(checked) =>
+                    setCourseFilter(checked ? 'own' : 'all')
+                  }
                 />
                 <FilterCheckbox
                   label={SEMESTER_FILTER_LABEL}
                   checked={semesterFilter === 'advance'}
-                  onChange={(checked) => setSemesterFilter(checked ? 'advance' : 'suggested')}
+                  onChange={(checked) =>
+                    setSemesterFilter(checked ? 'advance' : 'suggested')
+                  }
                 />
                 <FilterCheckbox
                   label={CLASSIFICATION_FILTER_LABEL}
                   checked={classificationFilter === 'all'}
-                  onChange={(checked) => setClassificationFilter(checked ? 'all' : 'required')}
+                  onChange={(checked) =>
+                    setClassificationFilter(checked ? 'all' : 'required')
+                  }
                 />
                 <FilterToggle
                   legend="Turno"
@@ -288,14 +344,22 @@ export default function AddSemesterDialog({ open, profile, lastSemesterHasSignal
                 )}
                 <div className="min-h-0 flex-1 overflow-y-auto pr-2">
                   {candidates.length === 0 ? (
-                    <p className="text-sm text-slate-500">Nenhuma disciplina elegível encontrada para este período.</p>
+                    <p className="text-sm text-slate-500">
+                      Nenhuma disciplina elegível encontrada para este período.
+                    </p>
                   ) : (
                     <ul className="space-y-3">
                       {candidates.map((candidate) => {
-                        const isDuplicate = duplicateSubjectCodes.has(candidate.subjectCode);
+                        const isDuplicate = duplicateSubjectCodes.has(
+                          candidate.subjectCode,
+                        );
                         return (
-                          <li key={candidate.subjectCode ?? candidate.subjectName}>
-                            <p className={`text-sm font-semibold ${isDuplicate ? 'text-amber-700' : 'text-slate-800'}`}>
+                          <li
+                            key={candidate.subjectCode ?? candidate.subjectName}
+                          >
+                            <p
+                              className={`text-sm font-semibold ${isDuplicate ? 'text-amber-700' : 'text-slate-800'}`}
+                            >
                               {candidate.subjectName}
                               {isDuplicate && ' — disciplina duplicada'}
                             </p>
@@ -305,8 +369,14 @@ export default function AddSemesterDialog({ open, profile, lastSemesterHasSignal
                                 return (
                                   <li key={key}>
                                     <label
-                                      onMouseEnter={() => setHighlightedKey(key)}
-                                      onMouseLeave={() => setHighlightedKey((current) => (current === key ? null : current))}
+                                      onMouseEnter={() =>
+                                        setHighlightedKey(key)
+                                      }
+                                      onMouseLeave={() =>
+                                        setHighlightedKey((current) =>
+                                          current === key ? null : current,
+                                        )
+                                      }
                                       className={`flex items-center gap-2 rounded px-2 py-1 text-sm hover:bg-slate-50 ${conflictingKeys.has(key) ? 'text-red-700' : 'text-slate-700'} ${highlightedKey === key ? 'ring-2 ring-slate-500' : ''}`}
                                     >
                                       <input
@@ -314,16 +384,24 @@ export default function AddSemesterDialog({ open, profile, lastSemesterHasSignal
                                         checked={selectedKeys.has(key)}
                                         onChange={() => toggleSection(key)}
                                         onFocus={() => setHighlightedKey(key)}
-                                        onBlur={() => setHighlightedKey((current) => (current === key ? null : current))}
+                                        onBlur={() =>
+                                          setHighlightedKey((current) =>
+                                            current === key ? null : current,
+                                          )
+                                        }
                                         className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
                                       />
-                                      {section.kind === 'offering' ? `Turma ${section.turma}` : section.custom.name}
+                                      {section.kind === 'offering'
+                                        ? `Turma ${section.turma}`
+                                        : section.custom.name}
                                       {section.kind === 'offering' &&
                                         courseFilter === 'all' &&
-                                        section.targetCourseId !== (ppc?.courseId ?? null) &&
+                                        section.targetCourseId !==
+                                          (ppc?.courseId ?? null) &&
                                         section.targetCourseName &&
                                         ` (${section.targetCourseName})`}
-                                      {conflictingKeys.has(key) && ' (conflito de horário)'}
+                                      {conflictingKeys.has(key) &&
+                                        ' (conflito de horário)'}
                                     </label>
                                   </li>
                                 );
@@ -353,7 +431,10 @@ export default function AddSemesterDialog({ open, profile, lastSemesterHasSignal
         <div className="flex items-center justify-end gap-3 border-t border-slate-100 pt-3">
           {ppc && issueCount > 0 && (
             <p className="text-sm text-amber-700">
-              {issueCount} {issueCount === 1 ? 'pendência na seleção' : 'pendências na seleção'}
+              {issueCount}{' '}
+              {issueCount === 1
+                ? 'pendência na seleção'
+                : 'pendências na seleção'}
             </p>
           )}
           <button

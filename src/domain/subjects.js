@@ -12,7 +12,11 @@
  */
 export function resolveSubjectByCode(ppc, code) {
   if (!code) return null;
-  return ppc.subjects.find((s) => s.code === code) ?? ppc.subjects.find((s) => s.equivalents.includes(code)) ?? null;
+  return (
+    ppc.subjects.find((s) => s.code === code) ??
+    ppc.subjects.find((s) => s.equivalents.includes(code)) ??
+    null
+  );
 }
 
 /**

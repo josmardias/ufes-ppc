@@ -23,11 +23,15 @@ const inputDir = join(scriptsDir, 'input');
 const outputDir = join(scriptsDir, 'output');
 
 const pdfFiles = readdirSync(inputDir).filter(
-  (f) => f.startsWith('ppc_engenharia_eletrica_equivalencias_') && f.endsWith('.pdf'),
+  (f) =>
+    f.startsWith('ppc_engenharia_eletrica_equivalencias_') &&
+    f.endsWith('.pdf'),
 );
 
 if (pdfFiles.length === 0) {
-  console.error(`No ppc_engenharia_eletrica_equivalencias_*.pdf files found in ${inputDir}`);
+  console.error(
+    `No ppc_engenharia_eletrica_equivalencias_*.pdf files found in ${inputDir}`,
+  );
   process.exit(1);
 }
 
@@ -39,8 +43,13 @@ for (const file of pdfFiles) {
   const result = parseEletricaEquivalenciasPdf(pdfPath);
 
   const subjectCount = Object.keys(result.equivalences).length;
-  const equivCount = Object.values(result.equivalences).reduce((n, codes) => n + codes.length, 0);
-  console.log(`  ${result.ppcId}: ${subjectCount} subjects with equivalences, ${equivCount} equivalent codes total`);
+  const equivCount = Object.values(result.equivalences).reduce(
+    (n, codes) => n + codes.length,
+    0,
+  );
+  console.log(
+    `  ${result.ppcId}: ${subjectCount} subjects with equivalences, ${equivCount} equivalent codes total`,
+  );
 
   const outPath = join(outputDir, `${result.ppcId}.equivalences.json`);
   writeFileSync(outPath, JSON.stringify(result, null, 2) + '\n', 'utf8');

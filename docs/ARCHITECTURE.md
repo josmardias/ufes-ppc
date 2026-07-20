@@ -6,18 +6,18 @@ This document records the technical and structural decisions for the UFES course
 
 ## Technology Stack
 
-| Concern | Decision |
-|---|---|
-| Language | JavaScript (no TypeScript) |
-| UI framework | React |
-| Build tool | Vite |
-| State management | Zustand |
-| Routing | wouter |
-| Styling | Tailwind CSS (v4), no component library |
-| Unit tests | Vitest |
-| End-to-end tests | Playwright |
-| Persistence | Browser localStorage |
-| Hosting | GitHub Pages, deployed via GitHub Actions |
+| Concern          | Decision                                  |
+| ---------------- | ----------------------------------------- |
+| Language         | JavaScript (no TypeScript)                |
+| UI framework     | React                                     |
+| Build tool       | Vite                                      |
+| State management | Zustand                                   |
+| Routing          | wouter                                    |
+| Styling          | Tailwind CSS (v4), no component library   |
+| Unit tests       | Vitest                                    |
+| End-to-end tests | Playwright                                |
+| Persistence      | Browser localStorage                      |
+| Hosting          | GitHub Pages, deployed via GitHub Actions |
 
 No server, no database, no network requests at runtime. The application is entirely client-side.
 
@@ -43,24 +43,31 @@ scripts/      # Offline data-generation scripts — turn official documents (scr
 ```
 
 ### `src/domain`
+
 Contains pure JavaScript functions that implement domain rules — prerequisite evaluation, schedule conflict detection, equivalence resolution, profile and semester operations, etc. Functions here have no knowledge of React, localStorage, or any other infrastructure. They take plain objects and return plain objects. All domain logic must live here. This is also where the JSDoc `@typedef`s for the canonical shapes are defined.
 
 ### `src/storage`
+
 Contains all read and write operations against localStorage, plus the schema migrations (see Persistence). This is the only layer allowed to call `localStorage`, and it is called only by the store. It is responsible for serialising and deserialising the envelope, and for handling storage errors. It calls domain validation functions (e.g. `validateImportedProfile`) where appropriate, but contains no domain logic of its own.
 
 ### `src/store`
+
 The Zustand store — the single owner of in-memory app state. On startup it loads the envelope through `src/storage`; every mutation is a store action that updates state and writes through to storage. Components and hooks subscribe to exactly the slice they render via selectors, so unrelated mutations do not trigger unrelated re-renders. The cross-tab `storage` event listener (see Persistence) also lives here. **Only the store calls `src/storage`.**
 
 ### `src/components`
+
 Reusable React components with no direct storage or store-internal access. Components receive data and callbacks as props or via hooks. Overlays (modals, confirm dialogs) use native platform primitives — `<dialog>`, popover — styled with Tailwind, rather than a component library. Modal dialogs must be **centered in the viewport** with a dimmed backdrop; note that Tailwind's preflight resets the user-agent `margin: auto` that normally centers an open `<dialog>`, so the centering styles must be applied explicitly (e.g. a shared dialog wrapper/class) — otherwise dialogs render at the top-left of the screen.
 
 ### `src/pages`
+
 Top-level components that correspond to the main screens of the application. They compose components and coordinate hooks.
 
 ### `src/hooks`
+
 Custom React hooks that connect the store to the UI: thin wrappers over store selectors and actions. Hooks do not touch `src/storage` directly.
 
 ### `src/data`
+
 Static datasets bundled with the application — no network requests, no user uploads. Two subfolders:
 
 - **`src/data/ppcs`** — Course Curricula (PPCs), one JSON file per PPC version (see PPC dataset below). Each PPC is identified by a **PPC id** (e.g. `engenharia-eletrica-2022`) and carries a display name; profiles reference this id. A PPC file reaches this folder one of two ways: hand-crafted and **committed directly** (the target for most future courses), or produced by `scripts/` and copied in by `scripts/copy-to-data.mjs` — today's case for Engenharia Elétrica, whose PPC is re-extracted from the official PDF rather than hand-authored, so it is **git-ignored** and regenerated on every build instead, same treatment as Offerings below.
@@ -76,7 +83,7 @@ Initial coverage: **UFES Electrical Engineering**, both cohorts — 1st Year Sem
 
 ### PPC dataset
 
-One JSON file per PPC version, produced either by hand or by script-assisted extraction from the official PDF (see `src/data/ppcs` above for which one applies to a given course). PPCs are static once approved, so whichever process produces a course's file, it is validated before use. The d2 graphs in `scripts/input` are an authoring source; a script converts them to JSON, inverting edge direction (the d2 stores *prerequisite → dependent*; the JSON stores each subject's own requisite lists, which is what evaluation wants).
+One JSON file per PPC version, produced either by hand or by script-assisted extraction from the official PDF (see `src/data/ppcs` above for which one applies to a given course). PPCs are static once approved, so whichever process produces a course's file, it is validated before use. The d2 graphs in `scripts/input` are an authoring source; a script converts them to JSON, inverting edge direction (the d2 stores _prerequisite → dependent_; the JSON stores each subject's own requisite lists, which is what evaluation wants).
 
 ```js
 {
@@ -113,7 +120,7 @@ A Section is included in a course's snapshot when its subject code belongs to th
 
 Each Section in the dataset carries a **shift** (`morning` | `afternoon` | `day`), **precomputed by the generation scripts** (not derived at runtime): `morning` when all sessions end at or before 13:00, `afternoon` when all sessions start at or after 13:00, `day` otherwise.
 
-Each Section also carries its **target course** — `targetCourseId` and `targetCourseName`, taken from the source PDF's "Curso" cell. The id is **normalized at generation time**: official documents sometimes attach an entry-semester/cohort marker to the course code (e.g. `12 B`); the marker is stripped — `targetCourseId` identifies the course only, never a cohort. Whether a Section is *own-course* is resolved **at runtime**, by comparing `targetCourseId` with the profile's `courseId` (see `ProfileRecord`): matching is course-level and PPC-version-agnostic — every PPC version of a course is the same course for Section-scope purposes. This powers the course toggle when listing available Sections (UC-11, UC-12); it is presentation/filtering data only — the tool still does not model enrollment eligibility, and Enrollment Scopes and seat counts remain excluded from the dataset.
+Each Section also carries its **target course** — `targetCourseId` and `targetCourseName`, taken from the source PDF's "Curso" cell. The id is **normalized at generation time**: official documents sometimes attach an entry-semester/cohort marker to the course code (e.g. `12 B`); the marker is stripped — `targetCourseId` identifies the course only, never a cohort. Whether a Section is _own-course_ is resolved **at runtime**, by comparing `targetCourseId` with the profile's `courseId` (see `ProfileRecord`): matching is course-level and PPC-version-agnostic — every PPC version of a course is the same course for Section-scope purposes. This powers the course toggle when listing available Sections (UC-11, UC-12); it is presentation/filtering data only — the tool still does not model enrollment eligibility, and Enrollment Scopes and seat counts remain excluded from the dataset.
 
 ---
 
@@ -221,13 +228,13 @@ Stage 4: validated JSONs ──copy──▶ src/data/ppcs, src/data/offerings
 
 ## Testing Policy
 
-| Tier | Scope | Mandatory |
-|---|---|---|
-| Domain | Exhaustive unit tests of all rules (requisites, conflicts, equivalence resolution, cascading recomputation) — pure Vitest, no DOM | Yes |
-| Storage | Serialisation, error handling, and **every migration** — Vitest with an in-memory localStorage stub | Yes |
-| Store | Action logic (mutations, write-through, derived updates) — headless Vitest | Yes |
-| Components | None by default. React Testing Library may be added later for a specific screen if it accumulates regressions | No |
-| E2E | Playwright smoke suite, added once UC-02/11/12 are implemented | Yes (from that point) |
+| Tier       | Scope                                                                                                                             | Mandatory             |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
+| Domain     | Exhaustive unit tests of all rules (requisites, conflicts, equivalence resolution, cascading recomputation) — pure Vitest, no DOM | Yes                   |
+| Storage    | Serialisation, error handling, and **every migration** — Vitest with an in-memory localStorage stub                               | Yes                   |
+| Store      | Action logic (mutations, write-through, derived updates) — headless Vitest                                                        | Yes                   |
+| Components | None by default. React Testing Library may be added later for a specific screen if it accumulates regressions                     | No                    |
+| E2E        | Playwright smoke suite, added once UC-02/11/12 are implemented                                                                    | Yes (from that point) |
 
 The e2e suite is a **smoke suite, not a use-case matrix** — roughly 3–5 scenarios covering the seams unit tests skip: the persistence spine (create profile → plan → reload → intact), the export → delete → import round-trip, the two-tab warning, and one requisite/conflict warning flow through the real UI. All behavioral edge cases stay in domain/store unit tests. E2E runs on CI per PR; with no backend it stays fast.
 

@@ -21,7 +21,8 @@ import { keeperRemovalIds } from '../../domain/schedule.js';
 import { IconTrash } from '../icons.jsx';
 import { sectionShortLabel } from './WeeklyGrid.jsx';
 
-const BUTTON_FOCUS_CLASS = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2';
+const BUTTON_FOCUS_CLASS =
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2';
 const PRIMARY_BUTTON_CLASS = `rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800 ${BUTTON_FOCUS_CLASS} focus-visible:ring-slate-500`;
 const PRUNE_BUTTON_CLASS = `rounded p-1.5 text-red-600 hover:bg-red-50 hover:text-red-700 ${BUTTON_FOCUS_CLASS} focus-visible:ring-red-400`;
 
@@ -73,8 +74,11 @@ export default function ResolveConflictDialog({
   // The keeper row may have been pruned since it was elected (or since the
   // entry point was set as the default) — fall back to the first remaining
   // member rather than to the (possibly also gone) entry-point Section.
-  const keeper = resolutionSet.find((s) => s.id === keeperId) ?? resolutionSet[0] ?? null;
-  const removedIds = keeper ? keeperRemovalIds(resolutionSet, keeper.id, signalType, conflictWindow) : [];
+  const keeper =
+    resolutionSet.find((s) => s.id === keeperId) ?? resolutionSet[0] ?? null;
+  const removedIds = keeper
+    ? keeperRemovalIds(resolutionSet, keeper.id, signalType, conflictWindow)
+    : [];
   const removedIdSet = new Set(removedIds);
 
   function handleConfirm() {
@@ -82,14 +86,21 @@ export default function ResolveConflictDialog({
   }
 
   return (
-    <dialog ref={ref} onClose={onClose} className="overscroll-contain rounded-lg p-0 backdrop:bg-slate-900/40">
+    <dialog
+      ref={ref}
+      onClose={onClose}
+      className="overscroll-contain rounded-lg p-0 backdrop:bg-slate-900/40"
+    >
       <div className="flex w-96 flex-col gap-4 p-6">
         <div>
           <h2 className="text-lg font-semibold text-slate-900">
-            {signalType === 'conflict' ? 'Conflito de horário' : 'Disciplina duplicada'}
+            {signalType === 'conflict'
+              ? 'Conflito de horário'
+              : 'Disciplina duplicada'}
           </h2>
           <p className="mt-1 text-sm text-slate-600">
-            Remova turmas individualmente, ou escolha qual manter — as demais em conflito com ela serão removidas ao confirmar.
+            Remova turmas individualmente, ou escolha qual manter — as demais em
+            conflito com ela serão removidas ao confirmar.
           </p>
         </div>
 
@@ -112,23 +123,35 @@ export default function ResolveConflictDialog({
                   <span className="min-w-0 flex-1">
                     <span className="block font-medium text-slate-800">
                       {sectionShortLabel(section, ppc)}
-                      {section.kind === 'offering' && ` · Turma ${section.turma}`}
+                      {section.kind === 'offering' &&
+                        ` · Turma ${section.turma}`}
                       {section.kind === 'offering' &&
                         profileCourseId != null &&
                         section.targetCourseId != null &&
                         section.targetCourseId !== profileCourseId &&
                         section.targetCourseName &&
                         ` (${section.targetCourseName})`}
-                      {section.id === entrySectionId && <span className="ml-1 font-normal text-slate-400">(selecionada)</span>}
+                      {section.id === entrySectionId && (
+                        <span className="ml-1 font-normal text-slate-400">
+                          (selecionada)
+                        </span>
+                      )}
                     </span>
                     {section.sessions.length > 0 && (
                       <span className="block text-xs text-slate-500">
                         {section.sessions
-                          .map((session) => `${WEEKDAY_LABELS[session.day] ?? session.day} ${session.startTime}–${session.endTime}`)
+                          .map(
+                            (session) =>
+                              `${WEEKDAY_LABELS[session.day] ?? session.day} ${session.startTime}–${session.endTime}`,
+                          )
                           .join(', ')}
                       </span>
                     )}
-                    {willBeRemoved && <span className="mt-1 block text-xs font-medium text-red-700">Será removida</span>}
+                    {willBeRemoved && (
+                      <span className="mt-1 block text-xs font-medium text-red-700">
+                        Será removida
+                      </span>
+                    )}
                   </span>
                 </label>
                 <button
@@ -145,10 +168,18 @@ export default function ResolveConflictDialog({
         </ul>
 
         <div className="flex justify-end gap-2 border-t border-slate-100 pt-3">
-          <button type="button" onClick={onClose} className={`px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 rounded ${BUTTON_FOCUS_CLASS} focus-visible:ring-slate-400`}>
+          <button
+            type="button"
+            onClick={onClose}
+            className={`px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 rounded ${BUTTON_FOCUS_CLASS} focus-visible:ring-slate-400`}
+          >
             Cancelar
           </button>
-          <button type="button" onClick={handleConfirm} className={PRIMARY_BUTTON_CLASS}>
+          <button
+            type="button"
+            onClick={handleConfirm}
+            className={PRIMARY_BUTTON_CLASS}
+          >
             Confirmar
           </button>
         </div>
@@ -156,4 +187,3 @@ export default function ResolveConflictDialog({
     </dialog>
   );
 }
-

@@ -69,7 +69,10 @@ export function sectionsConflictInWindow(sessionsA, sessionsB, window) {
  */
 export function sectionsConflictForPass(a, b, signalType, window) {
   if (signalType === 'duplicate') {
-    return a.resolvedSubjectCode != null && a.resolvedSubjectCode === b.resolvedSubjectCode;
+    return (
+      a.resolvedSubjectCode != null &&
+      a.resolvedSubjectCode === b.resolvedSubjectCode
+    );
   }
   return sectionsConflictInWindow(a.sessions, b.sessions, window);
 }
@@ -89,7 +92,9 @@ export function keeperRemovalIds(members, keeperId, signalType, window) {
   if (!keeper) return [];
   return members
     .filter(
-      (member) => member.id !== keeper.id && sectionsConflictForPass(member, keeper, signalType, window),
+      (member) =>
+        member.id !== keeper.id &&
+        sectionsConflictForPass(member, keeper, signalType, window),
     )
     .map((member) => member.id);
 }
@@ -144,7 +149,9 @@ export function effectiveShiftFilter(profile) {
  */
 export function plannedSectionOffering(section, offerings) {
   if (section.kind === 'custom') return null;
-  const subject = offerings?.subjects.find((s) => s.code === section.subjectCode);
+  const subject = offerings?.subjects.find(
+    (s) => s.code === section.subjectCode,
+  );
   return subject?.sections.find((sec) => sec.turma === section.turma) ?? null;
 }
 

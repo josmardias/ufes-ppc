@@ -11,7 +11,11 @@ function unwrap(mod) {
 }
 
 /** PPC dataset (see docs/ARCHITECTURE.md, "PPC dataset"), keyed by PPC id. */
-export const ppcs = Object.fromEntries(Object.values(ppcModules).map(unwrap).map((ppc) => [ppc.id, ppc]));
+export const ppcs = Object.fromEntries(
+  Object.values(ppcModules)
+    .map(unwrap)
+    .map((ppc) => [ppc.id, ppc]),
+);
 
 /**
  * Offerings snapshots (see docs/ARCHITECTURE.md, "Offerings dataset"), keyed

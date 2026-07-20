@@ -14,7 +14,8 @@ const CURRENT_YEAR = new Date().getFullYear();
 
 const FIELD_CLASS =
   'rounded border border-slate-300 px-2 py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500';
-const BUTTON_FOCUS_CLASS = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2';
+const BUTTON_FOCUS_CLASS =
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2';
 
 /** @param {{ ref: import('react').Ref<HTMLDialogElement>, onCreated?: () => void }} props */
 export default function CreateProfileDialog({ ref, onCreated }) {
@@ -36,7 +37,12 @@ export default function CreateProfileDialog({ ref, onCreated }) {
 
   function handleSubmit(event) {
     event.preventDefault();
-    const result = createProfile({ name, ingressYear: Number(ingressYear), ingressYearSemester, shift });
+    const result = createProfile({
+      name,
+      ingressYear: Number(ingressYear),
+      ingressYearSemester,
+      shift,
+    });
     if (!result.ok) {
       setError(ERROR_MESSAGES[result.error]);
       nameInputRef.current?.focus();
@@ -53,7 +59,11 @@ export default function CreateProfileDialog({ ref, onCreated }) {
   }
 
   return (
-    <dialog ref={ref} onClose={reset} className="overscroll-contain rounded-lg p-0 backdrop:bg-slate-900/40">
+    <dialog
+      ref={ref}
+      onClose={reset}
+      className="overscroll-contain rounded-lg p-0 backdrop:bg-slate-900/40"
+    >
       <form onSubmit={handleSubmit} className="flex w-80 flex-col gap-4 p-6">
         <h2 className="text-lg font-semibold text-slate-900">Criar perfil</h2>
 
@@ -128,7 +138,12 @@ export default function CreateProfileDialog({ ref, onCreated }) {
         </label>
 
         {error && (
-          <p id="create-profile-name-error" role="alert" aria-live="polite" className="text-sm text-red-600">
+          <p
+            id="create-profile-name-error"
+            role="alert"
+            aria-live="polite"
+            className="text-sm text-red-600"
+          >
             {error}
           </p>
         )}

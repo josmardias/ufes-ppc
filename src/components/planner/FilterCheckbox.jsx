@@ -13,7 +13,9 @@
 export default function FilterCheckbox({ label, checked, onChange }) {
   return (
     <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-slate-600">
-      <span className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${checked ? 'bg-slate-900' : 'bg-slate-300'}`}>
+      <span
+        className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${checked ? 'bg-slate-900' : 'bg-slate-300'}`}
+      >
         <input
           type="checkbox"
           checked={checked}

@@ -6,7 +6,11 @@
 // edit (see docs/ARCHITECTURE.md, Persistence).
 
 import { resolveSubjectByCode, totalFulfilledWorkload } from './subjects.js';
-import { plannedSectionOffering, plannedSectionSessions, sectionsOverlap } from './schedule.js';
+import {
+  plannedSectionOffering,
+  plannedSectionSessions,
+  sectionsOverlap,
+} from './schedule.js';
 import { semesterPosition } from './semester.js';
 
 /**
@@ -39,7 +43,11 @@ function statusFromSignals(sections) {
   let hasWarning = false;
   for (const section of sections) {
     if (section.signals.unmetRequisite) return 'errors';
-    if (section.signals.scheduleConflict || section.signals.duplicateSubject || section.signals.redundantEnrollment) {
+    if (
+      section.signals.scheduleConflict ||
+      section.signals.duplicateSubject ||
+      section.signals.redundantEnrollment
+    ) {
       hasWarning = true;
     }
   }
@@ -60,11 +68,18 @@ function statusFromSignals(sections) {
 export function evaluatePlan(profile, ppc, offeringsByYearSemester) {
   const fulfillment = new Map();
   for (const entry of profile.creditEntries) {
-    fulfillment.set(entry.subjectCode, { audit: entry.audit, source: { kind: 'credit' } });
+    fulfillment.set(entry.subjectCode, {
+      audit: entry.audit,
+      source: { kind: 'credit' },
+    });
   }
 
   const semesters = profile.semesters.map((semester, index) => {
-    const { year, yearSemester } = semesterPosition(profile.ingressYear, profile.ingressYearSemester, index);
+    const { year, yearSemester } = semesterPosition(
+      profile.ingressYear,
+      profile.ingressYearSemester,
+      index,
+    );
     const offerings = offeringsByYearSemester[yearSemester];
     const fulfillmentBefore = new Map(fulfillment);
     const workloadBefore = totalFulfilledWorkload(ppc, fulfillmentBefore);
@@ -76,50 +91,82 @@ export function evaluatePlan(profile, ppc, offeringsByYearSemester) {
       offering: plannedSectionOffering(section, offerings),
     }));
 
-    const sameSemesterCodes = new Set(resolved.filter((r) => r.subject).map((r) => r.subject.code));
+    const sameSemesterCodes = new Set(
+      resolved.filter((r) => r.subject).map((r) => r.subject.code),
+    );
 
     const countByCode = new Map();
     for (const r of resolved) {
       if (!r.subject) continue;
-      countByCode.set(r.subject.code, (countByCode.get(r.subject.code) ?? 0) + 1);
+      countByCode.set(
+        r.subject.code,
+        (countByCode.get(r.subject.code) ?? 0) + 1,
+      );
     }
 
-    const evaluatedSections = resolved.map(({ section, subject, sessions, offering }) => {
-      const scheduleConflict = resolved.some((other) => other.section !== section && sectionsOverlap(sessions, other.sessions));
-      const duplicateSubject = subject != null && countByCode.get(subject.code) > 1;
-
-      let unmetRequisite = false;
-      let redundantEnrollment = false;
-      if (subject) {
-        const prereqsSatisfied = subject.prerequisites.every((code) => fulfillmentBefore.has(code));
-        const coreqsSatisfied = subject.corequisites.every(
-          (code) => fulfillmentBefore.has(code) || sameSemesterCodes.has(code),
+    const evaluatedSections = resolved.map(
+      ({ section, subject, sessions, offering }) => {
+        const scheduleConflict = resolved.some(
+          (other) =>
+            other.section !== section &&
+            sectionsOverlap(sessions, other.sessions),
         );
-        const workloadSatisfied = subject.minWorkloadHours == null || workloadBefore >= subject.minWorkloadHours;
-        unmetRequisite = !prereqsSatisfied || !coreqsSatisfied || !workloadSatisfied;
+        const duplicateSubject =
+          subject != null && countByCode.get(subject.code) > 1;
 
-        const priorFulfillment = fulfillmentBefore.get(subject.code);
-        redundantEnrollment = priorFulfillment != null && !priorFulfillment.audit;
-      }
+        let unmetRequisite = false;
+        let redundantEnrollment = false;
+        if (subject) {
+          const prereqsSatisfied = subject.prerequisites.every((code) =>
+            fulfillmentBefore.has(code),
+          );
+          const coreqsSatisfied = subject.corequisites.every(
+            (code) =>
+              fulfillmentBefore.has(code) || sameSemesterCodes.has(code),
+          );
+          const workloadSatisfied =
+            subject.minWorkloadHours == null ||
+            workloadBefore >= subject.minWorkloadHours;
+          unmetRequisite =
+            !prereqsSatisfied || !coreqsSatisfied || !workloadSatisfied;
 
-      return {
-        ...section,
-        resolvedSubjectCode: subject?.code ?? null,
-        sessions,
-        targetCourseId: offering?.targetCourseId ?? null,
-        targetCourseName: offering?.targetCourseName ?? null,
-        signals: { unmetRequisite, scheduleConflict, duplicateSubject, redundantEnrollment },
-      };
-    });
+          const priorFulfillment = fulfillmentBefore.get(subject.code);
+          redundantEnrollment =
+            priorFulfillment != null && !priorFulfillment.audit;
+        }
+
+        return {
+          ...section,
+          resolvedSubjectCode: subject?.code ?? null,
+          sessions,
+          targetCourseId: offering?.targetCourseId ?? null,
+          targetCourseName: offering?.targetCourseName ?? null,
+          signals: {
+            unmetRequisite,
+            scheduleConflict,
+            duplicateSubject,
+            redundantEnrollment,
+          },
+        };
+      },
+    );
 
     // Sections that fulfill their own requisites (and aren't Failed) update
     // the running fulfillment map for later semesters — a Failed Mark or an
     // Unmet Requisite confers nothing forward (see docs/DOMAIN.md).
     for (const evaluatedSection of evaluatedSections) {
-      if (evaluatedSection.resolvedSubjectCode && !evaluatedSection.failed && !evaluatedSection.signals.unmetRequisite) {
+      if (
+        evaluatedSection.resolvedSubjectCode &&
+        !evaluatedSection.failed &&
+        !evaluatedSection.signals.unmetRequisite
+      ) {
         fulfillment.set(evaluatedSection.resolvedSubjectCode, {
           audit: evaluatedSection.audit,
-          source: { kind: 'section', semesterIndex: index, sectionId: evaluatedSection.id },
+          source: {
+            kind: 'section',
+            semesterIndex: index,
+            sectionId: evaluatedSection.id,
+          },
         });
       }
     }

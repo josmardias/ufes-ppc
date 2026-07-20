@@ -3,8 +3,15 @@
 // every action here writes through to localStorage synchronously.
 
 import { create } from 'zustand';
-import { STORAGE_KEY, loadEnvelope, saveEnvelope } from '../storage/envelope.js';
-import { parseProfileFile, serializeProfileForExport } from '../storage/profileFile.js';
+import {
+  STORAGE_KEY,
+  loadEnvelope,
+  saveEnvelope,
+} from '../storage/envelope.js';
+import {
+  parseProfileFile,
+  serializeProfileForExport,
+} from '../storage/profileFile.js';
 import { getPpc } from '../data/index.js';
 import {
   cloneProfileRecord,
@@ -113,7 +120,11 @@ export const useStore = create((set, get) => ({
     if (error) return { ok: false, error };
 
     const renamed = renameProfileRecord(target, newName);
-    set({ profiles: profiles.map((profile) => (profile.id === id ? renamed : profile)) });
+    set({
+      profiles: profiles.map((profile) =>
+        profile.id === id ? renamed : profile,
+      ),
+    });
     persist(get);
     return { ok: true, profile: renamed };
   },
@@ -141,12 +152,17 @@ export const useStore = create((set, get) => ({
     if (!parsed.ok) return parsed;
 
     const { profiles } = get();
-    const collision = profiles.find((profile) => profile.name === parsed.profile.name);
-    if (collision && !overwrite) return { ok: false, error: 'duplicate', name: parsed.profile.name };
+    const collision = profiles.find(
+      (profile) => profile.name === parsed.profile.name,
+    );
+    if (collision && !overwrite)
+      return { ok: false, error: 'duplicate', name: parsed.profile.name };
 
     const imported = { ...parsed.profile, id: crypto.randomUUID() };
     const nextProfiles = collision
-      ? profiles.map((profile) => (profile.id === collision.id ? imported : profile))
+      ? profiles.map((profile) =>
+          profile.id === collision.id ? imported : profile,
+        )
       : [...profiles, imported];
 
     set({ profiles: nextProfiles });
@@ -167,10 +183,16 @@ export const useStore = create((set, get) => ({
     const { profiles } = get();
     const profile = profiles.find((p) => p.id === id);
     if (!profile) return { ok: false, error: 'not-found' };
-    if (profile.semesters.length > 0) return { ok: false, error: 'has-semesters' };
-    if (profile.ppcId !== ppcId && profile.creditEntries.length > 0) return { ok: false, error: 'has-credit-entries' };
+    if (profile.semesters.length > 0)
+      return { ok: false, error: 'has-semesters' };
+    if (profile.ppcId !== ppcId && profile.creditEntries.length > 0)
+      return { ok: false, error: 'has-credit-entries' };
 
-    const updated = updateProfile(get, set, id, (p) => ({ ...p, ppcId, courseId: getPpc(ppcId)?.courseId ?? null }));
+    const updated = updateProfile(get, set, id, (p) => ({
+      ...p,
+      ppcId,
+      courseId: getPpc(ppcId)?.courseId ?? null,
+    }));
     return { ok: true, profile: updated };
   },
 
@@ -185,7 +207,9 @@ export const useStore = create((set, get) => ({
    * domain/semester.js, createPlannedSection).
    */
   addPlannedSemester(id, sections) {
-    updateProfile(get, set, id, (profile) => addPlannedSemesterDomain(profile, sections));
+    updateProfile(get, set, id, (profile) =>
+      addPlannedSemesterDomain(profile, sections),
+    );
   },
 
   /** Removes the last Planned Semester and all its contents (UC-14). */
@@ -195,22 +219,30 @@ export const useStore = create((set, get) => ({
 
   /** Adds a Section to a Planned Semester (UC-12). */
   addSectionToSemester(id, semesterIndex, section) {
-    updateProfile(get, set, id, (profile) => addSectionToSemesterDomain(profile, semesterIndex, section));
+    updateProfile(get, set, id, (profile) =>
+      addSectionToSemesterDomain(profile, semesterIndex, section),
+    );
   },
 
   /** Removes a Section from a Planned Semester by id (UC-13). */
   removeSectionFromSemester(id, semesterIndex, sectionId) {
-    updateProfile(get, set, id, (profile) => removeSectionFromSemesterDomain(profile, semesterIndex, sectionId));
+    updateProfile(get, set, id, (profile) =>
+      removeSectionFromSemesterDomain(profile, semesterIndex, sectionId),
+    );
   },
 
   /** Toggles a Failed Mark on a Planned Section (UC-22/23). */
   toggleFailedMark(id, semesterIndex, sectionId) {
-    updateProfile(get, set, id, (profile) => toggleSectionMark(profile, semesterIndex, sectionId, 'failed'));
+    updateProfile(get, set, id, (profile) =>
+      toggleSectionMark(profile, semesterIndex, sectionId, 'failed'),
+    );
   },
 
   /** Toggles an Audit Mark on a Planned Section (UC-20/21). */
   toggleAuditMark(id, semesterIndex, sectionId) {
-    updateProfile(get, set, id, (profile) => toggleSectionMark(profile, semesterIndex, sectionId, 'audit'));
+    updateProfile(get, set, id, (profile) =>
+      toggleSectionMark(profile, semesterIndex, sectionId, 'audit'),
+    );
   },
 }));
 
@@ -221,6 +253,7 @@ export const useStore = create((set, get) => ({
 // warn the user and offer a reload.
 if (typeof window !== 'undefined') {
   window.addEventListener('storage', (event) => {
-    if (event.key === STORAGE_KEY) useStore.setState({ storageChangedElsewhere: true });
+    if (event.key === STORAGE_KEY)
+      useStore.setState({ storageChangedElsewhere: true });
   });
 }

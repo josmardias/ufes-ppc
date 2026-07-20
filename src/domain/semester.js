@@ -13,7 +13,10 @@
  */
 export function semesterPosition(ingressYear, ingressYearSemester, index) {
   const absolute = index + (ingressYearSemester - 1);
-  return { year: ingressYear + Math.floor(absolute / 2), yearSemester: (absolute % 2) + 1 };
+  return {
+    year: ingressYear + Math.floor(absolute / 2),
+    yearSemester: (absolute % 2) + 1,
+  };
 }
 
 /** Formats a semester position as "2024/1". */
@@ -31,7 +34,8 @@ export function formatYearSemesterLabel({ year, yearSemester }) {
  */
 export function currentSemesterIndex(profile, today = new Date()) {
   const nowYearSemester = today.getMonth() < 6 ? 1 : 2;
-  const absolute = (today.getFullYear() - profile.ingressYear) * 2 + (nowYearSemester - 1);
+  const absolute =
+    (today.getFullYear() - profile.ingressYear) * 2 + (nowYearSemester - 1);
   const index = absolute - (profile.ingressYearSemester - 1);
   return index >= 0 && index < profile.semesters.length ? index : null;
 }
@@ -45,7 +49,13 @@ export function currentSemesterIndex(profile, today = new Date()) {
  */
 export function createPlannedSection(candidateSection) {
   const { kind, subjectCode, turma, custom } = candidateSection;
-  const base = { id: crypto.randomUUID(), kind, subjectCode, failed: false, audit: false };
+  const base = {
+    id: crypto.randomUUID(),
+    kind,
+    subjectCode,
+    failed: false,
+    audit: false,
+  };
   return kind === 'custom' ? { ...base, custom } : { ...base, turma };
 }
 
@@ -60,7 +70,11 @@ export function addPlannedSemester(profile, sections) {
  */
 export function deleteLastPlannedSemester(profile) {
   const semesters = profile.semesters.slice(0, -1);
-  return { ...profile, semesters, shiftFilter: semesters.length === 0 ? null : profile.shiftFilter };
+  return {
+    ...profile,
+    semesters,
+    shiftFilter: semesters.length === 0 ? null : profile.shiftFilter,
+  };
 }
 
 /** Adds a Section to a Planned Semester (UC-12). */
@@ -68,7 +82,9 @@ export function addSectionToSemester(profile, semesterIndex, section) {
   return {
     ...profile,
     semesters: profile.semesters.map((semester, index) =>
-      index === semesterIndex ? { sections: [...semester.sections, section] } : semester,
+      index === semesterIndex
+        ? { sections: [...semester.sections, section] }
+        : semester,
     ),
   };
 }
@@ -78,7 +94,13 @@ export function removeSectionFromSemester(profile, semesterIndex, sectionId) {
   return {
     ...profile,
     semesters: profile.semesters.map((semester, index) =>
-      index === semesterIndex ? { sections: semester.sections.filter((section) => section.id !== sectionId) } : semester,
+      index === semesterIndex
+        ? {
+            sections: semester.sections.filter(
+              (section) => section.id !== sectionId,
+            ),
+          }
+        : semester,
     ),
   };
 }
@@ -97,7 +119,9 @@ export function toggleSectionMark(profile, semesterIndex, sectionId, mark) {
       index === semesterIndex
         ? {
             sections: semester.sections.map((section) =>
-              section.id === sectionId ? { ...section, [mark]: !section[mark] } : section,
+              section.id === sectionId
+                ? { ...section, [mark]: !section[mark] }
+                : section,
             ),
           }
         : semester,

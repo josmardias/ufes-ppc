@@ -46,7 +46,9 @@ import { sectionMatchesShiftFilter } from './schedule.js';
  */
 /** A stable identity key for a candidate section template, used to track selection across filter changes. */
 export function candidateSectionKey(section) {
-  return section.kind === 'custom' ? `custom:${section.sourceCustomId}` : `offering:${section.subjectCode}:${section.turma}`;
+  return section.kind === 'custom'
+    ? `custom:${section.sourceCustomId}`
+    : `offering:${section.subjectCode}:${section.turma}`;
 }
 
 /**
@@ -70,7 +72,11 @@ function matchesCourseFilter(targetCourseId, courseFilter, profileCourseId) {
  * Subject with no Suggested Semester, or a caller with no known semester
  * number, always matches.
  */
-function matchesSemesterFilter(suggestedSemester, semesterFilter, semesterNumber) {
+function matchesSemesterFilter(
+  suggestedSemester,
+  semesterFilter,
+  semesterNumber,
+) {
   if (semesterFilter !== 'suggested') return true;
   if (suggestedSemester == null || semesterNumber == null) return true;
   return suggestedSemester <= semesterNumber;
@@ -107,15 +113,26 @@ export function buildCandidateSubjects({
     const fulfilled = fulfillmentBefore.has(subject.code);
     const openAudit = fulfillmentBefore.get(subject.code)?.audit === true;
     if (fulfilled && !openAudit) return false;
-    if (!subject.prerequisites.every((code) => fulfillmentBefore.has(code))) return false;
+    if (!subject.prerequisites.every((code) => fulfillmentBefore.has(code)))
+      return false;
     if (checkCorequisites) {
       const coreqsSatisfied = subject.corequisites.every(
         (code) => fulfillmentBefore.has(code) || sameSemesterCodes.has(code),
       );
       if (!coreqsSatisfied) return false;
     }
-    if (!matchesSemesterFilter(subject.suggestedSemester, semesterFilter, semesterNumber)) return false;
-    if (!matchesClassificationFilter(subject.classification, classificationFilter)) return false;
+    if (
+      !matchesSemesterFilter(
+        subject.suggestedSemester,
+        semesterFilter,
+        semesterNumber,
+      )
+    )
+      return false;
+    if (
+      !matchesClassificationFilter(subject.classification, classificationFilter)
+    )
+      return false;
     return true;
   }
 
@@ -128,7 +145,11 @@ export function buildCandidateSubjects({
     const sections = offeredSubject.sections.filter(
       (section) =>
         sectionMatchesShiftFilter(section.shift, shiftFilter) &&
-        matchesCourseFilter(section.targetCourseId, courseFilter, profileCourseId),
+        matchesCourseFilter(
+          section.targetCourseId,
+          courseFilter,
+          profileCourseId,
+        ),
     );
     if (sections.length === 0) continue;
 
@@ -149,9 +170,15 @@ export function buildCandidateSubjects({
   }
 
   for (const custom of customSections) {
-    if (custom.applicability !== 'both' && custom.applicability !== yearSemester) continue;
+    if (
+      custom.applicability !== 'both' &&
+      custom.applicability !== yearSemester
+    )
+      continue;
 
-    const linkedSubject = custom.subjectCode ? resolveSubjectByCode(ppc, custom.subjectCode) : null;
+    const linkedSubject = custom.subjectCode
+      ? resolveSubjectByCode(ppc, custom.subjectCode)
+      : null;
     const stale = custom.subjectCode != null && linkedSubject == null;
     if (linkedSubject && !isEligible(linkedSubject)) continue;
 
@@ -184,10 +211,15 @@ export function buildCandidateSubjects({
  */
 function matchesPlannedSection(section, planned) {
   if (planned.kind !== section.kind) return false;
-  if (section.kind === 'offering') return planned.subjectCode === section.subjectCode && planned.turma === section.turma;
+  if (section.kind === 'offering')
+    return (
+      planned.subjectCode === section.subjectCode &&
+      planned.turma === section.turma
+    );
   return (
     planned.custom.name === section.custom.name &&
-    JSON.stringify(planned.custom.sessions) === JSON.stringify(section.custom.sessions)
+    JSON.stringify(planned.custom.sessions) ===
+      JSON.stringify(section.custom.sessions)
   );
 }
 
@@ -207,7 +239,10 @@ export function excludeAlreadyPlannedSections(candidates, currentSections) {
     .map((candidate) => ({
       ...candidate,
       sections: candidate.sections.filter(
-        (section) => !currentSections.some((planned) => matchesPlannedSection(section, planned)),
+        (section) =>
+          !currentSections.some((planned) =>
+            matchesPlannedSection(section, planned),
+          ),
       ),
     }))
     .filter((candidate) => candidate.sections.length > 0);
@@ -228,14 +263,18 @@ export function excludeAlreadyPlannedSections(candidates, currentSections) {
  * @returns {CandidateSubject[]}
  */
 export function pruneCorequisiteLookahead(candidates, ppc, fulfillmentBefore) {
-  const listedCodes = new Set(candidates.filter((c) => c.subjectCode != null).map((c) => c.subjectCode));
+  const listedCodes = new Set(
+    candidates.filter((c) => c.subjectCode != null).map((c) => c.subjectCode),
+  );
 
   let changed = true;
   while (changed) {
     changed = false;
     for (const code of listedCodes) {
       const subject = resolveSubjectByCode(ppc, code);
-      const coreqsSatisfied = subject.corequisites.every((req) => fulfillmentBefore.has(req) || listedCodes.has(req));
+      const coreqsSatisfied = subject.corequisites.every(
+        (req) => fulfillmentBefore.has(req) || listedCodes.has(req),
+      );
       if (!coreqsSatisfied) {
         listedCodes.delete(code);
         changed = true;
@@ -243,5 +282,7 @@ export function pruneCorequisiteLookahead(candidates, ppc, fulfillmentBefore) {
     }
   }
 
-  return candidates.filter((c) => c.subjectCode == null || listedCodes.has(c.subjectCode));
+  return candidates.filter(
+    (c) => c.subjectCode == null || listedCodes.has(c.subjectCode),
+  );
 }

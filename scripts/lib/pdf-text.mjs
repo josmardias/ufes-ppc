@@ -15,6 +15,9 @@ export function extractPdfLines(pdfPath, { layout = true } = {}) {
   const args = [];
   if (layout) args.push('-layout');
   args.push(pdfPath, '-');
-  const text = execFileSync('pdftotext', args, { encoding: 'utf8', maxBuffer: MAX_BUFFER });
+  const text = execFileSync('pdftotext', args, {
+    encoding: 'utf8',
+    maxBuffer: MAX_BUFFER,
+  });
   return text.split('\n');
 }

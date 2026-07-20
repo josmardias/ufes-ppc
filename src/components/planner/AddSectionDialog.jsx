@@ -5,7 +5,11 @@
 // before adding it.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { buildCandidateSubjects, candidateSectionKey, excludeAlreadyPlannedSections } from '../../domain/eligibility.js';
+import {
+  buildCandidateSubjects,
+  candidateSectionKey,
+  excludeAlreadyPlannedSections,
+} from '../../domain/eligibility.js';
 import {
   CLASSIFICATION_FILTER_LABEL,
   COURSE_FILTER_LABEL,
@@ -16,7 +20,8 @@ import FilterCheckbox from './FilterCheckbox.jsx';
 import FilterToggle from './FilterToggle.jsx';
 import WeeklyGrid from './WeeklyGrid.jsx';
 
-const BUTTON_FOCUS_CLASS = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2';
+const BUTTON_FOCUS_CLASS =
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2';
 
 /**
  * @param {{
@@ -103,7 +108,10 @@ export default function AddSectionDialog({
     classificationFilter,
   ]);
 
-  const chosen = candidates.flatMap((c) => c.sections).find((s) => candidateSectionKey(s) === chosenKey) ?? null;
+  const chosen =
+    candidates
+      .flatMap((c) => c.sections)
+      .find((s) => candidateSectionKey(s) === chosenKey) ?? null;
 
   function handleConfirm() {
     if (!chosen) return;
@@ -112,9 +120,15 @@ export default function AddSectionDialog({
   }
 
   return (
-    <dialog ref={ref} className="overscroll-contain w-[min(80rem,96vw)] rounded-lg p-0 backdrop:bg-slate-900/40" onClose={onClose}>
+    <dialog
+      ref={ref}
+      className="overscroll-contain w-[min(80rem,96vw)] rounded-lg p-0 backdrop:bg-slate-900/40"
+      onClose={onClose}
+    >
       <div className="flex max-h-[92vh] flex-col gap-4 p-6">
-        <h2 className="text-lg font-semibold text-slate-900">Adicionar turma</h2>
+        <h2 className="text-lg font-semibold text-slate-900">
+          Adicionar turma
+        </h2>
 
         <div className="flex flex-wrap items-center justify-end gap-4">
           <FilterCheckbox
@@ -125,12 +139,16 @@ export default function AddSectionDialog({
           <FilterCheckbox
             label={SEMESTER_FILTER_LABEL}
             checked={semesterFilter === 'advance'}
-            onChange={(checked) => setSemesterFilter(checked ? 'advance' : 'suggested')}
+            onChange={(checked) =>
+              setSemesterFilter(checked ? 'advance' : 'suggested')
+            }
           />
           <FilterCheckbox
             label={CLASSIFICATION_FILTER_LABEL}
             checked={classificationFilter === 'all'}
-            onChange={(checked) => setClassificationFilter(checked ? 'all' : 'required')}
+            onChange={(checked) =>
+              setClassificationFilter(checked ? 'all' : 'required')
+            }
           />
           <FilterToggle
             legend="Turno"
@@ -144,12 +162,17 @@ export default function AddSectionDialog({
         <div className="grid flex-1 grid-cols-1 gap-4 overflow-hidden md:grid-cols-[20rem_1fr]">
           <div className="overflow-y-auto pr-2">
             {candidates.length === 0 ? (
-              <p className="text-sm text-slate-500">Nenhuma turma disponível para este período com o turno selecionado.</p>
+              <p className="text-sm text-slate-500">
+                Nenhuma turma disponível para este período com o turno
+                selecionado.
+              </p>
             ) : (
               <ul className="space-y-3">
                 {candidates.map((candidate) => (
                   <li key={candidate.subjectCode ?? candidate.subjectName}>
-                    <p className={`text-sm font-semibold ${candidate.stale ? 'text-slate-400 italic' : 'text-slate-800'}`}>
+                    <p
+                      className={`text-sm font-semibold ${candidate.stale ? 'text-slate-400 italic' : 'text-slate-800'}`}
+                    >
                       {candidate.subjectName}
                     </p>
                     <ul className="mt-1 space-y-1">
@@ -165,7 +188,9 @@ export default function AddSectionDialog({
                                 onChange={() => setChosenKey(key)}
                                 className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
                               />
-                              {section.kind === 'offering' ? `Turma ${section.turma}` : section.custom.name}
+                              {section.kind === 'offering'
+                                ? `Turma ${section.turma}`
+                                : section.custom.name}
                               {section.kind === 'offering' &&
                                 courseFilter === 'all' &&
                                 section.targetCourseId !== profileCourseId &&
@@ -183,7 +208,12 @@ export default function AddSectionDialog({
           </div>
 
           <div className="overflow-y-auto border-t border-slate-100 pt-3 md:border-t-0 md:border-l md:pt-0 md:pl-4">
-            <WeeklyGrid ppc={ppc} sections={currentSections} onSelect={() => {}} previewSessions={chosen?.sessions ?? []} />
+            <WeeklyGrid
+              ppc={ppc}
+              sections={currentSections}
+              onSelect={() => {}}
+              previewSessions={chosen?.sessions ?? []}
+            />
           </div>
         </div>
 

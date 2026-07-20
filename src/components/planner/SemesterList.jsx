@@ -17,7 +17,12 @@ const STATUS_DOT = {
  *   onSelect: (index: number) => void,
  * }} props
  */
-export default function SemesterList({ semesters, selectedIndex, currentIndex, onSelect }) {
+export default function SemesterList({
+  semesters,
+  selectedIndex,
+  currentIndex,
+  onSelect,
+}) {
   return (
     <ul className="space-y-1">
       {semesters.map((semester) => (
@@ -28,15 +33,25 @@ export default function SemesterList({ semesters, selectedIndex, currentIndex, o
             aria-current={selectedIndex === semester.index ? 'true' : undefined}
             title={STATUS_LABELS[semester.status]}
             className={`flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 ${
-              selectedIndex === semester.index ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100'
+              selectedIndex === semester.index
+                ? 'bg-slate-900 text-white'
+                : 'text-slate-700 hover:bg-slate-100'
             }`}
           >
-            <span className={`size-2 shrink-0 rounded-full ${STATUS_DOT[semester.status]}`} aria-hidden="true" />
+            <span
+              className={`size-2 shrink-0 rounded-full ${STATUS_DOT[semester.status]}`}
+              aria-hidden="true"
+            />
             <span className="flex-1 truncate">
-              {semester.index + 1}º período · {semester.year}/{semester.yearSemester}
+              {semester.index + 1}º período · {semester.year}/
+              {semester.yearSemester}
             </span>
             {currentIndex === semester.index && (
-              <span className={`text-xs ${selectedIndex === semester.index ? 'text-slate-300' : 'text-slate-400'}`}>atual</span>
+              <span
+                className={`text-xs ${selectedIndex === semester.index ? 'text-slate-300' : 'text-slate-400'}`}
+              >
+                atual
+              </span>
             )}
           </button>
         </li>

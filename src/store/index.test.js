@@ -59,7 +59,12 @@ describe('store', () => {
 
   it('createProfile rejects a duplicate name without persisting anything', async () => {
     const { useStore } = await import('./index.js');
-    useStore.getState().createProfile({ name: 'Maria', ingressYear: 2024, ingressYearSemester: 1, shift: 'morning' });
+    useStore.getState().createProfile({
+      name: 'Maria',
+      ingressYear: 2024,
+      ingressYearSemester: 1,
+      shift: 'morning',
+    });
     const result = useStore.getState().createProfile({
       name: 'Maria',
       ingressYear: 2025,
@@ -75,9 +80,12 @@ describe('store', () => {
 describe('cloneProfile', () => {
   it('copies the profile under a new name without making it active (UC-04)', async () => {
     const { useStore } = await import('./index.js');
-    const { profile: source } = useStore
-      .getState()
-      .createProfile({ name: 'Maria', ingressYear: 2024, ingressYearSemester: 1, shift: 'morning' });
+    const { profile: source } = useStore.getState().createProfile({
+      name: 'Maria',
+      ingressYear: 2024,
+      ingressYearSemester: 1,
+      shift: 'morning',
+    });
 
     const result = useStore.getState().cloneProfile(source.id, 'Maria (cópia)');
 
@@ -94,9 +102,12 @@ describe('cloneProfile', () => {
 
   it('rejects a duplicate name without persisting anything', async () => {
     const { useStore } = await import('./index.js');
-    const { profile: source } = useStore
-      .getState()
-      .createProfile({ name: 'Maria', ingressYear: 2024, ingressYearSemester: 1, shift: 'morning' });
+    const { profile: source } = useStore.getState().createProfile({
+      name: 'Maria',
+      ingressYear: 2024,
+      ingressYearSemester: 1,
+      shift: 'morning',
+    });
 
     const result = useStore.getState().cloneProfile(source.id, 'Maria');
 
@@ -108,9 +119,12 @@ describe('cloneProfile', () => {
 describe('deleteProfile', () => {
   it('removes the profile and persists the change', async () => {
     const { useStore } = await import('./index.js');
-    const { profile } = useStore
-      .getState()
-      .createProfile({ name: 'Maria', ingressYear: 2024, ingressYearSemester: 1, shift: 'morning' });
+    const { profile } = useStore.getState().createProfile({
+      name: 'Maria',
+      ingressYear: 2024,
+      ingressYearSemester: 1,
+      shift: 'morning',
+    });
 
     useStore.getState().deleteProfile(profile.id);
 
@@ -123,9 +137,12 @@ describe('deleteProfile', () => {
 
   it('clears the active selection when the deleted profile was active', async () => {
     const { useStore } = await import('./index.js');
-    const { profile } = useStore
-      .getState()
-      .createProfile({ name: 'Maria', ingressYear: 2024, ingressYearSemester: 1, shift: 'morning' });
+    const { profile } = useStore.getState().createProfile({
+      name: 'Maria',
+      ingressYear: 2024,
+      ingressYearSemester: 1,
+      shift: 'morning',
+    });
 
     useStore.getState().deleteProfile(profile.id);
 
@@ -134,12 +151,18 @@ describe('deleteProfile', () => {
 
   it('leaves the active selection untouched when a different profile is deleted', async () => {
     const { useStore } = await import('./index.js');
-    const { profile: active } = useStore
-      .getState()
-      .createProfile({ name: 'Maria', ingressYear: 2024, ingressYearSemester: 1, shift: 'morning' });
-    const { profile: other } = useStore
-      .getState()
-      .createProfile({ name: 'João', ingressYear: 2024, ingressYearSemester: 1, shift: 'morning' });
+    const { profile: active } = useStore.getState().createProfile({
+      name: 'Maria',
+      ingressYear: 2024,
+      ingressYearSemester: 1,
+      shift: 'morning',
+    });
+    const { profile: other } = useStore.getState().createProfile({
+      name: 'João',
+      ingressYear: 2024,
+      ingressYearSemester: 1,
+      shift: 'morning',
+    });
     useStore.getState().setActiveProfileId(active.id);
 
     useStore.getState().deleteProfile(other.id);
@@ -151,9 +174,12 @@ describe('deleteProfile', () => {
 describe('renameProfile', () => {
   it('updates the name and persists the change', async () => {
     const { useStore } = await import('./index.js');
-    const { profile } = useStore
-      .getState()
-      .createProfile({ name: 'Maria', ingressYear: 2024, ingressYearSemester: 1, shift: 'morning' });
+    const { profile } = useStore.getState().createProfile({
+      name: 'Maria',
+      ingressYear: 2024,
+      ingressYearSemester: 1,
+      shift: 'morning',
+    });
 
     const result = useStore.getState().renameProfile(profile.id, 'Maria Silva');
 
@@ -167,9 +193,12 @@ describe('renameProfile', () => {
 
   it('allows renaming a profile to its own current name', async () => {
     const { useStore } = await import('./index.js');
-    const { profile } = useStore
-      .getState()
-      .createProfile({ name: 'Maria', ingressYear: 2024, ingressYearSemester: 1, shift: 'morning' });
+    const { profile } = useStore.getState().createProfile({
+      name: 'Maria',
+      ingressYear: 2024,
+      ingressYearSemester: 1,
+      shift: 'morning',
+    });
 
     const result = useStore.getState().renameProfile(profile.id, 'Maria');
 
@@ -178,24 +207,38 @@ describe('renameProfile', () => {
 
   it('rejects a name that duplicates another profile', async () => {
     const { useStore } = await import('./index.js');
-    useStore.getState().createProfile({ name: 'Maria', ingressYear: 2024, ingressYearSemester: 1, shift: 'morning' });
-    const { profile: joao } = useStore
-      .getState()
-      .createProfile({ name: 'João', ingressYear: 2024, ingressYearSemester: 1, shift: 'morning' });
+    useStore.getState().createProfile({
+      name: 'Maria',
+      ingressYear: 2024,
+      ingressYearSemester: 1,
+      shift: 'morning',
+    });
+    const { profile: joao } = useStore.getState().createProfile({
+      name: 'João',
+      ingressYear: 2024,
+      ingressYearSemester: 1,
+      shift: 'morning',
+    });
 
     const result = useStore.getState().renameProfile(joao.id, 'Maria');
 
     expect(result).toEqual({ ok: false, error: 'duplicate' });
-    expect(useStore.getState().profiles.find((profile) => profile.id === joao.id).name).toBe('João');
+    expect(
+      useStore.getState().profiles.find((profile) => profile.id === joao.id)
+        .name,
+    ).toBe('João');
   });
 });
 
 describe('exportProfile / importProfile', () => {
   it('round-trips a profile through export and import under a fresh id', async () => {
     const { useStore } = await import('./index.js');
-    const { profile } = useStore
-      .getState()
-      .createProfile({ name: 'Maria', ingressYear: 2024, ingressYearSemester: 1, shift: 'morning' });
+    const { profile } = useStore.getState().createProfile({
+      name: 'Maria',
+      ingressYear: 2024,
+      ingressYearSemester: 1,
+      shift: 'morning',
+    });
 
     const exported = useStore.getState().exportProfile(profile.id);
     expect(exported.profile.id).toBeUndefined();
@@ -219,16 +262,23 @@ describe('exportProfile / importProfile', () => {
 
   it('reports a duplicate name conflict without overwrite, and overwrites when asked', async () => {
     const { useStore } = await import('./index.js');
-    const { profile: original } = useStore
-      .getState()
-      .createProfile({ name: 'Maria', ingressYear: 2024, ingressYearSemester: 1, shift: 'morning' });
+    const { profile: original } = useStore.getState().createProfile({
+      name: 'Maria',
+      ingressYear: 2024,
+      ingressYearSemester: 1,
+      shift: 'morning',
+    });
     const exported = useStore.getState().exportProfile(original.id);
 
-    const conflict = useStore.getState().importProfile(JSON.stringify(exported));
+    const conflict = useStore
+      .getState()
+      .importProfile(JSON.stringify(exported));
     expect(conflict).toEqual({ ok: false, error: 'duplicate', name: 'Maria' });
     expect(useStore.getState().profiles).toHaveLength(1);
 
-    const overwritten = useStore.getState().importProfile(JSON.stringify(exported), { overwrite: true });
+    const overwritten = useStore
+      .getState()
+      .importProfile(JSON.stringify(exported), { overwrite: true });
     expect(overwritten.ok).toBe(true);
     expect(overwritten.profile.id).not.toBe(original.id);
     expect(useStore.getState().profiles).toEqual([overwritten.profile]);
@@ -236,9 +286,12 @@ describe('exportProfile / importProfile', () => {
 
   it('rejects a profile referencing an unknown PPC', async () => {
     const { useStore } = await import('./index.js');
-    const { profile } = useStore
-      .getState()
-      .createProfile({ name: 'Maria', ingressYear: 2024, ingressYearSemester: 1, shift: 'morning' });
+    const { profile } = useStore.getState().createProfile({
+      name: 'Maria',
+      ingressYear: 2024,
+      ingressYearSemester: 1,
+      shift: 'morning',
+    });
     const exported = useStore.getState().exportProfile(profile.id);
     exported.profile.ppcId = 'does-not-exist';
 
@@ -251,9 +304,12 @@ describe('exportProfile / importProfile', () => {
 describe('planner actions', () => {
   async function setup() {
     const { useStore } = await import('./index.js');
-    const { profile } = useStore
-      .getState()
-      .createProfile({ name: 'Maria', ingressYear: 2024, ingressYearSemester: 1, shift: 'morning' });
+    const { profile } = useStore.getState().createProfile({
+      name: 'Maria',
+      ingressYear: 2024,
+      ingressYearSemester: 1,
+      shift: 'morning',
+    });
     return { useStore, profileId: profile.id };
   }
 
@@ -280,7 +336,9 @@ describe('planner actions', () => {
 
   it('setProfilePpc derives courseId from the chosen PPC', async () => {
     const { useStore, profileId } = await setup();
-    const result = useStore.getState().setProfilePpc(profileId, 'engenharia-eletrica-2022');
+    const result = useStore
+      .getState()
+      .setProfilePpc(profileId, 'engenharia-eletrica-2022');
     expect(result.ok).toBe(true);
     expect(useStore.getState().profiles[0].courseId).toBe('06');
   });
@@ -294,24 +352,44 @@ describe('planner actions', () => {
 
   it('addPlannedSemester appends a semester with the given sections and persists it', async () => {
     const { useStore, profileId } = await setup();
-    const section = { id: 's1', kind: 'offering', subjectCode: 'MAT01', turma: '01', failed: false, audit: false };
+    const section = {
+      id: 's1',
+      kind: 'offering',
+      subjectCode: 'MAT01',
+      turma: '01',
+      failed: false,
+      audit: false,
+    };
 
     useStore.getState().addPlannedSemester(profileId, [section]);
 
-    expect(useStore.getState().profiles[0].semesters).toEqual([{ sections: [section] }]);
+    expect(useStore.getState().profiles[0].semesters).toEqual([
+      { sections: [section] },
+    ]);
 
     vi.resetModules();
     const { useStore: reloadedStore } = await import('./index.js');
-    expect(reloadedStore.getState().profiles[0].semesters).toEqual([{ sections: [section] }]);
+    expect(reloadedStore.getState().profiles[0].semesters).toEqual([
+      { sections: [section] },
+    ]);
   });
 
   it('addSectionToSemester and removeSectionFromSemester mutate the targeted semester and persist', async () => {
     const { useStore, profileId } = await setup();
     useStore.getState().addPlannedSemester(profileId, []);
-    const section = { id: 's1', kind: 'offering', subjectCode: 'MAT01', turma: '01', failed: false, audit: false };
+    const section = {
+      id: 's1',
+      kind: 'offering',
+      subjectCode: 'MAT01',
+      turma: '01',
+      failed: false,
+      audit: false,
+    };
 
     useStore.getState().addSectionToSemester(profileId, 0, section);
-    expect(useStore.getState().profiles[0].semesters[0].sections).toEqual([section]);
+    expect(useStore.getState().profiles[0].semesters[0].sections).toEqual([
+      section,
+    ]);
 
     useStore.getState().removeSectionFromSemester(profileId, 0, 's1');
     expect(useStore.getState().profiles[0].semesters[0].sections).toEqual([]);
@@ -333,14 +411,25 @@ describe('planner actions', () => {
 
   it('toggleFailedMark and toggleAuditMark flip the marks on the targeted section', async () => {
     const { useStore, profileId } = await setup();
-    const section = { id: 's1', kind: 'offering', subjectCode: 'MAT01', turma: '01', failed: false, audit: false };
+    const section = {
+      id: 's1',
+      kind: 'offering',
+      subjectCode: 'MAT01',
+      turma: '01',
+      failed: false,
+      audit: false,
+    };
     useStore.getState().addPlannedSemester(profileId, [section]);
 
     useStore.getState().toggleFailedMark(profileId, 0, 's1');
-    expect(useStore.getState().profiles[0].semesters[0].sections[0].failed).toBe(true);
+    expect(
+      useStore.getState().profiles[0].semesters[0].sections[0].failed,
+    ).toBe(true);
 
     useStore.getState().toggleAuditMark(profileId, 0, 's1');
-    expect(useStore.getState().profiles[0].semesters[0].sections[0].audit).toBe(true);
+    expect(useStore.getState().profiles[0].semesters[0].sections[0].audit).toBe(
+      true,
+    );
   });
 
   it('setShiftFilter persists the toggle', async () => {

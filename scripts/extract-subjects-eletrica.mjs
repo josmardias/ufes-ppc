@@ -17,7 +17,10 @@ const inputDir = join(scriptsDir, 'input');
 const outputDir = join(scriptsDir, 'output');
 
 const pdfFiles = readdirSync(inputDir).filter(
-  (f) => f.startsWith('ppc_engenharia_eletrica_') && f.endsWith('.pdf') && !f.includes('_equivalencias_'),
+  (f) =>
+    f.startsWith('ppc_engenharia_eletrica_') &&
+    f.endsWith('.pdf') &&
+    !f.includes('_equivalencias_'),
 );
 
 if (pdfFiles.length === 0) {
@@ -32,7 +35,9 @@ for (const file of pdfFiles) {
   console.log(`Parsing ${file}...`);
   const ppc = parseEletricaPpcPdf(pdfPath);
 
-  console.log(`  ${ppc.name} (${ppc.ppcId}): ${ppc.required.length} required, ${ppc.optional.length} optional subjects`);
+  console.log(
+    `  ${ppc.name} (${ppc.ppcId}): ${ppc.required.length} required, ${ppc.optional.length} optional subjects`,
+  );
 
   const outPath = join(outputDir, `${ppc.ppcId}.subjects.json`);
   writeFileSync(outPath, JSON.stringify(ppc, null, 2) + '\n', 'utf8');

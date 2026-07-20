@@ -4,13 +4,17 @@
 import fs from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
 
-test('a profile exported, then deleted, can be imported back', async ({ page }) => {
+test('a profile exported, then deleted, can be imported back', async ({
+  page,
+}) => {
   await page.goto('/');
 
   await page.getByRole('button', { name: 'Criar perfil' }).click();
   const createDialog = page.locator('dialog[open]');
   await createDialog.getByLabel('Nome').fill('Maria Export');
-  await createDialog.getByRole('button', { name: 'Criar', exact: true }).click();
+  await createDialog
+    .getByRole('button', { name: 'Criar', exact: true })
+    .click();
   await expect(page).toHaveURL(/\/profile$/);
 
   await page.goto('/');
@@ -26,8 +30,12 @@ test('a profile exported, then deleted, can be imported back', async ({ page }) 
 
   await row.getByRole('button', { name: 'Excluir' }).click();
   const deleteDialog = page.locator('dialog[open]');
-  await deleteDialog.getByRole('button', { name: 'Excluir', exact: true }).click();
-  await expect(page.getByRole('listitem').filter({ hasText: 'Maria Export' })).toHaveCount(0);
+  await deleteDialog
+    .getByRole('button', { name: 'Excluir', exact: true })
+    .click();
+  await expect(
+    page.getByRole('listitem').filter({ hasText: 'Maria Export' }),
+  ).toHaveCount(0);
 
   await page.setInputFiles('input[type="file"]', {
     name: 'maria-export.json',
@@ -35,5 +43,7 @@ test('a profile exported, then deleted, can be imported back', async ({ page }) 
     buffer: Buffer.from(exportedContent, 'utf-8'),
   });
 
-  await expect(page.getByRole('listitem').filter({ hasText: 'Maria Export' })).toBeVisible();
+  await expect(
+    page.getByRole('listitem').filter({ hasText: 'Maria Export' }),
+  ).toBeVisible();
 });

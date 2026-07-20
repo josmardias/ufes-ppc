@@ -11,7 +11,13 @@
  *   onChange: (value: string) => void,
  * }} props
  */
-export default function FilterToggle({ legend, name, options, value, onChange }) {
+export default function FilterToggle({
+  legend,
+  name,
+  options,
+  value,
+  onChange,
+}) {
   return (
     <fieldset className="inline-flex gap-0.5 rounded-md border border-slate-300 bg-slate-50 p-0.5 text-sm">
       <legend className="sr-only">{legend}</legend>
@@ -26,7 +32,9 @@ export default function FilterToggle({ legend, name, options, value, onChange })
           />
           <span
             className={`block rounded px-2 py-1 transition-colors peer-focus-visible:outline-none peer-focus-visible:ring-2 peer-focus-visible:ring-slate-500 peer-focus-visible:ring-offset-1 ${
-              value === option.value ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-200'
+              value === option.value
+                ? 'bg-slate-900 text-white'
+                : 'text-slate-600 hover:bg-slate-200'
             }`}
           >
             {option.label}

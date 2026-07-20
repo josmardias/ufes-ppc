@@ -16,7 +16,10 @@ function spaFallback404() {
   return {
     name: 'spa-fallback-404',
     closeBundle() {
-      copyFileSync(resolve(rootDir, 'dist/index.html'), resolve(rootDir, 'dist/404.html'));
+      copyFileSync(
+        resolve(rootDir, 'dist/index.html'),
+        resolve(rootDir, 'dist/404.html'),
+      );
     },
   };
 }

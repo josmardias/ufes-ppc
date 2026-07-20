@@ -18,7 +18,9 @@ const scriptsDir = dirname(fileURLToPath(import.meta.url));
 const inputDir = join(scriptsDir, 'input');
 const outputDir = join(scriptsDir, 'output');
 
-const pdfFiles = readdirSync(inputDir).filter((f) => f.startsWith('oferta-departamento-') && f.endsWith('.pdf'));
+const pdfFiles = readdirSync(inputDir).filter(
+  (f) => f.startsWith('oferta-departamento-') && f.endsWith('.pdf'),
+);
 
 if (pdfFiles.length === 0) {
   console.error(`No oferta-departamento-*.pdf files found in ${inputDir}`);
@@ -32,10 +34,17 @@ for (const file of pdfFiles) {
   console.log(`Parsing ${file}...`);
   const oferta = parseOfertaPdf(pdfPath);
 
-  const sectionCount = oferta.subjects.reduce((n, s) => n + s.sections.length, 0);
-  console.log(`  ${oferta.department} (${oferta.yearSemester.year}/${oferta.yearSemester.semester}): ${oferta.subjects.length} subjects, ${sectionCount} sections`);
+  const sectionCount = oferta.subjects.reduce(
+    (n, s) => n + s.sections.length,
+    0,
+  );
+  console.log(
+    `  ${oferta.department} (${oferta.yearSemester.year}/${oferta.yearSemester.semester}): ${oferta.subjects.length} subjects, ${sectionCount} sections`,
+  );
 
-  const outName = file.replace(/^oferta-departamento-/, '').replace(/\.pdf$/, '');
+  const outName = file
+    .replace(/^oferta-departamento-/, '')
+    .replace(/\.pdf$/, '');
   const outPath = join(outputDir, `${outName}.offerings.json`);
   writeFileSync(outPath, JSON.stringify(oferta, null, 2) + '\n', 'utf8');
   console.log(`  wrote ${outPath}`);

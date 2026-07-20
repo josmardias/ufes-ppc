@@ -5,7 +5,9 @@
 
 import { expect, test } from '@playwright/test';
 
-test('a write in one tab warns another tab, but not itself', async ({ context }) => {
+test('a write in one tab warns another tab, but not itself', async ({
+  context,
+}) => {
   const pageA = await context.newPage();
   const pageB = await context.newPage();
 
@@ -13,7 +15,9 @@ test('a write in one tab warns another tab, but not itself', async ({ context })
   await pageA.getByRole('button', { name: 'Criar perfil' }).click();
   const createDialogA = pageA.locator('dialog[open]');
   await createDialogA.getByLabel('Nome').fill('Maria A');
-  await createDialogA.getByRole('button', { name: 'Criar', exact: true }).click();
+  await createDialogA
+    .getByRole('button', { name: 'Criar', exact: true })
+    .click();
   await expect(pageA).toHaveURL(/\/profile$/);
 
   await pageB.goto('/');
@@ -23,8 +27,14 @@ test('a write in one tab warns another tab, but not itself', async ({ context })
   await pageA.getByRole('button', { name: 'Criar perfil' }).click();
   const createDialogA2 = pageA.locator('dialog[open]');
   await createDialogA2.getByLabel('Nome').fill('Maria B');
-  await createDialogA2.getByRole('button', { name: 'Criar', exact: true }).click();
+  await createDialogA2
+    .getByRole('button', { name: 'Criar', exact: true })
+    .click();
 
-  await expect(pageB.getByText('Os dados foram alterados em outra aba.')).toBeVisible();
-  await expect(pageA.getByText('Os dados foram alterados em outra aba.')).not.toBeVisible();
+  await expect(
+    pageB.getByText('Os dados foram alterados em outra aba.'),
+  ).toBeVisible();
+  await expect(
+    pageA.getByText('Os dados foram alterados em outra aba.'),
+  ).not.toBeVisible();
 });

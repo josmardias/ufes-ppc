@@ -8,58 +8,62 @@ Throughout this document, each concept is presented with its English name follow
 
 ## Translation Dictionary
 
-| English | PT-BR |
-|---|---|
-| Course Curriculum | Projeto Pedagógico de Curso (PPC) |
-| Subject | Disciplina |
-| Required / Optional / Elective | Obrigatória / Optativa / Eletiva |
-| Prerequisite | Pré-requisito |
-| Co-requisite | Co-requisito |
-| Suggested Semester | Período Sugerido |
-| Department | Departamento |
-| Year Semester | Semestre |
-| Offering | Oferta |
-| Section | Turma |
-| Enrollment Scope | Escopo |
-| Enrollment Period | Etapa de Matrícula |
-| First / Second Enrollment Period | Primeira / Segunda Etapa |
-| Student | Aluno |
-| Academic Transcript | Histórico Escolar |
-| Equivalence | Equivalência |
-| Planned Semester | Período |
-| Credit Entry | Aproveitamento |
-| Failed Mark | Reprovação |
-| Schedule Conflict | Conflito de Horário |
-| Unmet Requisite | Requisito não atendido |
-| Duplicate Subject | Disciplina Duplicada |
-| Redundant Enrollment | Matrícula Redundante |
-| Warning / Error (planning signal severity) | Aviso / Erro |
-| Custom Section | Turma Personalizada |
-| Audit Mark (attend as listener) | Ouvinte |
-| Shift | Turno |
-| Day / Morning / Afternoon (shifts) | Integral / Manhã / Tarde |
+| English                                    | PT-BR                             |
+| ------------------------------------------ | --------------------------------- |
+| Course Curriculum                          | Projeto Pedagógico de Curso (PPC) |
+| Subject                                    | Disciplina                        |
+| Required / Optional / Elective             | Obrigatória / Optativa / Eletiva  |
+| Prerequisite                               | Pré-requisito                     |
+| Co-requisite                               | Co-requisito                      |
+| Suggested Semester                         | Período Sugerido                  |
+| Department                                 | Departamento                      |
+| Year Semester                              | Semestre                          |
+| Offering                                   | Oferta                            |
+| Section                                    | Turma                             |
+| Enrollment Scope                           | Escopo                            |
+| Enrollment Period                          | Etapa de Matrícula                |
+| First / Second Enrollment Period           | Primeira / Segunda Etapa          |
+| Student                                    | Aluno                             |
+| Academic Transcript                        | Histórico Escolar                 |
+| Equivalence                                | Equivalência                      |
+| Planned Semester                           | Período                           |
+| Credit Entry                               | Aproveitamento                    |
+| Failed Mark                                | Reprovação                        |
+| Schedule Conflict                          | Conflito de Horário               |
+| Unmet Requisite                            | Requisito não atendido            |
+| Duplicate Subject                          | Disciplina Duplicada              |
+| Redundant Enrollment                       | Matrícula Redundante              |
+| Warning / Error (planning signal severity) | Aviso / Erro                      |
+| Custom Section                             | Turma Personalizada               |
+| Audit Mark (attend as listener)            | Ouvinte                           |
+| Shift                                      | Turno                             |
+| Day / Morning / Afternoon (shifts)         | Integral / Manhã / Tarde          |
 
 ---
 
 ## Concepts
 
 ### Course Curriculum (PPC)
+
 A Course Curriculum (PPC — Projeto Pedagógico de Curso) is a formal document that defines the structure of a graduation program. It specifies the required subjects, their workload, prerequisites, and the rules students must fulfill to obtain their degree.
 
 A Course Curriculum is static once approved. A course may have multiple curriculum versions over time, but only one is considered the **current** curriculum — the one that newly enrolled students will follow. Students enrolled under older curriculum versions may continue on their original curriculum or migrate to the current one.
 
 ### Subject (Disciplina)
+
 A Subject (Disciplina) is an academic unit of knowledge with a defined syllabus, workload, and learning objectives. It is identified by a unique **code** and is the basic building block of a Course Curriculum (PPC).
 
 A Subject in a PPC may have a **Suggested Semester** (see below), indicating when it is typically expected to be taken. This is optional — not all Subjects carry a suggestion.
 
 Within a PPC, a Subject may have:
+
 - **Prerequisites (Pré-requisitos)** — other Subjects that must be passed before the student can enroll in this Subject.
 - **Co-requisites (Co-requisitos)** — other Subjects that must be taken concurrently with this Subject.
 
 A prerequisite or co-requisite is considered satisfied if the student has passed the Subject itself **or any of its Equivalences** as defined in the PPC.
 
 Within a Course Curriculum, Subjects are classified as:
+
 - **Required (Obrigatória)** — mandatory for all students in the program.
 - **Optional (Optativa)** — part of the PPC and subject to the same prerequisite, co-requisite, and scope rules as Required Subjects, but the student is not obliged to take it. Optional Subjects count toward the student's curriculum when taken.
 - **Elective (Eletiva)** — taken by a student outside of their own PPC, with no curriculum obligation (consequence of enrolling in a Scope 3 Section).
@@ -67,22 +71,27 @@ Within a Course Curriculum, Subjects are classified as:
 > **Note:** Electives are described here for context only. In this tool, planning is restricted to Subjects of the Student's own PPC — a real-world elective can be represented as a Custom Section (see below).
 
 ### Suggested Semester (Período Sugerido)
+
 A Suggested Semester (Período Sugerido) is an optional attribute of a Subject within a PPC. It indicates the semester of the program in which that Subject is typically expected to be taken — the 1st, 2nd, 3rd, and so on. It is a recommendation to help students plan their academic path, not a rule or constraint.
 
 Not all Subjects have a Suggested Semester. Optional and elective Subjects, for example, often carry no suggestion.
 
 ### Department (Departamento)
+
 A Department (Departamento) is the academic unit responsible for a subject area (e.g. Mathematics Department, Physics Department). It owns a set of Subjects and is responsible for publishing Offerings each Year Semester, deciding which Classes to open and for which courses.
 
 ### Year Semester (Semestre)
+
 A Year Semester (Semestre) is the calendar position within the academic year: either the **1st** or the **2nd** semester of the year.
 
 ### Offering (Oferta)
+
 A Department publishes Offerings for a given Year Semester. An Offering (Oferta) groups one or more Sections for a given Subject. Within an Offering, there is typically one Section per course that has that Subject in its PPC.
 
 Offerings for a given Subject tend to repeat on the same Year Semester each year. The set of Subjects and Sections offered in a given Year Semester remains largely stable from one year to the next — because the same cohorts, progressing through the same subjects, generate the same demand. This is why past Offerings from the same Year Semester are used to infer which Subjects and Sections are likely to be available in a future Year Semester.
 
 ### Section (Turma)
+
 A Section (Turma) is a specific group of students enrolled in a Subject for a given Year Semester. It is assigned to one or more professors and has a defined schedule — composed of one or more weekly sessions, each specifying a day of the week and a start and end time. A Section typically meets on the same days and hours every week throughout the semester.
 
 Each Section has a **target course** and an **Enrollment Scope (Escopo)** that together control who is eligible to enroll:
@@ -98,6 +107,7 @@ The Enrollment Scope of a Section may change between Enrollment Periods. It is c
 Each Section also has a **Shift (Turno)** classification, derived from its weekly sessions: **morning** if all sessions end at or before 13:00, **afternoon** if all sessions start at or after 13:00, and **day** otherwise. In this tool the classification is precomputed when the static datasets are generated, not derived at runtime.
 
 ### Enrollment Period (Etapa de Matrícula)
+
 Each Year Semester has two Enrollment Periods (Etapas de Matrícula) during which students can enroll in Classes:
 
 - **First Enrollment Period (Primeira Etapa)** — Sections are typically opened with Scope 1, giving priority to students of the target course.
@@ -106,6 +116,7 @@ Each Year Semester has two Enrollment Periods (Etapas de Matrícula) during whic
 > **Note:** Enrollment Periods are described here for context only. This tool does not model them.
 
 ### Student (Aluno)
+
 A Student (Aluno) is enrolled in a single course at UFES and follows one version of that course's Course Curriculum (PPC). They progress through the program by passing Subjects in whichever order their prerequisites and co-requisites allow. Key attributes include:
 
 - The **course** they are enrolled in.
@@ -117,16 +128,19 @@ A student may enroll in Sections from other courses if the Enrollment Scope of t
 In this tool, the profile records the course, the curriculum version, and the ingress information as **separate facts**. The PPC is chosen when the first Planned Semester is created (from a flat list of the available PPCs) and can only be changed while the plan has no Planned Semesters; choosing it also records the **course id** — the official UFES course code, identical across all PPC versions of the same course. The course id is what Section target courses are matched against (see Section): for Section-scope purposes, all PPC versions of a course are the same course. Because Credit Entries reference PPC Subjects, they must also be deleted before switching to a different PPC.
 
 ### Academic Transcript (Histórico Escolar)
+
 An Academic Transcript (Histórico Escolar) is the official record of a student's academic history. It lists all Sections the student has attempted, including grades and professor information. For prerequisite and co-requisite purposes, only the Subjects the student has passed are relevant.
 
 > **Note:** This tool does not read, import, or export Academic Transcripts. The concept is described here for context only.
 
 ### Equivalence (Equivalência)
+
 An Equivalence (Equivalência) defines a directional relationship between Subjects, scoped to a specific Course Curriculum (PPC). It states that completing **any one** of a set of equivalent Subjects satisfies the requirement for a target Subject within that curriculum.
 
 For example, if Subject **A** (the target) has equivalents **B**, **C**, and **D**, then a student who has passed B, C, or D will be treated as having passed A — for prerequisite, co-requisite, and curriculum fulfillment purposes.
 
 Key properties:
+
 - **Directional** — B satisfies A, but A does not necessarily satisfy B.
 - **OR logic** — completing any single equivalent is sufficient; there is no case where multiple equivalents must all be completed together.
 - **PPC-scoped** — equivalences are defined in the context of a specific Course Curriculum, and may be maintained in a separate document from the PPC itself.
@@ -138,6 +152,7 @@ In this tool, Equivalences are part of the PPC dataset: each Subject lists the c
 ---
 
 ### Planned Semester (Período)
+
 A Planned Semester (Período) is a slot in a Student's academic timeline, representing one Year Semester's worth of intended enrollment. It holds the set of Sections the Student intends to attend during that Year Semester.
 
 A Student's Planned Semesters form an ordered sequence — their 1st, 2nd, 3rd semester in the program, and so on. This sequence reflects the student's own progression and is independent of the Suggested Semesters assigned to Subjects in the PPC.
@@ -147,6 +162,7 @@ Planned Semesters can represent any point in a student's timeline: semesters tha
 It is common for a course to accept new students in both Year Semesters. When that happens, the course typically organizes Sections at different shifts (morning, afternoon, or night) to accommodate both groups simultaneously. For example, at UFES Electrical Engineering, students who ingress in Year Semester 1 tend to attend morning Sections, while students who ingress in Year Semester 2 tend to attend afternoon Sections. This gives students flexibility to attend a Section in a different shift in order to advance or retake a Subject. Shift and cohort are informal conventions of how a course organizes its Sections, not formally defined academic concepts. In this tool, the Student provides their shift (Day, Morning, or Afternoon) when creating their profile; it serves as the default Shift filter when listing available Sections, and the Student may override it at any time with a persisted toggle (morning, afternoon, or whole day — day-shift Sections appear under every option). The toggle is cleared when the last Planned Semester is deleted.
 
 **Prerequisite and co-requisite evaluation** across Planned Semesters is based on position:
+
 - Sections in Planned Semesters preceding semester N are considered fulfilled for both prerequisite and co-requisite purposes when evaluating eligibility for semester N — except Sections carrying a Failed Mark (see below), which confer nothing forward.
 - Sections within semester N itself satisfy only co-requisite requirements for other Sections in that same semester — including Sections later marked as failed.
 - Credit Entries (see below) are always considered fulfilled, from the very start of the timeline.
@@ -164,9 +180,11 @@ Four derived **planning signals** can flag Sections in a Planned Semester: Sched
 ---
 
 ### Failed Mark (Reprovação)
+
 A Failed Mark records that the Student did not pass a Section in a Planned Semester. It is the Student's way of making the plan reflect a real-life failure without deleting the historical record.
 
 Effects of a failed Section:
+
 - **No fulfillment forward** — it confers nothing to later semesters: neither prerequisite nor co-requisite satisfaction, nor curriculum fulfillment. The Subject reappears among suggested and available Sections when planning later Planned Semesters.
 - **Same-semester co-requisites still count** — within its own Planned Semester, a failed Section still satisfies co-requisite requirements for sibling Sections. The concurrent enrollment really happened; the failure came after.
 - **Schedule unaffected** — the Section still occupies its time slots and participates in Schedule Conflict detection within its own semester.
@@ -174,6 +192,7 @@ Effects of a failed Section:
 ---
 
 ### Unmet Requisite (Requisito não atendido)
+
 An Unmet Requisite flags a Section in a Planned Semester whose Subject's prerequisites or co-requisites are not satisfied at that point in the plan — because a supporting Section was marked as failed, removed, or never planned.
 
 Unmet Requisites are **derived, never stored**. They are computed from the sequence of Planned Semesters: the fulfillment set is built semester by semester, excluding failed Sections; a Section whose requisites are not met is flagged and contributes nothing to the fulfillment set itself — so the flagging **cascades recursively** to every Section that depended on it, however far down the plan. Any edit to a past Planned Semester (marking a Section as failed, removing or adding a Section) propagates automatically through this recomputation.
@@ -183,6 +202,7 @@ An Unmet Requisite is an **error** (see Planned Semester) — the one signal who
 ---
 
 ### Credit Entry (Aproveitamento)
+
 A Credit Entry (Aproveitamento) is the formal recognition that a Student has already mastered the content of a Subject — typically because they completed equivalent coursework in a previous program before joining their current course at UFES. The university reviews the prior work and officially credits the Subject, exempting the Student from taking it again.
 
 A Credit Entry belongs to the Student's profile and is **timeless**: the credited Subject counts as fulfilled from the very start of the timeline, for every Planned Semester. No information about when the credit was granted is recorded.
@@ -194,6 +214,7 @@ A Credit Entry may carry an **Audit Mark** (see below).
 ---
 
 ### Schedule Conflict (Conflito de Horário)
+
 A Schedule Conflict (Conflito de Horário) occurs when two or more Sections in the same Planned Semester have overlapping weekly sessions — that is, at least one session of one Section occupies the same day and overlaps in time with at least one session of another Section.
 
 A Schedule Conflict is a **warning** (see Planned Semester): it stays contained in its own semester — both Sections still confer fulfillment forward until the student decides which to keep. A student may hold Sections with Schedule Conflicts in the same Planned Semester while weighing their options.
@@ -201,6 +222,7 @@ A Schedule Conflict is a **warning** (see Planned Semester): it stays contained 
 ---
 
 ### Duplicate Subject (Disciplina Duplicada)
+
 A student cannot enroll in the same Subject more than once in the same Year Semester. A Duplicate Subject flags two or more Sections in the same Planned Semester that fulfill the same PPC Subject — directly, under an equivalent code (see Equivalence), or through a linked Custom Section copy. Alternative Sections (turmas) of one Subject are mutually exclusive choices, not a set to plan together — even when their schedules do not overlap in time.
 
 A Duplicate Subject is a **warning** (see Planned Semester), derived and never stored: the Subject counts only once toward later semesters regardless of how many Sections of it are held, so the flag stays contained in its own semester. Pruning to one Section per Subject is part of planning.
@@ -208,6 +230,7 @@ A Duplicate Subject is a **warning** (see Planned Semester), derived and never s
 ---
 
 ### Redundant Enrollment (Matrícula Redundante)
+
 A student cannot enroll in a Subject they have already passed or been credited for — attending it again is only possible informally, as a listener (see Audit Mark). A Redundant Enrollment flags a Section whose Subject is already fulfilled at that point in the plan — by a non-failed Section in an earlier Planned Semester or by a Credit Entry — when that fulfillment does **not** carry an open Audit Mark. An open Audit Mark is precisely the state that legitimizes planning the Subject again, so it suppresses the flag.
 
 A Section rarely becomes redundant through the planning lists — fulfilled Subjects are excluded there — but it can become redundant after the fact: adding a Credit Entry for a Subject already planned ahead, removing the Failed Mark that had justified a re-take, or adding the Subject to an earlier Planned Semester. A Redundant Enrollment is a **warning** (see Planned Semester), derived and never stored, contained in its own semester. Its resolutions differ from a conflict's: remove the Section, or mark the fulfillment source for Audit to make the re-take legitimate.
@@ -215,6 +238,7 @@ A Section rarely becomes redundant through the planning lists — fulfilled Subj
 ---
 
 ### Custom Section (Turma Personalizada)
+
 A Custom Section (Turma Personalizada) is a Section defined by the Student themselves, kept in a **catalog** on their profile, rather than coming from Department Offerings. It covers two needs:
 
 1. **Missing data** — a real Section exists but is not covered by the system's Offering data. The Student may link the Custom Section to a Subject in their Course Curriculum; it then behaves like a regular Section of that Subject for prerequisite, co-requisite, and curriculum fulfillment purposes.
@@ -229,15 +253,18 @@ A catalog entry whose Subject link does not resolve in the current PPC (after a 
 ---
 
 ### Audit Mark (Ouvinte)
+
 An Audit Mark records the Student's intention to attend a Subject again as a listener (ouvinte) — without actual enrollment — even though the Subject is already fulfilled: "it's enough to unlock requisites, but I still want to retake it." This happens in the real world when a Student already holds the credit (from a previous program, via a Credit Entry) or has already taken the Subject, but wants to sit through the class anyway.
 
 An Audit Mark is a flag on one of two carriers — the fulfillment source being audited:
+
 - a **Section in a Planned Semester**, or
 - a **Credit Entry**.
 
 The mark lives and dies with its carrier: deleting the Section (or the Planned Semester holding it) or the Credit Entry removes the mark with it.
 
 Effects:
+
 - **Requisite evaluation is unchanged** — the original fulfillment keeps counting from its position, as usual.
 - **Planning treats the Subject as not yet done** — it appears again among suggested and available Sections when planning new Planned Semesters.
 - A Section added for an audited Subject occupies schedule time and participates in Schedule Conflict detection like any other, but confers no additional fulfillment.

@@ -4,7 +4,8 @@
 
 import { useEffect, useRef } from 'react';
 
-const BUTTON_FOCUS_CLASS = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2';
+const BUTTON_FOCUS_CLASS =
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2';
 
 /**
  * @param {{
@@ -36,7 +37,11 @@ export default function ConfirmDialog({
   }, [open]);
 
   return (
-    <dialog ref={ref} onClose={onCancel} className="overscroll-contain rounded-lg p-0 backdrop:bg-slate-900/40">
+    <dialog
+      ref={ref}
+      onClose={onCancel}
+      className="overscroll-contain rounded-lg p-0 backdrop:bg-slate-900/40"
+    >
       <div className="flex w-80 flex-col gap-4 p-6">
         <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
         <p className="text-sm text-slate-700 text-pretty">{message}</p>
@@ -55,7 +60,9 @@ export default function ConfirmDialog({
             type="button"
             onClick={onConfirm}
             className={`rounded px-3 py-1 text-white ${BUTTON_FOCUS_CLASS} ${
-              danger ? 'bg-red-600 hover:bg-red-700 focus-visible:ring-red-500' : 'bg-slate-900 hover:bg-slate-800 focus-visible:ring-slate-500'
+              danger
+                ? 'bg-red-600 hover:bg-red-700 focus-visible:ring-red-500'
+                : 'bg-slate-900 hover:bg-slate-800 focus-visible:ring-slate-500'
             }`}
           >
             {confirmLabel}

@@ -29,8 +29,13 @@ function loadDepartmentOfferings(year, semester) {
 for (const course of courses) {
   const ppc = readJson(join(outputDir, `${course.ppcId}.subjects.json`));
 
-  for (const [yearSemester, sourceSemester] of Object.entries(course.yearSemesters)) {
-    const departmentOfferings = loadDepartmentOfferings(sourceSemester.year, sourceSemester.semester);
+  for (const [yearSemester, sourceSemester] of Object.entries(
+    course.yearSemesters,
+  )) {
+    const departmentOfferings = loadDepartmentOfferings(
+      sourceSemester.year,
+      sourceSemester.semester,
+    );
     if (departmentOfferings.length === 0) {
       throw new Error(
         `No department offering JSONs found for ${sourceSemester.year}/${sourceSemester.semester} ` +
@@ -45,16 +50,24 @@ for (const course of courses) {
       departmentOfferings,
     });
 
-    const sectionCount = snapshot.subjects.reduce((n, s) => n + s.sections.length, 0);
+    const sectionCount = snapshot.subjects.reduce(
+      (n, s) => n + s.sections.length,
+      0,
+    );
     console.log(
       `${course.ppcId} YS${yearSemester} (from ${sourceSemester.year}/${sourceSemester.semester}): ` +
         `${snapshot.subjects.length} subjects, ${sectionCount} sections`,
     );
     if (missingCodes.length > 0) {
-      console.log(`  not offered this source semester: ${missingCodes.join(', ')}`);
+      console.log(
+        `  not offered this source semester: ${missingCodes.join(', ')}`,
+      );
     }
 
-    const outPath = join(outputDir, `${course.ppcId}.ys${yearSemester}.offerings.json`);
+    const outPath = join(
+      outputDir,
+      `${course.ppcId}.ys${yearSemester}.offerings.json`,
+    );
     writeFileSync(outPath, JSON.stringify(snapshot, null, 2) + '\n', 'utf8');
     console.log(`  wrote ${outPath}`);
   }

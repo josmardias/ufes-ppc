@@ -14,8 +14,13 @@ const DEFAULT_START_HOUR = 7;
 const DEFAULT_END_HOUR = 13;
 
 export function severityClass(section) {
-  if (section.signals?.unmetRequisite) return 'border-red-400 bg-red-50 text-red-800 hover:bg-red-100';
-  if (section.signals?.scheduleConflict || section.signals?.duplicateSubject || section.signals?.redundantEnrollment) {
+  if (section.signals?.unmetRequisite)
+    return 'border-red-400 bg-red-50 text-red-800 hover:bg-red-100';
+  if (
+    section.signals?.scheduleConflict ||
+    section.signals?.duplicateSubject ||
+    section.signals?.redundantEnrollment
+  ) {
     return 'border-amber-400 bg-amber-50 text-amber-800 hover:bg-amber-100';
   }
   return 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50';
@@ -28,7 +33,11 @@ export function severityClass(section) {
  */
 export function severityIcon(section) {
   if (section.signals?.unmetRequisite) return IconAlertCircle;
-  if (section.signals?.scheduleConflict || section.signals?.duplicateSubject || section.signals?.redundantEnrollment) {
+  if (
+    section.signals?.scheduleConflict ||
+    section.signals?.duplicateSubject ||
+    section.signals?.redundantEnrollment
+  ) {
     return IconAlertTriangle;
   }
   return null;
@@ -43,16 +52,26 @@ export function severityIcon(section) {
  */
 export function sectionShortLabel(section, ppc) {
   if (section.kind === 'custom') return section.custom.name;
-  const subject = ppc.subjects.find((s) => s.code === section.resolvedSubjectCode);
+  const subject = ppc.subjects.find(
+    (s) => s.code === section.resolvedSubjectCode,
+  );
   return subject?.name ?? section.subjectCode ?? '?';
 }
 
 /** A full, accessible label for a Section, used as the button's accessible name. */
 export function sectionAccessibleLabel(section, ppc, session) {
-  const subject = section.kind === 'custom' ? null : ppc.subjects.find((s) => s.code === section.resolvedSubjectCode);
-  const name = section.kind === 'custom' ? section.custom.name : (subject?.name ?? section.subjectCode);
+  const subject =
+    section.kind === 'custom'
+      ? null
+      : ppc.subjects.find((s) => s.code === section.resolvedSubjectCode);
+  const name =
+    section.kind === 'custom'
+      ? section.custom.name
+      : (subject?.name ?? section.subjectCode);
   const turma = section.kind === 'offering' ? ` turma ${section.turma}` : '';
-  const time = session ? `, ${WEEKDAY_LABELS[session.day] ?? session.day} ${session.startTime}–${session.endTime}` : '';
+  const time = session
+    ? `, ${WEEKDAY_LABELS[session.day] ?? session.day} ${session.startTime}–${session.endTime}`
+    : '';
   const severity = section.signals?.unmetRequisite
     ? ', requisito não atendido'
     : section.signals?.scheduleConflict
@@ -75,7 +94,14 @@ export function sectionAccessibleLabel(section, ppc, session) {
  *   onHoverSection?: (sectionId: string|null) => void, // notifies the caller when hover starts/ends here, for bidirectional highlighting
  * }} props
  */
-export default function WeeklyGrid({ ppc, sections, onSelect, previewSessions = [], highlightedSectionId = null, onHoverSection }) {
+export default function WeeklyGrid({
+  ppc,
+  sections,
+  onSelect,
+  previewSessions = [],
+  highlightedSectionId = null,
+  onHoverSection,
+}) {
   // Hover/focus highlights every sibling session of the same Section (UC-09,
   // step 5), not just the one under the pointer. An externally-driven
   // `highlightedSectionId` (e.g. hovering a matching item in a list next to
@@ -98,22 +124,38 @@ export default function WeeklyGrid({ ppc, sections, onSelect, previewSessions = 
   }
 
   const scheduled = sections.filter((section) => section.sessions.length > 0);
-  const allSessions = scheduled.flatMap((section) => section.sessions.map((session) => ({ section, session })));
-  const usesSaturday = allSessions.some(({ session }) => session.day === 'Sáb' || session.day === 'Sab');
+  const allSessions = scheduled.flatMap((section) =>
+    section.sessions.map((session) => ({ section, session })),
+  );
+  const usesSaturday = allSessions.some(
+    ({ session }) => session.day === 'Sáb' || session.day === 'Sab',
+  );
   const days = usesSaturday ? WEEKDAY_ORDER : WEEKDAY_ORDER.slice(0, 5);
 
-  const times = [...allSessions.map((s) => s.session), ...previewSessions].flatMap((s) => [
-    timeToMinutes(s.startTime),
-    timeToMinutes(s.endTime),
-  ]);
-  const startHour = times.length > 0 ? Math.min(DEFAULT_START_HOUR, Math.floor(Math.min(...times) / 60)) : DEFAULT_START_HOUR;
-  const endHour = times.length > 0 ? Math.max(DEFAULT_END_HOUR, Math.ceil(Math.max(...times) / 60)) : DEFAULT_END_HOUR;
+  const times = [
+    ...allSessions.map((s) => s.session),
+    ...previewSessions,
+  ].flatMap((s) => [timeToMinutes(s.startTime), timeToMinutes(s.endTime)]);
+  const startHour =
+    times.length > 0
+      ? Math.min(DEFAULT_START_HOUR, Math.floor(Math.min(...times) / 60))
+      : DEFAULT_START_HOUR;
+  const endHour =
+    times.length > 0
+      ? Math.max(DEFAULT_END_HOUR, Math.ceil(Math.max(...times) / 60))
+      : DEFAULT_END_HOUR;
   const startMinutes = startHour * 60;
   const height = (endHour - startHour) * 60 * PIXELS_PER_MINUTE;
-  const hours = Array.from({ length: endHour - startHour + 1 }, (_, i) => startHour + i);
+  const hours = Array.from(
+    { length: endHour - startHour + 1 },
+    (_, i) => startHour + i,
+  );
 
   function sessionsForDay(day) {
-    return allSessions.filter(({ session }) => session.day === day || (day === 'Sáb' && session.day === 'Sab'));
+    return allSessions.filter(
+      ({ session }) =>
+        session.day === day || (day === 'Sáb' && session.day === 'Sab'),
+    );
   }
 
   /**
@@ -157,8 +199,12 @@ export default function WeeklyGrid({ ppc, sections, onSelect, previewSessions = 
 
     const result = new Array(n);
     for (let cluster = 0; cluster < clusterCount; cluster++) {
-      const memberIndices = items.map((_, i) => i).filter((i) => clusterOf[i] === cluster);
-      const sorted = [...memberIndices].sort((i, j) => items[i].session.startTime.localeCompare(items[j].session.startTime));
+      const memberIndices = items
+        .map((_, i) => i)
+        .filter((i) => clusterOf[i] === cluster);
+      const sorted = [...memberIndices].sort((i, j) =>
+        items[i].session.startTime.localeCompare(items[j].session.startTime),
+      );
       const columnEnds = [];
       const colIndexByIndex = new Map();
       for (const i of sorted) {
@@ -173,31 +219,55 @@ export default function WeeklyGrid({ ppc, sections, onSelect, previewSessions = 
         colIndexByIndex.set(i, col);
       }
       const totalColumns = columnEnds.length;
-      for (const i of memberIndices) result[i] = { ...items[i], colIndex: colIndexByIndex.get(i), totalColumns };
+      for (const i of memberIndices)
+        result[i] = {
+          ...items[i],
+          colIndex: colIndexByIndex.get(i),
+          totalColumns,
+        };
     }
     return result;
   }
 
   return (
     <div className="overflow-x-auto">
-      <div className="grid min-w-xl" style={{ gridTemplateColumns: `3rem repeat(${days.length}, minmax(6rem, 1fr))` }}>
+      <div
+        className="grid min-w-xl"
+        style={{
+          gridTemplateColumns: `3rem repeat(${days.length}, minmax(6rem, 1fr))`,
+        }}
+      >
         <div />
         {days.map((day) => (
-          <div key={day} className="pb-2 text-center text-xs font-semibold text-slate-500">
+          <div
+            key={day}
+            className="pb-2 text-center text-xs font-semibold text-slate-500"
+          >
             {WEEKDAY_LABELS[day]}
           </div>
         ))}
 
-        <div className="relative text-right text-[11px] text-slate-400" style={{ height }}>
+        <div
+          className="relative text-right text-[11px] text-slate-400"
+          style={{ height }}
+        >
           {hours.map((hour) => (
-            <div key={hour} className="absolute right-1 -translate-y-1/2" style={{ top: (hour * 60 - startMinutes) * PIXELS_PER_MINUTE }}>
+            <div
+              key={hour}
+              className="absolute right-1 -translate-y-1/2"
+              style={{ top: (hour * 60 - startMinutes) * PIXELS_PER_MINUTE }}
+            >
               {String(hour).padStart(2, '0')}h
             </div>
           ))}
         </div>
 
         {days.map((day) => (
-          <div key={day} className="relative border-l border-slate-100" style={{ height }}>
+          <div
+            key={day}
+            className="relative border-l border-slate-100"
+            style={{ height }}
+          >
             {hours.map((hour) => (
               <div
                 key={hour}
@@ -207,51 +277,77 @@ export default function WeeklyGrid({ ppc, sections, onSelect, previewSessions = 
             ))}
 
             {previewSessions
-              .filter((session) => session.day === day || (day === 'Sáb' && session.day === 'Sab'))
+              .filter(
+                (session) =>
+                  session.day === day ||
+                  (day === 'Sáb' && session.day === 'Sab'),
+              )
               .map((session, i) => (
                 <div
                   key={`preview-${i}`}
                   aria-hidden="true"
                   className="absolute inset-x-0.5 rounded border-2 border-dashed border-sky-400 bg-sky-50/60"
                   style={{
-                    top: (timeToMinutes(session.startTime) - startMinutes) * PIXELS_PER_MINUTE,
-                    height: Math.max((timeToMinutes(session.endTime) - timeToMinutes(session.startTime)) * PIXELS_PER_MINUTE, 20),
+                    top:
+                      (timeToMinutes(session.startTime) - startMinutes) *
+                      PIXELS_PER_MINUTE,
+                    height: Math.max(
+                      (timeToMinutes(session.endTime) -
+                        timeToMinutes(session.startTime)) *
+                        PIXELS_PER_MINUTE,
+                      20,
+                    ),
                   }}
                 />
               ))}
 
-            {layoutSessionsForDay(sessionsForDay(day)).map(({ section, session, colIndex, totalColumns }, i) => {
-              const Icon = severityIcon(section);
-              const previewConflict = previewSessions.some((preview) => sectionOverlapsWindow([session], preview));
-              return (
-                <button
-                  key={`${section.id}-${i}`}
-                  type="button"
-                  onClick={() => onSelect(section, session)}
-                  onMouseEnter={() => handleHoverStart(section.id)}
-                  onMouseLeave={() => handleHoverEnd(section.id)}
-                  onFocus={() => handleHoverStart(section.id)}
-                  onBlur={() => handleHoverEnd(section.id)}
-                  aria-label={`${sectionAccessibleLabel(section, ppc, session)}${previewConflict ? ', conflita com a turma sendo adicionada' : ''}`}
-                  title={sectionShortLabel(section, ppc)}
-                  className={`absolute overflow-hidden rounded border px-1 py-0.5 text-left text-[11px] leading-tight focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 ${severityClass(section)} ${section.failed ? 'opacity-70' : ''} ${activeHighlightId === section.id ? 'ring-2 ring-slate-500' : ''} ${previewConflict ? 'ring-2 ring-red-500' : ''}`}
-                  style={{
-                    top: (timeToMinutes(session.startTime) - startMinutes) * PIXELS_PER_MINUTE,
-                    height: Math.max((timeToMinutes(session.endTime) - timeToMinutes(session.startTime)) * PIXELS_PER_MINUTE, 20),
-                    left: `calc(${(colIndex / totalColumns) * 100}% + 1px)`,
-                    width: `calc(${100 / totalColumns}% - 2px)`,
-                  }}
-                >
-                  <span className={`flex min-w-0 items-center gap-0.5 font-medium ${section.failed ? 'line-through' : ''}`}>
-                    {Icon && <Icon className="size-2.5 shrink-0" />}
-                    <span className="truncate">{sectionShortLabel(section, ppc)}</span>
-                  </span>
-                  <span className="block text-[10px] opacity-80">
-                    {session.startTime}–{session.endTime}
-                  </span>
-                </button>
-              );
-            })}
+            {layoutSessionsForDay(sessionsForDay(day)).map(
+              ({ section, session, colIndex, totalColumns }, i) => {
+                const Icon = severityIcon(section);
+                const previewConflict = previewSessions.some((preview) =>
+                  sectionOverlapsWindow([session], preview),
+                );
+                return (
+                  <button
+                    key={`${section.id}-${i}`}
+                    type="button"
+                    onClick={() => onSelect(section, session)}
+                    onMouseEnter={() => handleHoverStart(section.id)}
+                    onMouseLeave={() => handleHoverEnd(section.id)}
+                    onFocus={() => handleHoverStart(section.id)}
+                    onBlur={() => handleHoverEnd(section.id)}
+                    aria-label={`${sectionAccessibleLabel(section, ppc, session)}${previewConflict ? ', conflita com a turma sendo adicionada' : ''}`}
+                    title={sectionShortLabel(section, ppc)}
+                    className={`absolute overflow-hidden rounded border px-1 py-0.5 text-left text-[11px] leading-tight focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 ${severityClass(section)} ${section.failed ? 'opacity-70' : ''} ${activeHighlightId === section.id ? 'ring-2 ring-slate-500' : ''} ${previewConflict ? 'ring-2 ring-red-500' : ''}`}
+                    style={{
+                      top:
+                        (timeToMinutes(session.startTime) - startMinutes) *
+                        PIXELS_PER_MINUTE,
+                      height: Math.max(
+                        (timeToMinutes(session.endTime) -
+                          timeToMinutes(session.startTime)) *
+                          PIXELS_PER_MINUTE,
+                        20,
+                      ),
+                      left: `calc(${(colIndex / totalColumns) * 100}% + 1px)`,
+                      width: `calc(${100 / totalColumns}% - 2px)`,
+                    }}
+                  >
+                    <span
+                      className={`flex min-w-0 items-center gap-0.5 font-medium ${section.failed ? 'line-through' : ''}`}
+                    >
+                      {Icon && <Icon className="size-2.5 shrink-0" />}
+                      <span className="truncate">
+                        {sectionShortLabel(section, ppc)}
+                      </span>
+                    </span>
+                    <span className="block text-[10px] opacity-80">
+                      {session.startTime}–{session.endTime}
+                    </span>
+                  </button>
+                );
+              },
+            )}
           </div>
         ))}
       </div>

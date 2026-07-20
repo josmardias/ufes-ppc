@@ -11,7 +11,11 @@ export const CURRENT_SCHEMA_VERSION = 2;
 
 /** @returns {import('../domain/types.js').Envelope} */
 export function defaultEnvelope() {
-  return { schemaVersion: CURRENT_SCHEMA_VERSION, activeProfileId: null, profiles: [] };
+  return {
+    schemaVersion: CURRENT_SCHEMA_VERSION,
+    activeProfileId: null,
+    profiles: [],
+  };
 }
 
 /**
@@ -25,7 +29,9 @@ function migrateV1toV2(envelope) {
     schemaVersion: 2,
     profiles: envelope.profiles.map((profile) => ({
       ...profile,
-      courseId: profile.ppcId ? (getPpc(profile.ppcId)?.courseId ?? null) : null,
+      courseId: profile.ppcId
+        ? (getPpc(profile.ppcId)?.courseId ?? null)
+        : null,
     })),
   };
 }
@@ -47,7 +53,9 @@ export function migrateEnvelope(envelope) {
   while (current.schemaVersion < CURRENT_SCHEMA_VERSION) {
     const migrateStep = migrations[current.schemaVersion];
     if (!migrateStep) {
-      throw new Error(`No migration available from schema version ${current.schemaVersion}`);
+      throw new Error(
+        `No migration available from schema version ${current.schemaVersion}`,
+      );
     }
     current = migrateStep(current);
   }
@@ -67,7 +75,9 @@ export function loadEnvelope() {
   try {
     parsed = JSON.parse(raw);
   } catch (error) {
-    throw new Error(`Stored data is corrupted and could not be parsed: ${error.message}`);
+    throw new Error(
+      `Stored data is corrupted and could not be parsed: ${error.message}`,
+    );
   }
 
   return migrateEnvelope(parsed);

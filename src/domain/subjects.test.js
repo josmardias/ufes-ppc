@@ -4,7 +4,12 @@ import { resolveSubjectByCode, totalFulfilledWorkload } from './subjects.js';
 const ppc = {
   id: 'test-ppc',
   subjects: [
-    { code: 'ELE01', name: 'Circuitos I', workloadHours: 60, equivalents: ['OLD01'] },
+    {
+      code: 'ELE01',
+      name: 'Circuitos I',
+      workloadHours: 60,
+      equivalents: ['OLD01'],
+    },
     { code: 'ELE02', name: 'Circuitos II', workloadHours: 60, equivalents: [] },
   ],
 };

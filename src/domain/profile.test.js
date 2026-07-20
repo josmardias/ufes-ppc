@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { cloneProfileRecord, createProfileRecord, renameProfileRecord, validateProfileName } from './profile.js';
+import {
+  cloneProfileRecord,
+  createProfileRecord,
+  renameProfileRecord,
+  validateProfileName,
+} from './profile.js';
 
 describe('validateProfileName', () => {
   it('rejects an empty name', () => {
@@ -46,17 +51,34 @@ describe('createProfileRecord', () => {
   });
 
   it('generates distinct ids for each profile', () => {
-    const a = createProfileRecord({ name: 'A', ingressYear: 2024, ingressYearSemester: 1, shift: 'day' });
-    const b = createProfileRecord({ name: 'B', ingressYear: 2024, ingressYearSemester: 1, shift: 'day' });
+    const a = createProfileRecord({
+      name: 'A',
+      ingressYear: 2024,
+      ingressYearSemester: 1,
+      shift: 'day',
+    });
+    const b = createProfileRecord({
+      name: 'B',
+      ingressYear: 2024,
+      ingressYearSemester: 1,
+      shift: 'day',
+    });
     expect(a.id).not.toBe(b.id);
   });
 });
 
 describe('cloneProfileRecord', () => {
   it('copies all planning data under a new name and a fresh id', () => {
-    const source = createProfileRecord({ name: 'Maria', ingressYear: 2024, ingressYearSemester: 1, shift: 'morning' });
+    const source = createProfileRecord({
+      name: 'Maria',
+      ingressYear: 2024,
+      ingressYearSemester: 1,
+      shift: 'morning',
+    });
     source.ppcId = 'engenharia-eletrica-2022';
-    source.semesters = [{ sections: [{ subjectCode: 'ELE01', failed: false, audit: false }] }];
+    source.semesters = [
+      { sections: [{ subjectCode: 'ELE01', failed: false, audit: false }] },
+    ];
     source.creditEntries = [{ subjectCode: 'MAT01', audit: false }];
 
     const clone = cloneProfileRecord(source, '  Maria (cópia)  ');
@@ -69,11 +91,20 @@ describe('cloneProfileRecord', () => {
   });
 
   it('does not share references with the source profile', () => {
-    const source = createProfileRecord({ name: 'Maria', ingressYear: 2024, ingressYearSemester: 1, shift: 'morning' });
+    const source = createProfileRecord({
+      name: 'Maria',
+      ingressYear: 2024,
+      ingressYearSemester: 1,
+      shift: 'morning',
+    });
     source.semesters = [{ sections: [] }];
 
     const clone = cloneProfileRecord(source, 'Copy');
-    clone.semesters[0].sections.push({ subjectCode: 'ELE01', failed: false, audit: false });
+    clone.semesters[0].sections.push({
+      subjectCode: 'ELE01',
+      failed: false,
+      audit: false,
+    });
 
     expect(source.semesters[0].sections).toEqual([]);
   });
@@ -81,7 +112,12 @@ describe('cloneProfileRecord', () => {
 
 describe('renameProfileRecord', () => {
   it('updates the name and preserves everything else', () => {
-    const profile = createProfileRecord({ name: 'Maria', ingressYear: 2024, ingressYearSemester: 1, shift: 'morning' });
+    const profile = createProfileRecord({
+      name: 'Maria',
+      ingressYear: 2024,
+      ingressYearSemester: 1,
+      shift: 'morning',
+    });
     const renamed = renameProfileRecord(profile, '  Maria Silva  ');
 
     expect(renamed.id).toBe(profile.id);

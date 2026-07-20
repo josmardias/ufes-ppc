@@ -44,7 +44,11 @@ export function parseProfileFile(raw) {
 
   let migrated;
   try {
-    migrated = migrateEnvelope({ schemaVersion: parsed.schemaVersion, activeProfileId: null, profiles: [parsed.profile] });
+    migrated = migrateEnvelope({
+      schemaVersion: parsed.schemaVersion,
+      activeProfileId: null,
+      profiles: [parsed.profile],
+    });
   } catch {
     return { ok: false, error: 'invalid' };
   }

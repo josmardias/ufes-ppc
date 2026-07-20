@@ -23,15 +23,23 @@ describe('validateImportedProfile', () => {
   });
 
   it('accepts a well-formed profile referencing a known PPC', () => {
-    expect(validateImportedProfile(validProfile({ ppcId: 'engenharia-eletrica-2022', courseId: '06' }))).toBeNull();
+    expect(
+      validateImportedProfile(
+        validProfile({ ppcId: 'engenharia-eletrica-2022', courseId: '06' }),
+      ),
+    ).toBeNull();
   });
 
   it('rejects an invalid courseId', () => {
-    expect(validateImportedProfile(validProfile({ courseId: 42 }))).toBe('invalid');
+    expect(validateImportedProfile(validProfile({ courseId: 42 }))).toBe(
+      'invalid',
+    );
   });
 
   it('rejects a profile referencing an unknown PPC', () => {
-    expect(validateImportedProfile(validProfile({ ppcId: 'does-not-exist' }))).toBe('unknown-ppc');
+    expect(
+      validateImportedProfile(validProfile({ ppcId: 'does-not-exist' })),
+    ).toBe('unknown-ppc');
   });
 
   it('rejects non-object input', () => {
@@ -41,20 +49,32 @@ describe('validateImportedProfile', () => {
 
   it('rejects a missing or empty name', () => {
     expect(validateImportedProfile(validProfile({ name: '' }))).toBe('invalid');
-    expect(validateImportedProfile(validProfile({ name: undefined }))).toBe('invalid');
+    expect(validateImportedProfile(validProfile({ name: undefined }))).toBe(
+      'invalid',
+    );
   });
 
   it('rejects an invalid ingressYearSemester', () => {
-    expect(validateImportedProfile(validProfile({ ingressYearSemester: 3 }))).toBe('invalid');
+    expect(
+      validateImportedProfile(validProfile({ ingressYearSemester: 3 })),
+    ).toBe('invalid');
   });
 
   it('rejects an invalid shift', () => {
-    expect(validateImportedProfile(validProfile({ shift: 'night' }))).toBe('invalid');
+    expect(validateImportedProfile(validProfile({ shift: 'night' }))).toBe(
+      'invalid',
+    );
   });
 
   it('rejects non-array planning data', () => {
-    expect(validateImportedProfile(validProfile({ semesters: null }))).toBe('invalid');
-    expect(validateImportedProfile(validProfile({ creditEntries: {} }))).toBe('invalid');
-    expect(validateImportedProfile(validProfile({ customSections: 'nope' }))).toBe('invalid');
+    expect(validateImportedProfile(validProfile({ semesters: null }))).toBe(
+      'invalid',
+    );
+    expect(validateImportedProfile(validProfile({ creditEntries: {} }))).toBe(
+      'invalid',
+    );
+    expect(
+      validateImportedProfile(validProfile({ customSections: 'nope' })),
+    ).toBe('invalid');
   });
 });

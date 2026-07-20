@@ -10,14 +10,24 @@ import { SHIFT_LABELS, formatIngress } from '../domain/format.js';
 import CreateProfileDialog from '../components/CreateProfileDialog.jsx';
 import ProfileNameDialog from '../components/ProfileNameDialog.jsx';
 import ConfirmDialog from '../components/ConfirmDialog.jsx';
-import { IconCopy, IconDownload, IconPencil, IconPlus, IconTrash, IconUpload, IconUsers } from '../components/icons.jsx';
+import {
+  IconCopy,
+  IconDownload,
+  IconPencil,
+  IconPlus,
+  IconTrash,
+  IconUpload,
+  IconUsers,
+} from '../components/icons.jsx';
 
 const IMPORT_ERROR_MESSAGES = {
   invalid: 'O arquivo selecionado não é válido.',
-  'unknown-ppc': 'O perfil faz referência a um Projeto Pedagógico de Curso (PPC) que não existe no sistema.',
+  'unknown-ppc':
+    'O perfil faz referência a um Projeto Pedagógico de Curso (PPC) que não existe no sistema.',
 };
 
-const BUTTON_FOCUS_CLASS = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2';
+const BUTTON_FOCUS_CLASS =
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2';
 const ACTION_BUTTON_CLASS = `inline-flex items-center gap-1.5 rounded px-2 py-1 text-sm text-slate-600 hover:bg-slate-100 hover:text-slate-900 ${BUTTON_FOCUS_CLASS} focus-visible:ring-slate-400`;
 const DANGER_ACTION_BUTTON_CLASS = `inline-flex items-center gap-1.5 rounded px-2 py-1 text-sm text-red-600 hover:bg-red-50 hover:text-red-700 ${BUTTON_FOCUS_CLASS} focus-visible:ring-red-400`;
 
@@ -62,7 +72,9 @@ export default function ProfileListPage() {
     const data = exportProfile(profile.id);
     if (!data) return;
 
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify(data, null, 2)], {
+      type: 'application/json',
+    });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -92,7 +104,9 @@ export default function ProfileListPage() {
     <main className="mx-auto max-w-2xl p-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="text-2xl font-semibold text-balance text-slate-900">Meus perfis</h1>
+          <h1 className="text-2xl font-semibold text-balance text-slate-900">
+            Meus perfis
+          </h1>
           <p className="mt-1 text-sm text-pretty text-slate-600">
             Escolha um perfil para continuar seu planejamento, ou crie um novo.
           </p>
@@ -127,9 +141,12 @@ export default function ProfileListPage() {
       {profiles.length === 0 ? (
         <div className="mt-8 flex flex-col items-center gap-3 rounded-lg border border-dashed border-slate-300 px-6 py-12 text-center">
           <IconUsers className="size-10 text-slate-400" />
-          <p className="font-medium text-slate-700">Nenhum perfil criado ainda</p>
+          <p className="font-medium text-slate-700">
+            Nenhum perfil criado ainda
+          </p>
           <p className="max-w-sm text-sm text-pretty text-slate-500">
-            Use os botões acima para criar um novo perfil ou importar um perfil exportado anteriormente.
+            Use os botões acima para criar um novo perfil ou importar um perfil
+            exportado anteriormente.
           </p>
         </div>
       ) : (
@@ -152,21 +169,34 @@ export default function ProfileListPage() {
                     </button>
                   </h2>
                   <p className="mt-0.5 truncate text-sm text-slate-500">
-                    Ingresso {formatIngress(profile)} · Turno {SHIFT_LABELS[profile.shift]}
+                    Ingresso {formatIngress(profile)} · Turno{' '}
+                    {SHIFT_LABELS[profile.shift]}
                     {ppc ? ` · ${ppc.name}` : ''}
                   </p>
                 </div>
 
                 <div className="mt-3 flex flex-wrap items-center gap-1 border-t border-slate-100 pt-2">
-                  <button type="button" onClick={() => handleExport(profile)} className={ACTION_BUTTON_CLASS}>
+                  <button
+                    type="button"
+                    onClick={() => handleExport(profile)}
+                    className={ACTION_BUTTON_CLASS}
+                  >
                     <IconDownload className="size-4" />
                     Exportar
                   </button>
-                  <button type="button" onClick={() => setCloneTarget(profile)} className={ACTION_BUTTON_CLASS}>
+                  <button
+                    type="button"
+                    onClick={() => setCloneTarget(profile)}
+                    className={ACTION_BUTTON_CLASS}
+                  >
                     <IconCopy className="size-4" />
                     Clonar
                   </button>
-                  <button type="button" onClick={() => setRenameTarget(profile)} className={ACTION_BUTTON_CLASS}>
+                  <button
+                    type="button"
+                    onClick={() => setRenameTarget(profile)}
+                    className={ACTION_BUTTON_CLASS}
+                  >
                     <IconPencil className="size-4" />
                     Renomear
                   </button>
@@ -185,7 +215,10 @@ export default function ProfileListPage() {
         </ul>
       )}
 
-      <CreateProfileDialog ref={createDialogRef} onCreated={() => navigate('/profile')} />
+      <CreateProfileDialog
+        ref={createDialogRef}
+        onCreated={() => navigate('/profile')}
+      />
 
       <ProfileNameDialog
         open={cloneTarget != null}

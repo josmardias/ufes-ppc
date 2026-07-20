@@ -48,20 +48,33 @@ describe('parseProfileFile', () => {
   });
 
   it('rejects corrupted JSON', () => {
-    expect(parseProfileFile('{not json')).toEqual({ ok: false, error: 'invalid' });
+    expect(parseProfileFile('{not json')).toEqual({
+      ok: false,
+      error: 'invalid',
+    });
   });
 
   it('rejects a file missing the expected envelope shape', () => {
-    expect(parseProfileFile(JSON.stringify({ foo: 'bar' }))).toEqual({ ok: false, error: 'invalid' });
+    expect(parseProfileFile(JSON.stringify({ foo: 'bar' }))).toEqual({
+      ok: false,
+      error: 'invalid',
+    });
   });
 
   it('rejects a profile referencing an unknown PPC', () => {
-    const exported = serializeProfileForExport(sampleProfile({ ppcId: 'does-not-exist' }));
-    expect(parseProfileFile(JSON.stringify(exported))).toEqual({ ok: false, error: 'unknown-ppc' });
+    const exported = serializeProfileForExport(
+      sampleProfile({ ppcId: 'does-not-exist' }),
+    );
+    expect(parseProfileFile(JSON.stringify(exported))).toEqual({
+      ok: false,
+      error: 'unknown-ppc',
+    });
   });
 
   it('accepts a profile referencing a known PPC', () => {
-    const exported = serializeProfileForExport(sampleProfile({ ppcId: 'engenharia-eletrica-2022', courseId: '06' }));
+    const exported = serializeProfileForExport(
+      sampleProfile({ ppcId: 'engenharia-eletrica-2022', courseId: '06' }),
+    );
     const result = parseProfileFile(JSON.stringify(exported));
     expect(result.ok).toBe(true);
   });

@@ -9,7 +9,8 @@ const ERROR_MESSAGES = {
   duplicate: 'Já existe um perfil com esse nome.',
 };
 
-const BUTTON_FOCUS_CLASS = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2';
+const BUTTON_FOCUS_CLASS =
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2';
 
 /**
  * @param {{
@@ -21,7 +22,14 @@ const BUTTON_FOCUS_CLASS = 'focus-visible:outline-none focus-visible:ring-2 focu
  *   onClose: () => void,
  * }} props
  */
-export default function ProfileNameDialog({ open, title, confirmLabel, initialName = '', onSubmit, onClose }) {
+export default function ProfileNameDialog({
+  open,
+  title,
+  confirmLabel,
+  initialName = '',
+  onSubmit,
+  onClose,
+}) {
   const ref = useRef(null);
   const nameInputRef = useRef(null);
   const [name, setName] = useState(initialName);
@@ -49,7 +57,11 @@ export default function ProfileNameDialog({ open, title, confirmLabel, initialNa
   }
 
   return (
-    <dialog ref={ref} onClose={onClose} className="overscroll-contain rounded-lg p-0 backdrop:bg-slate-900/40">
+    <dialog
+      ref={ref}
+      onClose={onClose}
+      className="overscroll-contain rounded-lg p-0 backdrop:bg-slate-900/40"
+    >
       <form onSubmit={handleSubmit} className="flex w-80 flex-col gap-4 p-6">
         <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
 
@@ -70,7 +82,12 @@ export default function ProfileNameDialog({ open, title, confirmLabel, initialNa
         </label>
 
         {error && (
-          <p id="profile-name-dialog-error" role="alert" aria-live="polite" className="text-sm text-red-600">
+          <p
+            id="profile-name-dialog-error"
+            role="alert"
+            aria-live="polite"
+            className="text-sm text-red-600"
+          >
             {error}
           </p>
         )}

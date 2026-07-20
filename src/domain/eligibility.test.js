@@ -1,21 +1,66 @@
 import { describe, expect, it } from 'vitest';
-import { buildCandidateSubjects, excludeAlreadyPlannedSections, pruneCorequisiteLookahead } from './eligibility.js';
+import {
+  buildCandidateSubjects,
+  excludeAlreadyPlannedSections,
+  pruneCorequisiteLookahead,
+} from './eligibility.js';
 
 const ppc = {
   id: 'test-ppc',
   subjects: [
-    { code: 'MAT01', name: 'Cálculo I', prerequisites: [], corequisites: [], equivalents: [], suggestedSemester: 1 },
-    { code: 'MAT02', name: 'Cálculo II', prerequisites: ['MAT01'], corequisites: [], equivalents: [], suggestedSemester: 2 },
-    { code: 'ELE01', name: 'Circuitos I', prerequisites: [], corequisites: ['ELE02'], equivalents: [] },
-    { code: 'ELE02', name: 'Lab. Circuitos I', prerequisites: [], corequisites: [], equivalents: [] },
+    {
+      code: 'MAT01',
+      name: 'Cálculo I',
+      prerequisites: [],
+      corequisites: [],
+      equivalents: [],
+      suggestedSemester: 1,
+    },
+    {
+      code: 'MAT02',
+      name: 'Cálculo II',
+      prerequisites: ['MAT01'],
+      corequisites: [],
+      equivalents: [],
+      suggestedSemester: 2,
+    },
+    {
+      code: 'ELE01',
+      name: 'Circuitos I',
+      prerequisites: [],
+      corequisites: ['ELE02'],
+      equivalents: [],
+    },
+    {
+      code: 'ELE02',
+      name: 'Lab. Circuitos I',
+      prerequisites: [],
+      corequisites: [],
+      equivalents: [],
+    },
   ],
 };
 
 const offerings = {
   subjects: [
-    { code: 'MAT01', sections: [{ turma: '01', professor: 'A', shift: 'morning', sessions: [] }] },
-    { code: 'MAT02', sections: [{ turma: '01', professor: 'B', shift: 'afternoon', sessions: [] }] },
-    { code: 'ELE01', sections: [{ turma: '01', professor: 'C', shift: 'morning', sessions: [] }] },
+    {
+      code: 'MAT01',
+      sections: [
+        { turma: '01', professor: 'A', shift: 'morning', sessions: [] },
+      ],
+    },
+    {
+      code: 'MAT02',
+      sections: [
+        { turma: '01', professor: 'B', shift: 'afternoon', sessions: [] },
+      ],
+    },
+    {
+      code: 'ELE01',
+      sections: [
+        { turma: '01', professor: 'C', shift: 'morning', sessions: [] },
+      ],
+    },
   ],
 };
 
@@ -40,17 +85,23 @@ describe('buildCandidateSubjects', () => {
   });
 
   it('includes a Subject once its prerequisites are satisfied', () => {
-    const result = candidates({ fulfillmentBefore: new Map([['MAT01', { audit: false }]]) });
+    const result = candidates({
+      fulfillmentBefore: new Map([['MAT01', { audit: false }]]),
+    });
     expect(result.find((c) => c.subjectCode === 'MAT02')).toBeDefined();
   });
 
   it('excludes a Subject already fulfilled without an open Audit Mark', () => {
-    const result = candidates({ fulfillmentBefore: new Map([['MAT01', { audit: false }]]) });
+    const result = candidates({
+      fulfillmentBefore: new Map([['MAT01', { audit: false }]]),
+    });
     expect(result.find((c) => c.subjectCode === 'MAT01')).toBeUndefined();
   });
 
   it('re-includes a Subject whose fulfillment carries an open Audit Mark', () => {
-    const result = candidates({ fulfillmentBefore: new Map([['MAT01', { audit: true }]]) });
+    const result = candidates({
+      fulfillmentBefore: new Map([['MAT01', { audit: true }]]),
+    });
     expect(result.find((c) => c.subjectCode === 'MAT01')).toBeDefined();
   });
 
@@ -65,7 +116,10 @@ describe('buildCandidateSubjects', () => {
   });
 
   it('includes a Subject whose co-requisite is planned in the same semester', () => {
-    const result = candidates({ checkCorequisites: true, sameSemesterCodes: new Set(['ELE02']) });
+    const result = candidates({
+      checkCorequisites: true,
+      sameSemesterCodes: new Set(['ELE02']),
+    });
     expect(result.find((c) => c.subjectCode === 'ELE01')).toBeDefined();
   });
 
@@ -76,23 +130,49 @@ describe('buildCandidateSubjects', () => {
 
   it('includes a Custom Section applicable to this Year Semester', () => {
     const result = candidates({
-      customSections: [{ id: 'c1', name: 'Trabalho', applicability: 1, subjectCode: null, sessions: [] }],
+      customSections: [
+        {
+          id: 'c1',
+          name: 'Trabalho',
+          applicability: 1,
+          subjectCode: null,
+          sessions: [],
+        },
+      ],
     });
     expect(result.find((c) => c.subjectName === 'Trabalho')).toBeDefined();
   });
 
   it('excludes a Custom Section not applicable to this Year Semester', () => {
     const result = candidates({
-      customSections: [{ id: 'c1', name: 'Trabalho', applicability: 2, subjectCode: null, sessions: [] }],
+      customSections: [
+        {
+          id: 'c1',
+          name: 'Trabalho',
+          applicability: 2,
+          subjectCode: null,
+          sessions: [],
+        },
+      ],
     });
     expect(result.find((c) => c.subjectName === 'Trabalho')).toBeUndefined();
   });
 
   it('marks a Custom Section stale when its Subject link no longer resolves', () => {
     const result = candidates({
-      customSections: [{ id: 'c1', name: 'Turma extra', applicability: 'both', subjectCode: 'ZZZ99', sessions: [] }],
+      customSections: [
+        {
+          id: 'c1',
+          name: 'Turma extra',
+          applicability: 'both',
+          subjectCode: 'ZZZ99',
+          sessions: [],
+        },
+      ],
     });
-    expect(result.find((c) => c.subjectName === 'Turma extra')?.stale).toBe(true);
+    expect(result.find((c) => c.subjectName === 'Turma extra')?.stale).toBe(
+      true,
+    );
   });
 
   it('excludes a Section targeted at another course when the course filter is "own"', () => {
@@ -101,7 +181,18 @@ describe('buildCandidateSubjects', () => {
       profileCourseId: '06',
       offerings: {
         subjects: [
-          { code: 'MAT01', sections: [{ turma: '01', professor: 'A', shift: 'day', targetCourseId: '11', sessions: [] }] },
+          {
+            code: 'MAT01',
+            sections: [
+              {
+                turma: '01',
+                professor: 'A',
+                shift: 'day',
+                targetCourseId: '11',
+                sessions: [],
+              },
+            ],
+          },
         ],
       },
     });
@@ -114,7 +205,18 @@ describe('buildCandidateSubjects', () => {
       profileCourseId: '06',
       offerings: {
         subjects: [
-          { code: 'MAT01', sections: [{ turma: '01', professor: 'A', shift: 'day', targetCourseId: '11', sessions: [] }] },
+          {
+            code: 'MAT01',
+            sections: [
+              {
+                turma: '01',
+                professor: 'A',
+                shift: 'day',
+                targetCourseId: '11',
+                sessions: [],
+              },
+            ],
+          },
         ],
       },
     });
@@ -127,7 +229,18 @@ describe('buildCandidateSubjects', () => {
       profileCourseId: '06',
       offerings: {
         subjects: [
-          { code: 'MAT01', sections: [{ turma: '01', professor: 'A', shift: 'day', targetCourseId: '06', sessions: [] }] },
+          {
+            code: 'MAT01',
+            sections: [
+              {
+                turma: '01',
+                professor: 'A',
+                shift: 'day',
+                targetCourseId: '06',
+                sessions: [],
+              },
+            ],
+          },
         ],
       },
     });
@@ -138,13 +251,24 @@ describe('buildCandidateSubjects', () => {
     const result = candidates({
       courseFilter: 'own',
       profileCourseId: '06',
-      customSections: [{ id: 'c1', name: 'Trabalho', applicability: 1, subjectCode: null, sessions: [] }],
+      customSections: [
+        {
+          id: 'c1',
+          name: 'Trabalho',
+          applicability: 1,
+          subjectCode: null,
+          sessions: [],
+        },
+      ],
     });
     expect(result.find((c) => c.subjectName === 'Trabalho')).toBeDefined();
   });
 
   it('includes a Subject suggested at or before the semester being planned when the semester filter is "suggested"', () => {
-    const result = candidates({ semesterFilter: 'suggested', semesterNumber: 1 });
+    const result = candidates({
+      semesterFilter: 'suggested',
+      semesterNumber: 1,
+    });
     expect(result.find((c) => c.subjectCode === 'MAT01')).toBeDefined();
   });
 
@@ -176,7 +300,10 @@ describe('buildCandidateSubjects', () => {
   });
 
   it('includes a Subject with no Suggested Semester regardless of the semester filter', () => {
-    const result = candidates({ semesterFilter: 'suggested', semesterNumber: 1 });
+    const result = candidates({
+      semesterFilter: 'suggested',
+      semesterNumber: 1,
+    });
     expect(result.find((c) => c.subjectCode === 'ELE01')).toBeDefined();
   });
 
@@ -184,8 +311,22 @@ describe('buildCandidateSubjects', () => {
     const classifiedPpc = {
       id: 'test-ppc',
       subjects: [
-        { code: 'MAT01', name: 'Cálculo I', prerequisites: [], corequisites: [], equivalents: [], classification: 'required' },
-        { code: 'ELE01', name: 'Circuitos I', prerequisites: [], corequisites: [], equivalents: [], classification: 'optional' },
+        {
+          code: 'MAT01',
+          name: 'Cálculo I',
+          prerequisites: [],
+          corequisites: [],
+          equivalents: [],
+          classification: 'required',
+        },
+        {
+          code: 'ELE01',
+          name: 'Circuitos I',
+          prerequisites: [],
+          corequisites: [],
+          equivalents: [],
+          classification: 'optional',
+        },
       ],
     };
     const result = candidates({
@@ -193,8 +334,14 @@ describe('buildCandidateSubjects', () => {
       classificationFilter: 'required',
       offerings: {
         subjects: [
-          { code: 'MAT01', sections: [{ turma: '01', shift: 'day', sessions: [] }] },
-          { code: 'ELE01', sections: [{ turma: '01', shift: 'day', sessions: [] }] },
+          {
+            code: 'MAT01',
+            sections: [{ turma: '01', shift: 'day', sessions: [] }],
+          },
+          {
+            code: 'ELE01',
+            sections: [{ turma: '01', shift: 'day', sessions: [] }],
+          },
         ],
       },
     });
@@ -206,8 +353,22 @@ describe('buildCandidateSubjects', () => {
     const classifiedPpc = {
       id: 'test-ppc',
       subjects: [
-        { code: 'MAT01', name: 'Cálculo I', prerequisites: [], corequisites: [], equivalents: [], classification: 'required' },
-        { code: 'ELE01', name: 'Circuitos I', prerequisites: [], corequisites: [], equivalents: [], classification: 'optional' },
+        {
+          code: 'MAT01',
+          name: 'Cálculo I',
+          prerequisites: [],
+          corequisites: [],
+          equivalents: [],
+          classification: 'required',
+        },
+        {
+          code: 'ELE01',
+          name: 'Circuitos I',
+          prerequisites: [],
+          corequisites: [],
+          equivalents: [],
+          classification: 'optional',
+        },
       ],
     };
     const result = candidates({
@@ -215,8 +376,14 @@ describe('buildCandidateSubjects', () => {
       classificationFilter: 'all',
       offerings: {
         subjects: [
-          { code: 'MAT01', sections: [{ turma: '01', shift: 'day', sessions: [] }] },
-          { code: 'ELE01', sections: [{ turma: '01', shift: 'day', sessions: [] }] },
+          {
+            code: 'MAT01',
+            sections: [{ turma: '01', shift: 'day', sessions: [] }],
+          },
+          {
+            code: 'ELE01',
+            sections: [{ turma: '01', shift: 'day', sessions: [] }],
+          },
         ],
       },
     });
@@ -227,7 +394,15 @@ describe('buildCandidateSubjects', () => {
   it('does not restrict Custom Sections by the classification filter', () => {
     const result = candidates({
       classificationFilter: 'required',
-      customSections: [{ id: 'c1', name: 'Trabalho', applicability: 1, subjectCode: null, sessions: [] }],
+      customSections: [
+        {
+          id: 'c1',
+          name: 'Trabalho',
+          applicability: 1,
+          subjectCode: null,
+          sessions: [],
+        },
+      ],
     });
     expect(result.find((c) => c.subjectName === 'Trabalho')).toBeDefined();
   });
@@ -241,10 +416,26 @@ describe('excludeAlreadyPlannedSections', () => {
           subjectCode: 'MAT01',
           subjectName: 'Cálculo I',
           stale: false,
-          sections: [{ kind: 'offering', subjectCode: 'MAT01', turma: '01', sessions: [] }],
+          sections: [
+            {
+              kind: 'offering',
+              subjectCode: 'MAT01',
+              turma: '01',
+              sessions: [],
+            },
+          ],
         },
       ],
-      [{ id: 'p1', kind: 'offering', subjectCode: 'MAT01', turma: '01', failed: false, audit: false }],
+      [
+        {
+          id: 'p1',
+          kind: 'offering',
+          subjectCode: 'MAT01',
+          turma: '01',
+          failed: false,
+          audit: false,
+        },
+      ],
     );
     expect(result).toEqual([]);
   });
@@ -256,10 +447,26 @@ describe('excludeAlreadyPlannedSections', () => {
           subjectCode: 'MAT01',
           subjectName: 'Cálculo I',
           stale: false,
-          sections: [{ kind: 'offering', subjectCode: 'MAT01', turma: '02', sessions: [] }],
+          sections: [
+            {
+              kind: 'offering',
+              subjectCode: 'MAT01',
+              turma: '02',
+              sessions: [],
+            },
+          ],
         },
       ],
-      [{ id: 'p1', kind: 'offering', subjectCode: 'MAT01', turma: '01', failed: false, audit: false }],
+      [
+        {
+          id: 'p1',
+          kind: 'offering',
+          subjectCode: 'MAT01',
+          turma: '01',
+          failed: false,
+          audit: false,
+        },
+      ],
     );
     expect(result).toHaveLength(1);
   });
@@ -272,10 +479,27 @@ describe('excludeAlreadyPlannedSections', () => {
           subjectCode: null,
           subjectName: 'Trabalho',
           stale: false,
-          sections: [{ kind: 'custom', subjectCode: null, sourceCustomId: 'c1', custom: { name: 'Trabalho', sessions }, sessions }],
+          sections: [
+            {
+              kind: 'custom',
+              subjectCode: null,
+              sourceCustomId: 'c1',
+              custom: { name: 'Trabalho', sessions },
+              sessions,
+            },
+          ],
         },
       ],
-      [{ id: 'p1', kind: 'custom', subjectCode: null, custom: { name: 'Trabalho', sessions }, failed: false, audit: false }],
+      [
+        {
+          id: 'p1',
+          kind: 'custom',
+          subjectCode: null,
+          custom: { name: 'Trabalho', sessions },
+          failed: false,
+          audit: false,
+        },
+      ],
     );
     expect(result).toEqual([]);
   });
@@ -287,10 +511,26 @@ describe('excludeAlreadyPlannedSections', () => {
           subjectCode: 'MAT01',
           subjectName: 'Cálculo I',
           stale: false,
-          sections: [{ kind: 'offering', subjectCode: 'MAT01', turma: '01', sessions: [] }],
+          sections: [
+            {
+              kind: 'offering',
+              subjectCode: 'MAT01',
+              turma: '01',
+              sessions: [],
+            },
+          ],
         },
       ],
-      [{ id: 'p1', kind: 'offering', subjectCode: 'MAT01', turma: '01', failed: false, audit: false }],
+      [
+        {
+          id: 'p1',
+          kind: 'offering',
+          subjectCode: 'MAT01',
+          turma: '01',
+          failed: false,
+          audit: false,
+        },
+      ],
     );
     expect(result.find((c) => c.subjectCode === 'MAT01')).toBeUndefined();
   });
@@ -299,7 +539,14 @@ describe('excludeAlreadyPlannedSections', () => {
 describe('pruneCorequisiteLookahead', () => {
   it('keeps a Subject with no co-requisites', () => {
     const result = pruneCorequisiteLookahead(
-      [{ subjectCode: 'MAT01', subjectName: 'Cálculo I', stale: false, sections: [] }],
+      [
+        {
+          subjectCode: 'MAT01',
+          subjectName: 'Cálculo I',
+          stale: false,
+          sections: [],
+        },
+      ],
       ppc,
       new Map(),
     );
@@ -308,7 +555,14 @@ describe('pruneCorequisiteLookahead', () => {
 
   it('drops a Subject whose co-requisite is neither fulfilled nor listed', () => {
     const result = pruneCorequisiteLookahead(
-      [{ subjectCode: 'ELE01', subjectName: 'Circuitos I', stale: false, sections: [] }],
+      [
+        {
+          subjectCode: 'ELE01',
+          subjectName: 'Circuitos I',
+          stale: false,
+          sections: [],
+        },
+      ],
       ppc,
       new Map(),
     );
@@ -317,7 +571,14 @@ describe('pruneCorequisiteLookahead', () => {
 
   it('keeps a Subject whose co-requisite is already fulfilled', () => {
     const result = pruneCorequisiteLookahead(
-      [{ subjectCode: 'ELE01', subjectName: 'Circuitos I', stale: false, sections: [] }],
+      [
+        {
+          subjectCode: 'ELE01',
+          subjectName: 'Circuitos I',
+          stale: false,
+          sections: [],
+        },
+      ],
       ppc,
       new Map([['ELE02', { audit: false }]]),
     );
@@ -327,8 +588,18 @@ describe('pruneCorequisiteLookahead', () => {
   it('keeps a Subject whose co-requisite is itself present in the pool', () => {
     const result = pruneCorequisiteLookahead(
       [
-        { subjectCode: 'ELE01', subjectName: 'Circuitos I', stale: false, sections: [] },
-        { subjectCode: 'ELE02', subjectName: 'Lab. Circuitos I', stale: false, sections: [] },
+        {
+          subjectCode: 'ELE01',
+          subjectName: 'Circuitos I',
+          stale: false,
+          sections: [],
+        },
+        {
+          subjectCode: 'ELE02',
+          subjectName: 'Lab. Circuitos I',
+          stale: false,
+          sections: [],
+        },
       ],
       ppc,
       new Map(),
@@ -341,13 +612,29 @@ describe('pruneCorequisiteLookahead', () => {
       id: 'test-ppc',
       subjects: [
         ...ppc.subjects,
-        { code: 'ELE03', name: 'Circuitos II', prerequisites: [], corequisites: ['ELE01'], equivalents: [] },
+        {
+          code: 'ELE03',
+          name: 'Circuitos II',
+          prerequisites: [],
+          corequisites: ['ELE01'],
+          equivalents: [],
+        },
       ],
     };
     const result = pruneCorequisiteLookahead(
       [
-        { subjectCode: 'ELE01', subjectName: 'Circuitos I', stale: false, sections: [] },
-        { subjectCode: 'ELE03', subjectName: 'Circuitos II', stale: false, sections: [] },
+        {
+          subjectCode: 'ELE01',
+          subjectName: 'Circuitos I',
+          stale: false,
+          sections: [],
+        },
+        {
+          subjectCode: 'ELE03',
+          subjectName: 'Circuitos II',
+          stale: false,
+          sections: [],
+        },
       ],
       cascadingPpc,
       new Map(),
@@ -357,7 +644,14 @@ describe('pruneCorequisiteLookahead', () => {
 
   it('never prunes an unlinked Custom Section (null subjectCode)', () => {
     const result = pruneCorequisiteLookahead(
-      [{ subjectCode: null, subjectName: 'Trabalho', stale: false, sections: [] }],
+      [
+        {
+          subjectCode: null,
+          subjectName: 'Trabalho',
+          stale: false,
+          sections: [],
+        },
+      ],
       ppc,
       new Map(),
     );
