@@ -61,7 +61,15 @@ export default function AddSemesterDialog({ open, profile, lastSemesterHasSignal
 
   const ppc = selectedPpcId ? ppcs[selectedPpcId] : null;
   const newIndex = profile.semesters.length;
-  const position = ppc ? semesterPosition(profile.ingressYear, profile.ingressYearSemester, newIndex) : null;
+  // Memoized so its object identity stays stable across renders (unlike a
+  // plain call to semesterPosition, which returns a fresh object every
+  // time) — it's a dependency of the `candidates` memo below, and an
+  // unstable reference there defeats that memoization and causes an
+  // infinite render loop via the pre-selection effect.
+  const position = useMemo(
+    () => (ppc ? semesterPosition(profile.ingressYear, profile.ingressYearSemester, newIndex) : null),
+    [ppc, profile.ingressYear, profile.ingressYearSemester, newIndex],
+  );
   const offerings = position ? getOfferings(ppc.id, position.yearSemester) : undefined;
 
   const fulfillmentBefore = useMemo(() => {
@@ -107,17 +115,26 @@ export default function AddSemesterDialog({ open, profile, lastSemesterHasSignal
   // (de)selections are preserved for Sections that remain visible across
   // Shift filter changes (see UC-11, "Filter and selection rules").
   useEffect(() => {
-    setSelectedKeys((prev) => {
-      const next = new Set(prev);
-      for (const candidate of candidates) {
-        for (const section of candidate.sections) {
-          const key = candidateSectionKey(section);
-          if (!seenKeysRef.current.has(key)) {
-            seenKeysRef.current.add(key);
-            next.add(key);
-          }
+    // Mutate seenKeysRef here, in the effect body, rather than inside the
+    // setSelectedKeys updater below: React may invoke a state updater more
+    // than once for the same previous state (notably under StrictMode), and
+    // an updater that mutates a ref as a side effect is not idempotent —
+    // the second invocation would see the ref already updated, compute zero
+    // new keys, and that (wrong, empty) result is what gets committed.
+    const newKeys = [];
+    for (const candidate of candidates) {
+      for (const section of candidate.sections) {
+        const key = candidateSectionKey(section);
+        if (!seenKeysRef.current.has(key)) {
+          seenKeysRef.current.add(key);
+          newKeys.push(key);
         }
       }
+    }
+    if (newKeys.length === 0) return;
+    setSelectedKeys((prev) => {
+      const next = new Set(prev);
+      for (const key of newKeys) next.add(key);
       return next;
     });
   }, [candidates]);
