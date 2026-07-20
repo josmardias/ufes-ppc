@@ -240,8 +240,8 @@ Specs locate elements by accessible name (`getByRole('button', { name: '…' })`
 GitHub Pages, deployed by GitHub Actions on push to main:
 
 1. install
-2. unit tests (domain, storage, store)
-3. data generation + validation (`npm run build-data`; fails the build on any error)
+2. data generation + validation (`npm run build-data`; fails the build on any error)
+3. unit tests (domain, storage, store) — some rely on the data generated in step 2 (e.g. `src/data`, `src/storage`)
 4. Vite build
 5. Playwright smoke suite against the built output
 6. deploy to Pages
