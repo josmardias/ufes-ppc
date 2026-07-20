@@ -4,6 +4,9 @@
 import { sectionAccessibleLabel, sectionShortLabel, severityClass, severityIcon } from './WeeklyGrid.jsx';
 
 /**
+ * Session-less Sections can only reach the Duplicate Subject pass or the
+ * plain detail dialog (UC-25) — there is no session here to anchor a
+ * Schedule Conflict pass, so `onSelect` is called without one.
  * @param {{ppc: {subjects: Array}, sections: Array, onSelect: (section: object) => void}} props
  */
 export default function NoScheduleStrip({ ppc, sections, onSelect }) {

@@ -1,8 +1,12 @@
 // Section detail dialog (UC-09 step 5, UC-13, UC-20/21, UC-22/23, UC-26).
-// Shows a Planned Section's data and actions. Used whenever the Section is
-// not flagged with a Schedule Conflict or Duplicate Subject — those go
-// through the dedicated ResolveConflictDialog (UC-25) instead, so a Section
-// mid-conflict-resolution never shows this dialog's Failed/Audit actions.
+// Shows a Planned Section's data and actions. Opened whenever the clicked
+// session's window has no collision and the Section isn't flagged as a
+// Duplicate Subject — those two cases go through the dedicated
+// ResolveConflictDialog (UC-25) instead. A Section can still be flagged
+// (e.g. a Schedule Conflict at a *different* session) and reach this dialog
+// by design — resolution is never mandatory, so its Failed/Audit actions
+// stay reachable without resolving; the resolution flow is one click away,
+// on the colliding session.
 
 import { useEffect, useRef } from 'react';
 import { WEEKDAY_LABELS } from '../../domain/format.js';

@@ -69,7 +69,7 @@ export function sectionAccessibleLabel(section, ppc, session) {
  * @param {{
  *   ppc: {subjects: Array},
  *   sections: Array, // evaluated sections carrying non-empty `sessions` (see domain/evaluation.js)
- *   onSelect: (section: object) => void,
+ *   onSelect: (section: object, session: import('../../domain/schedule.js').Session) => void,
  *   previewSessions?: import('../../domain/schedule.js').Session[],
  *   highlightedSectionId?: string|null, // externally-driven highlight, e.g. hovering a matching item outside the grid
  *   onHoverSection?: (sectionId: string|null) => void, // notifies the caller when hover starts/ends here, for bidirectional highlighting
@@ -226,7 +226,7 @@ export default function WeeklyGrid({ ppc, sections, onSelect, previewSessions = 
                 <button
                   key={`${section.id}-${i}`}
                   type="button"
-                  onClick={() => onSelect(section)}
+                  onClick={() => onSelect(section, session)}
                   onMouseEnter={() => handleHoverStart(section.id)}
                   onMouseLeave={() => handleHoverEnd(section.id)}
                   onFocus={() => handleHoverStart(section.id)}

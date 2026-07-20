@@ -2,14 +2,14 @@
 // through UC-23, UC-25, UC-26 — see docs/USE_CASES.md). Composes the
 // semester list, the weekly grid, and the dialogs that drive every edit.
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useActiveProfile } from '../hooks/useActiveProfile.js';
 import { useStore } from '../store/index.js';
 import { getOfferings, getPpc } from '../data/index.js';
 import { SHIFT_LABELS, formatIngress } from '../domain/format.js';
 import { evaluatePlan } from '../domain/evaluation.js';
 import { createPlannedSection, currentSemesterIndex } from '../domain/semester.js';
-import { effectiveShiftFilter, sectionsOverlap } from '../domain/schedule.js';
+import { effectiveShiftFilter, sectionOverlapsWindow, stillConflicted } from '../domain/schedule.js';
 import SemesterList from '../components/planner/SemesterList.jsx';
 import WeeklyGrid from '../components/planner/WeeklyGrid.jsx';
 import NoScheduleStrip from '../components/planner/NoScheduleStrip.jsx';
@@ -45,18 +45,59 @@ export default function PlannerPage() {
 
   const defaultIndex = profile && evaluation ? (currentSemesterIndex(profile) ?? evaluation.semesters.length - 1) : 0;
   const [selectedIndex, setSelectedIndex] = useState(defaultIndex);
-  const [selection, setSelection] = useState(null); // { semesterIndex, section }
+  // The UC-25 anchor is a value snapshot taken at click time, not a
+  // reference into the Section — the Section (and the clicked session's
+  // originating window) may be pruned while the flow stays open.
+  // { semesterIndex, sectionId, signalType: "conflict"|"duplicate"|null, window: {day,startTime,endTime}|null, subjectCode: string|null }
+  const [selection, setSelection] = useState(null);
   const [addSemesterOpen, setAddSemesterOpen] = useState(false);
   const [addSectionOpen, setAddSectionOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-
-  if (!profile) return null;
 
   const semesters = evaluation?.semesters ?? [];
   const clampedIndex = Math.min(selectedIndex, Math.max(semesters.length - 1, 0));
   const semester = semesters[clampedIndex] ?? null;
   const isLastSemester = clampedIndex === semesters.length - 1;
-  const currentIndex = currentSemesterIndex(profile);
+  const currentIndex = profile ? currentSemesterIndex(profile) : null;
+
+  // Derived data for the Section detail/resolution dialogs (UC-09 step 5,
+  // UC-25, UC-26). Re-derived from the freshly evaluated semester every
+  // render, against the anchor snapshotted at click time — never from a
+  // reference into the (possibly pruned) Section itself.
+  const selectedSemester = selection ? semesters[selection.semesterIndex] : null;
+  const selectedSection = selectedSemester ? (selectedSemester.sections.find((s) => s.id === selection.sectionId) ?? null) : null;
+  const resolutionSet =
+    selectedSemester && selection?.signalType === 'conflict'
+      ? selectedSemester.sections.filter((s) => sectionOverlapsWindow(s.sessions, selection.window))
+      : selectedSemester && selection?.signalType === 'duplicate'
+        ? selectedSemester.sections.filter((s) => s.resolvedSubjectCode === selection.subjectCode)
+        : [];
+  const anchorStillConflicted = selection?.signalType ? stillConflicted(resolutionSet, selection.signalType, selection.window) : false;
+
+  // Auto-close (UC-25): once the anchor no longer holds a conflict — after
+  // a keeper confirmation, or once pruning leaves no overlapping pair (or a
+  // single Section of the Subject) — the flow ends on its own.
+  useEffect(() => {
+    if (selection?.signalType && !anchorStillConflicted) setSelection(null);
+  }, [selection, anchorStillConflicted]);
+
+  let redundantSource = null;
+  if (selectedSection?.signals.redundantEnrollment && selectedSection.resolvedSubjectCode && selectedSemester) {
+    const entry = selectedSemester.fulfillmentBefore.get(selectedSection.resolvedSubjectCode);
+    if (entry?.source.kind === 'credit') {
+      redundantSource = { label: 'um Aproveitamento', kind: 'credit' };
+    } else if (entry?.source.kind === 'section') {
+      const sourceSemester = semesters[entry.source.semesterIndex];
+      redundantSource = {
+        label: `${entry.source.semesterIndex + 1}º período (${sourceSemester.year}/${sourceSemester.yearSemester})`,
+        kind: 'section',
+        semesterIndex: entry.source.semesterIndex,
+        sectionId: entry.source.sectionId,
+      };
+    }
+  }
+
+  if (!profile) return null;
 
   function handleAddSemesterConfirm(ppcId, sections) {
     if (profile.ppcId !== ppcId) setProfilePpc(profile.id, ppcId);
@@ -81,9 +122,37 @@ export default function PlannerPage() {
     setSelection(null);
   }
 
+  // Selecting a session (UC-09 step 5, UC-25): the resolution pass is
+  // determined once, at click time, from the current evaluation — and the
+  // resulting anchor (window or Subject code) is then snapshotted for the
+  // life of the flow. `session` is omitted for strip chips (session-less
+  // Sections), which can only reach the Duplicate Subject pass or the plain
+  // detail dialog.
+  function handleSelectSection(semesterIndex, section, session) {
+    const targetSemester = semesters[semesterIndex];
+    let sessionWindow = null;
+    let signalType = null;
+    if (session) {
+      sessionWindow = { day: session.day, startTime: session.startTime, endTime: session.endTime };
+      const members = targetSemester.sections.filter((s) => sectionOverlapsWindow(s.sessions, sessionWindow));
+      if (stillConflicted(members, 'conflict', sessionWindow)) signalType = 'conflict';
+    }
+    if (signalType == null && section.signals.duplicateSubject) signalType = 'duplicate';
+    setSelection({ semesterIndex, sectionId: section.id, signalType, window: sessionWindow, subjectCode: section.resolvedSubjectCode ?? null });
+  }
+
+  // Plain flow (UC-13): removing the Section shown by SectionDetailDialog
+  // closes it — there is nothing else that dialog could show afterward.
   function handleRemoveSection(semesterIndex, sectionId) {
     removeSectionFromSemester(profile.id, semesterIndex, sectionId);
-    if (selection?.section.id === sectionId) closeSelection();
+    closeSelection();
+  }
+
+  // Per-row prune inside the resolution flow (UC-25): immediate, UC-13
+  // semantics, but the flow itself stays open — the anchor (not the pruned
+  // Section) governs the dialog's life, via the auto-close effect above.
+  function handlePruneMember(semesterIndex, sectionId) {
+    removeSectionFromSemester(profile.id, semesterIndex, sectionId);
   }
 
   function handleResolveConflict(semesterIndex, removedIds) {
@@ -91,53 +160,6 @@ export default function PlannerPage() {
       removeSectionFromSemester(profile.id, semesterIndex, sectionId);
     }
     closeSelection();
-  }
-
-  // Derived data for the Section detail/resolution dialogs (UC-25, UC-26).
-  // Re-derived from the freshly evaluated semester (by id) rather than
-  // trusting the Section object snapshotted at click time, so toggling
-  // Failed/Audit updates this dialog's own state immediately.
-  const selectedSemester = selection ? semesters[selection.semesterIndex] : null;
-  const selectedSection = selection
-    ? (selectedSemester?.sections.find((s) => s.id === selection.section.id) ?? null)
-    : null;
-  const conflictSections =
-    selectedSection && selectedSemester
-      ? selectedSemester.sections.filter(
-          (s) => s.id !== selectedSection.id && sectionsOverlap(s.sessions, selectedSection.sessions),
-        )
-      : [];
-  const duplicateSections =
-    selectedSection && selectedSemester && selectedSection.resolvedSubjectCode
-      ? selectedSemester.sections.filter(
-          (s) => s.id !== selectedSection.id && s.resolvedSubjectCode === selectedSection.resolvedSubjectCode,
-        )
-      : [];
-  // Priority order per UC-25: Schedule Conflicts before Duplicate Subjects.
-  const signalType = !selectedSection
-    ? null
-    : selectedSection.signals.scheduleConflict
-      ? 'conflict'
-      : selectedSection.signals.duplicateSubject
-        ? 'duplicate'
-        : null;
-  const resolutionSet = selectedSection
-    ? [selectedSection, ...(signalType === 'conflict' ? conflictSections : signalType === 'duplicate' ? duplicateSections : [])]
-    : [];
-  let redundantSource = null;
-  if (selectedSection?.signals.redundantEnrollment && selectedSection.resolvedSubjectCode && selectedSemester) {
-    const entry = selectedSemester.fulfillmentBefore.get(selectedSection.resolvedSubjectCode);
-    if (entry?.source.kind === 'credit') {
-      redundantSource = { label: 'um Aproveitamento', kind: 'credit' };
-    } else if (entry?.source.kind === 'section') {
-      const sourceSemester = semesters[entry.source.semesterIndex];
-      redundantSource = {
-        label: `${entry.source.semesterIndex + 1}º período (${sourceSemester.year}/${sourceSemester.yearSemester})`,
-        kind: 'section',
-        semesterIndex: entry.source.semesterIndex,
-        sectionId: entry.source.sectionId,
-      };
-    }
   }
 
   return (
@@ -193,11 +215,15 @@ export default function PlannerPage() {
             </div>
 
             <div className="mt-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-              <WeeklyGrid ppc={ppc} sections={semester.sections} onSelect={(section) => setSelection({ semesterIndex: clampedIndex, section })} />
+              <WeeklyGrid
+                ppc={ppc}
+                sections={semester.sections}
+                onSelect={(section, session) => handleSelectSection(clampedIndex, section, session)}
+              />
               <NoScheduleStrip
                 ppc={ppc}
                 sections={semester.sections.filter((s) => s.sessions.length === 0)}
-                onSelect={(section) => setSelection({ semesterIndex: clampedIndex, section })}
+                onSelect={(section) => handleSelectSection(clampedIndex, section)}
               />
             </div>
           </section>
@@ -233,17 +259,17 @@ export default function PlannerPage() {
       )}
 
       <SectionDetailDialog
-        open={selection != null && signalType == null}
+        open={selection != null && selection.signalType == null}
         section={selectedSection}
         ppc={ppc}
         redundantSource={redundantSource}
         onClose={closeSelection}
-        onRemove={() => selection && handleRemoveSection(selection.semesterIndex, selection.section.id)}
+        onRemove={() => selection && handleRemoveSection(selection.semesterIndex, selection.sectionId)}
         onToggleFailed={() => {
-          if (selection) toggleFailedMark(profile.id, selection.semesterIndex, selection.section.id);
+          if (selection) toggleFailedMark(profile.id, selection.semesterIndex, selection.sectionId);
         }}
         onToggleAudit={() => {
-          if (selection) toggleAuditMark(profile.id, selection.semesterIndex, selection.section.id);
+          if (selection) toggleAuditMark(profile.id, selection.semesterIndex, selection.sectionId);
         }}
         onMarkSourceAudit={() => {
           if (redundantSource?.kind === 'section') toggleAuditMark(profile.id, redundantSource.semesterIndex, redundantSource.sectionId);
@@ -251,12 +277,15 @@ export default function PlannerPage() {
       />
 
       <ResolveConflictDialog
-        open={selection != null && signalType != null}
-        referenceSection={selectedSection}
+        open={selection != null && selection.signalType != null}
+        entrySectionId={selection?.sectionId ?? null}
         resolutionSet={resolutionSet}
-        signalType={signalType}
+        signalType={selection?.signalType ?? null}
+        window={selection?.window ?? null}
         ppc={ppc}
+        profileCourseId={profile.courseId}
         onClose={closeSelection}
+        onPrune={(sectionId) => selection && handlePruneMember(selection.semesterIndex, sectionId)}
         onConfirm={(_keeperId, removedIds) => selection && handleResolveConflict(selection.semesterIndex, removedIds)}
       />
 

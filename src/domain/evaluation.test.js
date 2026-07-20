@@ -118,6 +118,36 @@ describe('evaluatePlan', () => {
     expect(result.semesters[0].sections.every((s) => s.signals.scheduleConflict)).toBe(true);
   });
 
+  it("resolves an offering Section's target course from the Offerings snapshot", () => {
+    const offerings = {
+      subjects: [
+        {
+          code: 'MAT01',
+          sections: [{ turma: '01', targetCourseId: '11', targetCourseName: 'Engenharia Mecânica', sessions: [] }],
+        },
+      ],
+    };
+    const profile = baseProfile({ semesters: [{ sections: [section('MAT01', '01')] }] });
+    const result = evaluatePlan(profile, ppc, { 1: offerings });
+    expect(result.semesters[0].sections[0].targetCourseId).toBe('11');
+    expect(result.semesters[0].sections[0].targetCourseName).toBe('Engenharia Mecânica');
+  });
+
+  it('leaves the target course null for a Custom Section or an unresolved offering Section', () => {
+    const profile = baseProfile({
+      semesters: [
+        {
+          sections: [
+            section('MAT99', '01'),
+            { kind: 'custom', subjectCode: null, custom: { name: 'Estágio', sessions: [] }, failed: false, audit: false, id: 'c1' },
+          ],
+        },
+      ],
+    });
+    const result = evaluatePlan(profile, ppc, {});
+    expect(result.semesters[0].sections.every((s) => s.targetCourseId === null && s.targetCourseName === null)).toBe(true);
+  });
+
   it('flags a Redundant Enrollment when a Subject is already fulfilled without an open Audit Mark', () => {
     const profile = baseProfile({
       semesters: [{ sections: [section('MAT01', '01')] }, { sections: [section('MAT01', '02')] }],

@@ -6,7 +6,7 @@
 // edit (see docs/ARCHITECTURE.md, Persistence).
 
 import { resolveSubjectByCode, totalFulfilledWorkload } from './subjects.js';
-import { plannedSectionSessions, sectionsOverlap } from './schedule.js';
+import { plannedSectionOffering, plannedSectionSessions, sectionsOverlap } from './schedule.js';
 import { semesterPosition } from './semester.js';
 
 /**
@@ -19,6 +19,8 @@ import { semesterPosition } from './semester.js';
  * @typedef {Object} EvaluatedSection
  * @property {string|null} resolvedSubjectCode - the canonical PPC Subject code, or null if unresolved
  * @property {import('./types.js').Session[]} sessions
+ * @property {string|null} targetCourseId - the Section's target course (see docs/DOMAIN.md, Section); null for a Custom Section or an unresolved offering Section
+ * @property {string|null} targetCourseName
  * @property {{unmetRequisite: boolean, scheduleConflict: boolean, duplicateSubject: boolean, redundantEnrollment: boolean}} signals
  */
 
@@ -71,6 +73,7 @@ export function evaluatePlan(profile, ppc, offeringsByYearSemester) {
       section,
       subject: resolveSubjectByCode(ppc, section.subjectCode),
       sessions: plannedSectionSessions(section, offerings),
+      offering: plannedSectionOffering(section, offerings),
     }));
 
     const sameSemesterCodes = new Set(resolved.filter((r) => r.subject).map((r) => r.subject.code));
@@ -81,7 +84,7 @@ export function evaluatePlan(profile, ppc, offeringsByYearSemester) {
       countByCode.set(r.subject.code, (countByCode.get(r.subject.code) ?? 0) + 1);
     }
 
-    const evaluatedSections = resolved.map(({ section, subject, sessions }) => {
+    const evaluatedSections = resolved.map(({ section, subject, sessions, offering }) => {
       const scheduleConflict = resolved.some((other) => other.section !== section && sectionsOverlap(sessions, other.sessions));
       const duplicateSubject = subject != null && countByCode.get(subject.code) > 1;
 
@@ -103,6 +106,8 @@ export function evaluatePlan(profile, ppc, offeringsByYearSemester) {
         ...section,
         resolvedSubjectCode: subject?.code ?? null,
         sessions,
+        targetCourseId: offering?.targetCourseId ?? null,
+        targetCourseName: offering?.targetCourseName ?? null,
         signals: { unmetRequisite, scheduleConflict, duplicateSubject, redundantEnrollment },
       };
     });
