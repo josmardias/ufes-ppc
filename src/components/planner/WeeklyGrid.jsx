@@ -6,7 +6,7 @@
 
 import { useState } from 'react';
 import { WEEKDAY_LABELS, WEEKDAY_ORDER } from '../../domain/format.js';
-import { timeToMinutes } from '../../domain/schedule.js';
+import { sectionOverlapsWindow, timeToMinutes } from '../../domain/schedule.js';
 import { IconAlertCircle, IconAlertTriangle } from '../icons.jsx';
 
 const PIXELS_PER_MINUTE = 1;
@@ -222,6 +222,7 @@ export default function WeeklyGrid({ ppc, sections, onSelect, previewSessions = 
 
             {layoutSessionsForDay(sessionsForDay(day)).map(({ section, session, colIndex, totalColumns }, i) => {
               const Icon = severityIcon(section);
+              const previewConflict = previewSessions.some((preview) => sectionOverlapsWindow([session], preview));
               return (
                 <button
                   key={`${section.id}-${i}`}
@@ -231,9 +232,9 @@ export default function WeeklyGrid({ ppc, sections, onSelect, previewSessions = 
                   onMouseLeave={() => handleHoverEnd(section.id)}
                   onFocus={() => handleHoverStart(section.id)}
                   onBlur={() => handleHoverEnd(section.id)}
-                  aria-label={sectionAccessibleLabel(section, ppc, session)}
+                  aria-label={`${sectionAccessibleLabel(section, ppc, session)}${previewConflict ? ', conflita com a turma sendo adicionada' : ''}`}
                   title={sectionShortLabel(section, ppc)}
-                  className={`absolute overflow-hidden rounded border px-1 py-0.5 text-left text-[11px] leading-tight focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 ${severityClass(section)} ${section.failed ? 'opacity-70' : ''} ${activeHighlightId === section.id ? 'ring-2 ring-slate-500' : ''}`}
+                  className={`absolute overflow-hidden rounded border px-1 py-0.5 text-left text-[11px] leading-tight focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 ${severityClass(section)} ${section.failed ? 'opacity-70' : ''} ${activeHighlightId === section.id ? 'ring-2 ring-slate-500' : ''} ${previewConflict ? 'ring-2 ring-red-500' : ''}`}
                   style={{
                     top: (timeToMinutes(session.startTime) - startMinutes) * PIXELS_PER_MINUTE,
                     height: Math.max((timeToMinutes(session.endTime) - timeToMinutes(session.startTime)) * PIXELS_PER_MINUTE, 20),
