@@ -276,31 +276,6 @@ export default function WeeklyGrid({
               />
             ))}
 
-            {previewSessions
-              .filter(
-                (session) =>
-                  session.day === day ||
-                  (day === 'Sáb' && session.day === 'Sab'),
-              )
-              .map((session, i) => (
-                <div
-                  key={`preview-${i}`}
-                  aria-hidden="true"
-                  className="absolute inset-x-0.5 rounded border-2 border-dashed border-sky-400 bg-sky-50/60"
-                  style={{
-                    top:
-                      (timeToMinutes(session.startTime) - startMinutes) *
-                      PIXELS_PER_MINUTE,
-                    height: Math.max(
-                      (timeToMinutes(session.endTime) -
-                        timeToMinutes(session.startTime)) *
-                        PIXELS_PER_MINUTE,
-                      20,
-                    ),
-                  }}
-                />
-              ))}
-
             {layoutSessionsForDay(sessionsForDay(day)).map(
               ({ section, session, colIndex, totalColumns }, i) => {
                 const Icon = severityIcon(section);
@@ -318,7 +293,7 @@ export default function WeeklyGrid({
                     onBlur={() => handleHoverEnd(section.id)}
                     aria-label={`${sectionAccessibleLabel(section, ppc, session)}${previewConflict ? ', conflita com a turma sendo adicionada' : ''}`}
                     title={sectionShortLabel(section, ppc)}
-                    className={`absolute overflow-hidden rounded border px-1 py-0.5 text-left text-[11px] leading-tight focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 ${severityClass(section)} ${section.failed ? 'opacity-70' : ''} ${activeHighlightId === section.id ? 'ring-2 ring-slate-500' : ''} ${previewConflict ? 'ring-2 ring-red-500' : ''}`}
+                    className={`absolute overflow-hidden rounded border px-1 py-0.5 text-left text-[11px] leading-tight focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 ${severityClass(section)} ${section.failed ? 'opacity-70' : ''} ${activeHighlightId === section.id ? 'ring-2 ring-slate-500' : ''}`}
                     style={{
                       top:
                         (timeToMinutes(session.startTime) - startMinutes) *
@@ -348,6 +323,37 @@ export default function WeeklyGrid({
                 );
               },
             )}
+
+            {previewSessions
+              .filter(
+                (session) =>
+                  session.day === day ||
+                  (day === 'Sáb' && session.day === 'Sab'),
+              )
+              .map((session, i) => {
+                const conflictsWithExisting = sectionOverlapsWindow(
+                  sessionsForDay(day).map(({ session: existing }) => existing),
+                  session,
+                );
+                return (
+                  <div
+                    key={`preview-${i}`}
+                    aria-hidden="true"
+                    className={`pointer-events-none absolute inset-x-0.5 z-10 rounded border-2 border-dashed ${conflictsWithExisting ? 'border-red-500 bg-red-50/40' : 'border-sky-400 bg-sky-50/60'}`}
+                    style={{
+                      top:
+                        (timeToMinutes(session.startTime) - startMinutes) *
+                        PIXELS_PER_MINUTE,
+                      height: Math.max(
+                        (timeToMinutes(session.endTime) -
+                          timeToMinutes(session.startTime)) *
+                          PIXELS_PER_MINUTE,
+                        20,
+                      ),
+                    }}
+                  />
+                );
+              })}
           </div>
         ))}
       </div>
