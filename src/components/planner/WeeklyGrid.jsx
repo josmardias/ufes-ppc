@@ -13,17 +13,47 @@ const PIXELS_PER_MINUTE = 1;
 const DEFAULT_START_HOUR = 7;
 const DEFAULT_END_HOUR = 13;
 
+// Colour-blind-safe qualitative palette (Paul Tol's "muted" scheme, see
+// https://sronpersonalpages.nl/~pault/, plus its "bad data" grey as a 10th
+// colour) used to give each Section in a semester a distinct, transparent
+// background so sessions of the same Section stand out from their neighbors
+// at a glance. Colours are assigned by round-robin over a Section's position
+// in the semester — not tied to Subject code — so no mapping needs to be
+// stored anywhere.
+const SECTION_PALETTE = [
+  '#CC6677', // rose
+  '#332288', // indigo
+  '#DDCC77', // sand
+  '#117733', // green
+  '#88CCEE', // cyan
+  '#882255', // wine
+  '#44AA99', // teal
+  '#999933', // olive
+  '#AA4499', // purple
+  '#DDDDDD', // grey
+];
+
+/**
+ * The transparent background colour for a Section, picked round-robin from
+ * `SECTION_PALETTE` by the Section's position in `sections` (the order it
+ * was added to the semester).
+ */
+export function sectionBackgroundColor(sections, section) {
+  const index = sections.findIndex((s) => s.id === section.id);
+  const hex = SECTION_PALETTE[index === -1 ? 0 : index % SECTION_PALETTE.length];
+  return `${hex}26`; // ~15% opacity, keeps text legible
+}
+
 export function severityClass(section) {
-  if (section.signals?.unmetRequisite)
-    return 'border-red-400 bg-red-50 text-red-800 hover:bg-red-100';
+  if (section.signals?.unmetRequisite) return 'border-red-400 text-red-800';
   if (
     section.signals?.scheduleConflict ||
     section.signals?.duplicateSubject ||
     section.signals?.redundantEnrollment
   ) {
-    return 'border-amber-400 bg-amber-50 text-amber-800 hover:bg-amber-100';
+    return 'border-amber-400 text-amber-800';
   }
-  return 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50';
+  return 'border-slate-300 text-slate-700';
 }
 
 /**
@@ -293,7 +323,7 @@ export default function WeeklyGrid({
                     onBlur={() => handleHoverEnd(section.id)}
                     aria-label={`${sectionAccessibleLabel(section, ppc, session)}${previewConflict ? ', conflita com a turma sendo adicionada' : ''}`}
                     title={sectionShortLabel(section, ppc)}
-                    className={`absolute overflow-hidden rounded border px-1 py-0.5 text-left text-[11px] leading-tight focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 ${severityClass(section)} ${section.failed ? 'opacity-70' : ''} ${activeHighlightId === section.id ? 'ring-2 ring-slate-500' : ''}`}
+                    className={`absolute overflow-hidden rounded border px-1 py-0.5 text-left text-[11px] leading-tight hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 ${severityClass(section)} ${section.failed ? 'opacity-70' : ''} ${activeHighlightId === section.id ? 'ring-2 ring-slate-500' : ''}`}
                     style={{
                       top:
                         (timeToMinutes(session.startTime) - startMinutes) *
@@ -306,6 +336,7 @@ export default function WeeklyGrid({
                       ),
                       left: `calc(${(colIndex / totalColumns) * 100}% + 1px)`,
                       width: `calc(${100 / totalColumns}% - 2px)`,
+                      backgroundColor: sectionBackgroundColor(sections, section),
                     }}
                   >
                     <span
