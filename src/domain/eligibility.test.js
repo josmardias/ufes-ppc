@@ -128,6 +128,45 @@ describe('buildCandidateSubjects', () => {
     expect(result.find((c) => c.subjectCode === 'MAT02')).toBeUndefined();
   });
 
+  it('merges Sections offered under an equivalent code into the same candidate Subject', () => {
+    const equivalentPpc = {
+      id: 'test-ppc',
+      subjects: [
+        {
+          code: 'MAT01',
+          name: 'Cálculo I',
+          prerequisites: [],
+          corequisites: [],
+          equivalents: ['MAT01-OLD'],
+        },
+      ],
+    };
+    const equivalentOfferings = {
+      subjects: [
+        {
+          code: 'MAT01',
+          sections: [
+            { turma: '01', professor: 'A', shift: 'morning', sessions: [] },
+          ],
+        },
+        {
+          code: 'MAT01-OLD',
+          sections: [
+            { turma: '02', professor: 'B', shift: 'morning', sessions: [] },
+          ],
+        },
+      ],
+    };
+    const result = candidates({
+      ppc: equivalentPpc,
+      offerings: equivalentOfferings,
+    });
+
+    const matches = result.filter((c) => c.subjectCode === 'MAT01');
+    expect(matches).toHaveLength(1);
+    expect(matches[0].sections.map((s) => s.turma)).toEqual(['01', '02']);
+  });
+
   it('includes a Custom Section applicable to this Year Semester', () => {
     const result = candidates({
       customSections: [

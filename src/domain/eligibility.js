@@ -137,6 +137,12 @@ export function buildCandidateSubjects({
   }
 
   const candidates = [];
+  // Sections offered under an equivalent code resolve to the same canonical
+  // Subject (see docs/DOMAIN.md, Equivalence) — e.g. an old code kept around
+  // for a transition period. Group them into a single candidate per Subject
+  // rather than pushing one per offered code, which would otherwise produce
+  // sibling entries sharing the same `subjectCode` (and React key).
+  const byCode = new Map();
 
   for (const offeredSubject of offerings?.subjects ?? []) {
     const subject = resolveSubjectByCode(ppc, offeredSubject.code);
@@ -153,20 +159,30 @@ export function buildCandidateSubjects({
     );
     if (sections.length === 0) continue;
 
-    candidates.push({
+    const mappedSections = sections.map((section) => ({
+      kind: 'offering',
+      subjectCode: offeredSubject.code,
+      turma: section.turma,
+      shift: section.shift,
+      targetCourseId: section.targetCourseId,
+      targetCourseName: section.targetCourseName,
+      sessions: section.sessions,
+    }));
+
+    const existing = byCode.get(subject.code);
+    if (existing) {
+      existing.sections.push(...mappedSections);
+      continue;
+    }
+
+    const candidate = {
       subjectCode: subject.code,
       subjectName: subject.name,
       stale: false,
-      sections: sections.map((section) => ({
-        kind: 'offering',
-        subjectCode: offeredSubject.code,
-        turma: section.turma,
-        shift: section.shift,
-        targetCourseId: section.targetCourseId,
-        targetCourseName: section.targetCourseName,
-        sessions: section.sessions,
-      })),
-    });
+      sections: mappedSections,
+    };
+    byCode.set(subject.code, candidate);
+    candidates.push(candidate);
   }
 
   for (const custom of customSections) {
