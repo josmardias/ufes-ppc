@@ -1,5 +1,5 @@
 // Static routes (see docs/ARCHITECTURE.md, "State Management and Routing").
-// `/profile` resolves the active profile from persisted state; if there is
+// `/plan` resolves the active profile from persisted state; if there is
 // none, it redirects to `/` instead of taking the profile id from the URL.
 
 import { Redirect, Route, Router, Switch } from 'wouter';
@@ -24,7 +24,7 @@ export default function App() {
       <StorageConflictBanner />
       <Switch>
         <Route path="/" component={ProfileListPage} />
-        <Route path="/profile" component={PlannerRoute} />
+        <Route path="/plan" component={PlannerRoute} />
       </Switch>
     </Router>
   );

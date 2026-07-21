@@ -18,7 +18,7 @@ test('a write in one tab warns another tab, but not itself', async ({
   await createDialogA
     .getByRole('button', { name: 'Criar', exact: true })
     .click();
-  await expect(pageA).toHaveURL(/\/profile$/);
+  await expect(pageA).toHaveURL(/\/plan$/);
 
   await pageB.goto('/');
   await expect(pageB.getByText('Maria A')).toBeVisible();

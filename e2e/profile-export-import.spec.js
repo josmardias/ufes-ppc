@@ -15,7 +15,7 @@ test('a profile exported, then deleted, can be imported back', async ({
   await createDialog
     .getByRole('button', { name: 'Criar', exact: true })
     .click();
-  await expect(page).toHaveURL(/\/profile$/);
+  await expect(page).toHaveURL(/\/plan$/);
 
   await page.goto('/');
   const row = page.getByRole('listitem').filter({ hasText: 'Maria Export' });

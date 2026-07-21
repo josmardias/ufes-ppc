@@ -65,7 +65,7 @@ export default function ProfileListPage() {
 
   function handleSelect(profile) {
     setActiveProfileId(profile.id);
-    navigate('/profile');
+    navigate('/plan');
   }
 
   function handleExport(profile) {
@@ -217,7 +217,7 @@ export default function ProfileListPage() {
 
       <CreateProfileDialog
         ref={createDialogRef}
-        onCreated={() => navigate('/profile')}
+        onCreated={() => navigate('/plan')}
       />
 
       <ProfileNameDialog

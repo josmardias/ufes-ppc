@@ -131,9 +131,9 @@ State flows one way: components → hooks (selectors) → store → storage/doma
 Routing uses wouter with static routes:
 
 - `/` — profile list (UC-01), the app's home screen
-- `/profile` — the planner for the active profile
+- `/plan` — the planner for the active profile
 
-The profile id is **not** in the URL. `/profile` resolves the active profile from the persisted `activeProfileId`; if it is null or dangling, the route redirects to `/`. Because the app is served from a GitHub Pages subpath, Vite's `base` and wouter's base path are both configured accordingly.
+The profile id is **not** in the URL. `/plan` resolves the active profile from the persisted `activeProfileId`; if it is null or dangling, the route redirects to `/`. Because the app is served from a GitHub Pages subpath, Vite's `base` and wouter's base path are both configured accordingly.
 
 ---
 

@@ -17,14 +17,14 @@ test('created profile survives a reload and stays the active profile', async ({
     .getByRole('button', { name: 'Criar', exact: true })
     .click();
 
-  await expect(page).toHaveURL(/\/profile$/);
+  await expect(page).toHaveURL(/\/plan$/);
   await expect(
     page.getByRole('heading', { name: 'Maria Playwright' }),
   ).toBeVisible();
 
   await page.reload();
 
-  await expect(page).toHaveURL(/\/profile$/);
+  await expect(page).toHaveURL(/\/plan$/);
   await expect(
     page.getByRole('heading', { name: 'Maria Playwright' }),
   ).toBeVisible();
