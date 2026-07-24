@@ -13,7 +13,7 @@ export const COURSES = [
     courseName: 'Engenharia Elétrica',
     yearSemesters: {
       1: { year: 2026, semester: 1 },
-      2: { year: 2025, semester: 2 },
+      2: { year: 2026, semester: 2 },
     },
   },
 ];
