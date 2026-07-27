@@ -5,6 +5,7 @@ import {
   createPlannedSection,
   currentSemesterIndex,
   deleteLastPlannedSemester,
+  elapsedSemesters,
   formatYearSemesterLabel,
   removeSectionFromSemester,
   semesterPosition,
@@ -48,6 +49,38 @@ describe('semesterPosition', () => {
       yearSemester: 2,
     });
   });
+
+  it('defaults completedSemesters to 0, matching the previous behavior', () => {
+    expect(semesterPosition(2024, 1, 2)).toEqual(
+      semesterPosition(2024, 1, 2, 0),
+    );
+  });
+
+  it('offsets the index by completedSemesters (the first Planned Semester takes position completedSemesters + 1)', () => {
+    // With 3 completed semesters, plan index 0 lands where plain index 3
+    // would (see the "ingressing in Year Semester 1" case above).
+    expect(semesterPosition(2024, 1, 0, 3)).toEqual({
+      year: 2025,
+      yearSemester: 2,
+    });
+    expect(semesterPosition(2024, 1, 1, 3)).toEqual(semesterPosition(2024, 1, 4));
+  });
+});
+
+describe('elapsedSemesters', () => {
+  it('returns 0 when the current date is still the ingress semester', () => {
+    expect(elapsedSemesters(2024, 1, new Date(2024, 2, 1))).toBe(0);
+  });
+
+  it('counts each fully elapsed Year Semester since ingress', () => {
+    // Ingress 2024/1; by 2025/2 (second half), three semesters (2024/1,
+    // 2024/2, 2025/1) have fully elapsed and 2025/2 is in progress.
+    expect(elapsedSemesters(2024, 1, new Date(2025, 8, 1))).toBe(3);
+  });
+
+  it('never returns a negative number for a date preceding ingress', () => {
+    expect(elapsedSemesters(2024, 1, new Date(2020, 2, 1))).toBe(0);
+  });
 });
 
 describe('formatYearSemesterLabel', () => {
@@ -63,6 +96,7 @@ describe('currentSemesterIndex', () => {
     const profile = {
       ingressYear: 2024,
       ingressYearSemester: 1,
+      completedSemesters: 0,
       semesters: [{}, {}, {}],
     };
     // 2025 in the first half of the year is Year Semester 1, absolute index 2 => semester index 2.
@@ -73,6 +107,7 @@ describe('currentSemesterIndex', () => {
     const profile = {
       ingressYear: 2024,
       ingressYearSemester: 1,
+      completedSemesters: 0,
       semesters: [{}],
     };
     expect(currentSemesterIndex(profile, new Date(2026, 2, 1))).toBeNull();
@@ -82,9 +117,32 @@ describe('currentSemesterIndex', () => {
     const profile = {
       ingressYear: 2024,
       ingressYearSemester: 1,
+      completedSemesters: 0,
       semesters: [{}],
     };
     expect(currentSemesterIndex(profile, new Date(2020, 2, 1))).toBeNull();
+  });
+
+  it('shifts the matched index back by completedSemesters', () => {
+    // Same calendar date as the first test (absolute index 2), but this
+    // Student had already completed 2 semesters at profile creation, so the
+    // plan's own index 0 is where absolute index 2 falls.
+    const profile = {
+      ingressYear: 2024,
+      ingressYearSemester: 1,
+      completedSemesters: 2,
+      semesters: [{}],
+    };
+    expect(currentSemesterIndex(profile, new Date(2025, 2, 1))).toBe(0);
+  });
+
+  it('defaults completedSemesters to 0 when absent (legacy profile shape)', () => {
+    const profile = {
+      ingressYear: 2024,
+      ingressYearSemester: 1,
+      semesters: [{}, {}, {}],
+    };
+    expect(currentSemesterIndex(profile, new Date(2025, 2, 1))).toBe(2);
   });
 });
 

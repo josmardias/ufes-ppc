@@ -87,6 +87,18 @@ describe('evaluatePlan', () => {
     expect(result.semesters[1].sections[0].signals.unmetRequisite).toBe(false);
   });
 
+  it('offsets each Planned Semester\'s position by completedSemesters (the plan starts right after the completed count)', () => {
+    const profile = baseProfile({
+      completedSemesters: 2,
+      semesters: [{ sections: [] }],
+    });
+    const result = evaluatePlan(profile, ppc, {});
+    // Ingress 2024/1; with 2 completed semesters, the first Planned Semester
+    // (plan index 0) lands at absolute position 2 => 2025/1.
+    expect(result.semesters[0].year).toBe(2025);
+    expect(result.semesters[0].yearSemester).toBe(1);
+  });
+
   it('flags an Unmet Requisite when the prerequisite was never planned', () => {
     const profile = baseProfile({
       semesters: [{ sections: [section('MAT02', '01')] }],

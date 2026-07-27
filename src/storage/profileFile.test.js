@@ -6,15 +6,17 @@ function sampleProfile(overrides = {}) {
   return {
     id: 'internal-id',
     name: 'Maria',
-    ppcId: null,
-    courseId: null,
+    ppcId: 'engenharia-eletrica-2022',
+    courseId: '06',
     ingressYear: 2024,
     ingressYearSemester: 1,
+    completedSemesters: 0,
     shift: 'morning',
     shiftFilter: null,
     semesters: [],
     creditEntries: [],
     customSections: [],
+    hiddenSubjects: [],
     ...overrides,
   };
 }
@@ -26,15 +28,17 @@ describe('serializeProfileForExport', () => {
       schemaVersion: CURRENT_SCHEMA_VERSION,
       profile: {
         name: 'Maria',
-        ppcId: null,
-        courseId: null,
+        ppcId: 'engenharia-eletrica-2022',
+        courseId: '06',
         ingressYear: 2024,
         ingressYearSemester: 1,
+        completedSemesters: 0,
         shift: 'morning',
         shiftFilter: null,
         semesters: [],
         creditEntries: [],
         customSections: [],
+        hiddenSubjects: [],
       },
     });
   });
@@ -77,5 +81,30 @@ describe('parseProfileFile', () => {
     );
     const result = parseProfileFile(JSON.stringify(exported));
     expect(result.ok).toBe(true);
+  });
+
+  it('migrates and imports a file exported by schema version 1, before courseId/completedSemesters/hiddenSubjects existed (UC-06/UC-07)', () => {
+    const legacyExport = {
+      schemaVersion: 1,
+      profile: {
+        name: 'Maria',
+        ppcId: null,
+        ingressYear: 2024,
+        ingressYearSemester: 1,
+        shift: 'morning',
+        shiftFilter: null,
+        semesters: [],
+        creditEntries: [],
+        customSections: [],
+      },
+    };
+
+    const result = parseProfileFile(JSON.stringify(legacyExport));
+
+    expect(result.ok).toBe(true);
+    expect(result.profile.ppcId).toBe('engenharia-eletrica-2022');
+    expect(result.profile.courseId).toBe('06');
+    expect(result.profile.completedSemesters).toBe(0);
+    expect(result.profile.hiddenSubjects).toEqual([]);
   });
 });

@@ -8,16 +8,19 @@
  * @typedef {Object} ProfileRecord
  * @property {string} id - generated, internal — never taken from imports
  * @property {string} name
- * @property {string|null} ppcId
- * @property {string|null} courseId - official UFES course code, derived from the PPC dataset
- *   whenever `ppcId` is set (see docs/ARCHITECTURE.md, `ProfileRecord`); null while `ppcId` is null
+ * @property {string} ppcId - chosen at profile creation (UC-02) via the course → PPC cascade; never null
+ * @property {string} courseId - official UFES course code, derived from the PPC dataset
+ *   whenever `ppcId` is set (see docs/ARCHITECTURE.md, `ProfileRecord`); never null
  * @property {number} ingressYear
  * @property {1|2} ingressYearSemester
+ * @property {number} completedSemesters - last completed semester recorded at creation (UC-02);
+ *   Planned Semesters start at position `completedSemesters + 1`
  * @property {"day"|"morning"|"afternoon"} shift
  * @property {"morning"|"afternoon"|"day"|null} shiftFilter
  * @property {PlannedSemester[]} semesters
  * @property {CreditEntry[]} creditEntries
  * @property {CustomSection[]} customSections
+ * @property {string[]} hiddenSubjects - codes of Optional Subjects hidden from planning listings (UC-28)
  */
 
 /**

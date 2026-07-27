@@ -79,6 +79,7 @@ export function evaluatePlan(profile, ppc, offeringsByYearSemester) {
       profile.ingressYear,
       profile.ingressYearSemester,
       index,
+      profile.completedSemesters,
     );
     const offerings = offeringsByYearSemester[yearSemester];
     const fulfillmentBefore = new Map(fulfillment);

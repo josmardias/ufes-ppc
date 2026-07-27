@@ -7,7 +7,7 @@ import { getPpc } from '../data/index.js';
 export const STORAGE_KEY = 'ufes-ppc:envelope';
 
 /** Bumped on breaking shape changes; see the `migrations` map below. */
-export const CURRENT_SCHEMA_VERSION = 2;
+export const CURRENT_SCHEMA_VERSION = 3;
 
 /** @returns {import('../domain/types.js').Envelope} */
 export function defaultEnvelope() {
@@ -37,10 +37,38 @@ function migrateV1toV2(envelope) {
 }
 
 /**
+ * Adds `ProfileRecord.completedSemesters` and `ProfileRecord.hiddenSubjects`
+ * (see docs/ARCHITECTURE.md, `ProfileRecord`), and backfills `ppcId`/
+ * `courseId` for profiles created before the PPC moved to profile creation
+ * (UC-02), where both fields could still be null.
+ *
+ * The backfilled ids are HARDCODED, not looked up from the dataset registry
+ * (`getPpc`) — see docs/ARCHITECTURE.md, "Migrations": a migration must be
+ * deterministic forever, since a browser may hold years-old data, and a
+ * later dataset addition must never change what an old migration produces.
+ * `engenharia-eletrica-2022` was the only PPC in the registry when this
+ * migration was authored. Do NOT replace this with a registry lookup.
+ */
+function migrateV2toV3(envelope) {
+  return {
+    ...envelope,
+    schemaVersion: 3,
+    profiles: envelope.profiles.map((profile) => ({
+      ...profile,
+      ppcId: profile.ppcId ?? 'engenharia-eletrica-2022',
+      courseId: profile.ppcId ? profile.courseId : '06',
+      // Existing plans already start their Planned Semesters at position 1.
+      completedSemesters: 0,
+      hiddenSubjects: [],
+    })),
+  };
+}
+
+/**
  * Sequential migration functions, keyed by the schema version they migrate
  * FROM (e.g. `1: migrateV1toV2`).
  */
-const migrations = { 1: migrateV1toV2 };
+const migrations = { 1: migrateV1toV2, 2: migrateV2toV3 };
 
 /**
  * Applies sequential migrations to bring an envelope-shaped object up to

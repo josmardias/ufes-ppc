@@ -24,8 +24,10 @@ import SectionDetailDialog from '../components/planner/SectionDetailDialog.jsx';
 import ResolveConflictDialog from '../components/planner/ResolveConflictDialog.jsx';
 import AddSectionDialog from '../components/planner/AddSectionDialog.jsx';
 import AddSemesterDialog from '../components/planner/AddSemesterDialog.jsx';
+import AddOptionalDialog from '../components/planner/AddOptionalDialog.jsx';
+import EditProfileDialog from '../components/EditProfileDialog.jsx';
 import ConfirmDialog from '../components/ConfirmDialog.jsx';
-import { IconPlus, IconTrash } from '../components/icons.jsx';
+import { IconPencil, IconPlus, IconTrash } from '../components/icons.jsx';
 
 const BUTTON_FOCUS_CLASS =
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2';
@@ -35,7 +37,6 @@ const DANGER_BUTTON_CLASS = `inline-flex items-center gap-1.5 rounded px-2 py-1 
 
 export default function PlannerPage() {
   const profile = useActiveProfile();
-  const setProfilePpc = useStore((state) => state.setProfilePpc);
   const addPlannedSemester = useStore((state) => state.addPlannedSemester);
   const deleteLastSemester = useStore((state) => state.deleteLastSemester);
   const addSectionToSemester = useStore((state) => state.addSectionToSemester);
@@ -68,7 +69,9 @@ export default function PlannerPage() {
   const [selection, setSelection] = useState(null);
   const [addSemesterOpen, setAddSemesterOpen] = useState(false);
   const [addSectionOpen, setAddSectionOpen] = useState(false);
+  const [addOptionalOpen, setAddOptionalOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [editProfileOpen, setEditProfileOpen] = useState(false);
 
   const semesters = evaluation?.semesters ?? [];
   const clampedIndex = Math.min(
@@ -135,8 +138,7 @@ export default function PlannerPage() {
 
   if (!profile) return null;
 
-  function handleAddSemesterConfirm(ppcId, sections) {
-    if (profile.ppcId !== ppcId) setProfilePpc(profile.id, ppcId);
+  function handleAddSemesterConfirm(sections) {
     const newIndex = profile.semesters.length;
     addPlannedSemester(profile.id, sections);
     setAddSemesterOpen(false);
@@ -150,6 +152,15 @@ export default function PlannerPage() {
       createPlannedSection(sectionTemplate),
     );
     setAddSectionOpen(false);
+  }
+
+  function handleAddOptional(sectionTemplate) {
+    addSectionToSemester(
+      profile.id,
+      clampedIndex,
+      createPlannedSection(sectionTemplate),
+    );
+    setAddOptionalOpen(false);
   }
 
   function handleDeleteLastSemester() {
@@ -234,14 +245,24 @@ export default function PlannerPage() {
           <p className="max-w-sm text-sm text-pretty text-slate-500">
             Adicione o primeiro período para começar a montar seu cronograma.
           </p>
-          <button
-            type="button"
-            onClick={() => setAddSemesterOpen(true)}
-            className={PRIMARY_BUTTON_CLASS}
-          >
-            <IconPlus className="size-4" />
-            Adicionar período
-          </button>
+          <div className="flex flex-wrap justify-center gap-2">
+            <button
+              type="button"
+              onClick={() => setAddSemesterOpen(true)}
+              className={PRIMARY_BUTTON_CLASS}
+            >
+              <IconPlus className="size-4" />
+              Adicionar período
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditProfileOpen(true)}
+              className={SECONDARY_BUTTON_CLASS}
+            >
+              <IconPencil className="size-4" />
+              Editar dados do perfil
+            </button>
+          </div>
         </div>
       ) : (
         <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-[16rem_1fr]">
@@ -276,6 +297,14 @@ export default function PlannerPage() {
                 >
                   <IconPlus className="size-4" />
                   Adicionar turma
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAddOptionalOpen(true)}
+                  className={SECONDARY_BUTTON_CLASS}
+                >
+                  <IconPlus className="size-4" />
+                  Adicionar optativa
                 </button>
                 {isLastSemester && (
                   <button
@@ -336,12 +365,37 @@ export default function PlannerPage() {
           currentSections={semester.sections}
           shiftFilter={effectiveShiftFilter(profile)}
           profileCourseId={profile.courseId}
-          semesterNumber={clampedIndex + 1}
+          hiddenSubjects={profile.hiddenSubjects}
+          semesterNumber={profile.completedSemesters + clampedIndex + 1}
           onShiftFilterChange={(value) => setShiftFilter(profile.id, value)}
           onConfirm={handleAddSection}
           onClose={() => setAddSectionOpen(false)}
         />
       )}
+
+      {semester && (
+        <AddOptionalDialog
+          open={addOptionalOpen}
+          profile={profile}
+          ppc={ppc}
+          offerings={getOfferings(ppc.id, semester.yearSemester)}
+          yearSemester={semester.yearSemester}
+          fulfillmentBefore={semester.fulfillmentBefore}
+          sameSemesterCodes={semester.sameSemesterCodes}
+          currentSections={semester.sections}
+          shiftFilter={effectiveShiftFilter(profile)}
+          semesterNumber={profile.completedSemesters + clampedIndex + 1}
+          onShiftFilterChange={(value) => setShiftFilter(profile.id, value)}
+          onConfirm={handleAddOptional}
+          onClose={() => setAddOptionalOpen(false)}
+        />
+      )}
+
+      <EditProfileDialog
+        open={editProfileOpen}
+        profile={profile}
+        onClose={() => setEditProfileOpen(false)}
+      />
 
       <SectionDetailDialog
         open={selection != null && selection.signalType == null}

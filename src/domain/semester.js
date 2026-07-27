@@ -5,18 +5,46 @@
 
 /**
  * Derives the calendar year and Year Semester (1|2) of the Planned Semester
- * at `index` (0-based), from the Student's ingress information. Planned
- * Semesters alternate Year Semesters starting at the ingress one.
+ * at `index` (0-based, relative to the plan's own start), from the
+ * Student's ingress information. Planned Semesters alternate Year Semesters
+ * starting at the ingress one, offset by `completedSemesters` (see
+ * docs/DOMAIN.md, Planned Semester): the first Planned Semester takes the
+ * position right after the completed-semester count recorded at profile
+ * creation (UC-02), so `index` 0 actually lands at absolute position
+ * `completedSemesters`.
  * @param {number} ingressYear
  * @param {1|2} ingressYearSemester
  * @param {number} index
+ * @param {number} [completedSemesters]
  */
-export function semesterPosition(ingressYear, ingressYearSemester, index) {
-  const absolute = index + (ingressYearSemester - 1);
+export function semesterPosition(
+  ingressYear,
+  ingressYearSemester,
+  index,
+  completedSemesters = 0,
+) {
+  const absolute = index + completedSemesters + (ingressYearSemester - 1);
   return {
     year: ingressYear + Math.floor(absolute / 2),
     yearSemester: (absolute % 2) + 1,
   };
+}
+
+/**
+ * The number of semesters fully elapsed between the Student's ingress
+ * information and `today` (see docs/USE_CASES.md, UC-02): the derived
+ * default and cap for the "last completed semester" input at profile
+ * creation and editing (UC-24). Never negative — a Student cannot have
+ * completed semesters before their own ingress.
+ * @param {number} ingressYear
+ * @param {1|2} ingressYearSemester
+ * @param {Date} [today]
+ */
+export function elapsedSemesters(ingressYear, ingressYearSemester, today = new Date()) {
+  const nowYearSemester = today.getMonth() < 6 ? 1 : 2;
+  const absolute = (today.getFullYear() - ingressYear) * 2 + (nowYearSemester - 1);
+  const offset = absolute - (ingressYearSemester - 1);
+  return Math.max(0, offset);
 }
 
 /** Formats a semester position as "2024/1". */
@@ -36,7 +64,8 @@ export function currentSemesterIndex(profile, today = new Date()) {
   const nowYearSemester = today.getMonth() < 6 ? 1 : 2;
   const absolute =
     (today.getFullYear() - profile.ingressYear) * 2 + (nowYearSemester - 1);
-  const index = absolute - (profile.ingressYearSemester - 1);
+  const offset = absolute - (profile.ingressYearSemester - 1);
+  const index = offset - (profile.completedSemesters ?? 0);
   return index >= 0 && index < profile.semesters.length ? index : null;
 }
 

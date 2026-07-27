@@ -1,7 +1,8 @@
 // Candidate Section lists for planning a Planned Semester (see
-// docs/USE_CASES.md, UC-11 "Add a New Planned Semester" and UC-12 "Add a
-// Section to a Planned Semester"). Pure, framework-agnostic — the caller
-// supplies the fulfillment state to plan against (see domain/evaluation.js).
+// docs/USE_CASES.md, UC-11 "Add a New Planned Semester", UC-12 "Add a
+// Section to a Planned Semester", and UC-27 "Add an Optional Section to a
+// Planned Semester"). Pure, framework-agnostic — the caller supplies the
+// fulfillment state to plan against (see domain/evaluation.js).
 
 import { resolveSubjectByCode } from './subjects.js';
 import { sectionMatchesShiftFilter } from './schedule.js';
@@ -11,10 +12,34 @@ import { sectionMatchesShiftFilter } from './schedule.js';
  * @property {string|null} subjectCode - canonical PPC Subject code, or null for an unlinked Custom Section
  * @property {string} subjectName
  * @property {boolean} stale - true for a Custom Section whose link no longer resolves in the PPC
+ * @property {"core"|"other"} tier - "core" when the Subject's Suggested Semester is at or before
+ *   the semester being planned (or it has none); "other" when suggested for a later semester
+ *   (see docs/USE_CASES.md, UC-11 step 5)
  * @property {Array<{kind: "offering"|"custom", subjectCode: string|null, turma?: string,
  *   shift?: string, targetCourseId?: string, targetCourseName?: string, sessions: import('./types.js').Session[],
  *   custom?: object}>} sections
  */
+
+/** A stable identity key for a candidate section template, used to track selection across filter changes. */
+export function candidateSectionKey(section) {
+  return section.kind === 'custom'
+    ? `custom:${section.sourceCustomId}`
+    : `offering:${section.subjectCode}:${section.turma}`;
+}
+
+/**
+ * The tier a Subject belongs to in the two-tier listing (see docs/USE_CASES.md,
+ * UC-11 step 5): "core" (likely enrollment) when its Suggested Semester is at
+ * or before `semesterNumber`, or it has none; "other" otherwise. Tier
+ * assignment is Subject-level.
+ * @param {{suggestedSemester: number|null}} subject
+ * @param {number|null} semesterNumber
+ */
+function tierOf(subject, semesterNumber) {
+  if (subject.suggestedSemester == null || semesterNumber == null)
+    return 'core';
+  return subject.suggestedSemester <= semesterNumber ? 'core' : 'other';
+}
 
 /**
  * Builds the candidate Subjects (grouped, each with its available Sections)
@@ -22,8 +47,10 @@ import { sectionMatchesShiftFilter } from './schedule.js';
  * state before that semester. Excludes Subjects already fulfilled unless
  * their fulfillment carries an open Audit Mark (see docs/DOMAIN.md, Audit
  * Mark), and Subjects whose prerequisites aren't satisfied. Co-requisites
- * are checked only when `checkCorequisites` is true — UC-11's review screen
- * does not check them, UC-12's add-Section list does.
+ * are NOT checked here — the shared co-requisite look-ahead rule (UC-11 step
+ * 8, UC-12 "Co-requisite rule", UC-27) is a separate, cross-classification
+ * pass; see `pruneCorequisiteLookahead` / `buildCombinedCandidatePool` below,
+ * which every caller is expected to run afterward.
  *
  * @param {{
  *   ppc: {id: string, subjects: Array},
@@ -33,67 +60,17 @@ import { sectionMatchesShiftFilter } from './schedule.js';
  *   sameSemesterCodes: Set<string>,
  *   customSections: import('./types.js').CustomSection[],
  *   shiftFilter: "morning"|"afternoon"|"day",
- *   checkCorequisites: boolean,
- *   courseFilter?: "own"|"all" - Section target-course toggle (see docs/DOMAIN.md, Section); defaults to "own"
- *   profileCourseId?: string|null - the Student's course id, matched against a Section's `targetCourseId`
- *   semesterFilter?: "suggested"|"advance" - Suggested Semester toggle (see docs/DOMAIN.md, Suggested Semester);
- *     "suggested" (default) excludes Subjects suggested for a later semester than `semesterNumber`
- *   semesterNumber?: number|null - the 1-based ordinal of the semester being planned, matched against a Subject's `suggestedSemester`
- *   classificationFilter?: "required"|"all" - Subject classification toggle (see docs/DOMAIN.md, Subject);
- *     "required" (default) restricts to Required Subjects; "all" also includes Optional ones
+ *   classification: "required"|"optional" - restricts the listing to Subjects of this
+ *     classification (see docs/DOMAIN.md, Subject); a Subject with no known classification
+ *     counts as "required". Custom Sections are only ever listed for "required" (UC-27
+ *     never lists them — the Student's own catalog lives in UC-12).
+ *   semesterNumber?: number|null - the 1-based ordinal of the semester being planned, used
+ *     to derive each candidate's `tier`
+ *   hiddenSubjects?: string[] - Optional Subject codes to exclude from the listing (UC-28);
+ *     only meaningful when classification is "optional"
  * }} params
  * @returns {CandidateSubject[]}
  */
-/** A stable identity key for a candidate section template, used to track selection across filter changes. */
-export function candidateSectionKey(section) {
-  return section.kind === 'custom'
-    ? `custom:${section.sourceCustomId}`
-    : `offering:${section.subjectCode}:${section.turma}`;
-}
-
-/**
- * Whether an offering Section matches the effective course filter (see
- * docs/DOMAIN.md, Section): "own" restricts to Sections whose target course
- * matches the profile's course id, PPC-version-agnostic; "all" matches
- * everything. A Section or profile with no known course id/target defaults
- * to matching, so callers that don't track course identity are unaffected.
- */
-function matchesCourseFilter(targetCourseId, courseFilter, profileCourseId) {
-  if (courseFilter !== 'own') return true;
-  if (profileCourseId == null || targetCourseId == null) return true;
-  return targetCourseId === profileCourseId;
-}
-
-/**
- * Whether a Subject matches the effective semester filter (see docs/DOMAIN.md,
- * Suggested Semester): "suggested" restricts to Subjects with no Suggested
- * Semester, or one at or before the semester being planned; "advance"
- * matches everything, including Subjects suggested for a later semester. A
- * Subject with no Suggested Semester, or a caller with no known semester
- * number, always matches.
- */
-function matchesSemesterFilter(
-  suggestedSemester,
-  semesterFilter,
-  semesterNumber,
-) {
-  if (semesterFilter !== 'suggested') return true;
-  if (suggestedSemester == null || semesterNumber == null) return true;
-  return suggestedSemester <= semesterNumber;
-}
-
-/**
- * Whether a Subject matches the effective classification filter (see
- * docs/DOMAIN.md, Subject): "required" restricts to Required Subjects;
- * anything else (e.g. "all") matches everything, including Optional
- * Subjects. A Subject with no known classification always matches.
- */
-function matchesClassificationFilter(classification, classificationFilter) {
-  if (classificationFilter !== 'required') return true;
-  if (classification == null) return true;
-  return classification === 'required';
-}
-
 export function buildCandidateSubjects({
   ppc,
   offerings,
@@ -102,36 +79,20 @@ export function buildCandidateSubjects({
   sameSemesterCodes,
   customSections,
   shiftFilter,
-  checkCorequisites,
-  courseFilter = 'own',
-  profileCourseId = null,
-  semesterFilter = 'suggested',
+  classification,
   semesterNumber = null,
-  classificationFilter = 'required',
+  hiddenSubjects = [],
 }) {
   function isEligible(subject) {
+    const subjectClassification = subject.classification ?? 'required';
+    if (subjectClassification !== classification) return false;
+    if (classification === 'optional' && hiddenSubjects.includes(subject.code))
+      return false;
+
     const fulfilled = fulfillmentBefore.has(subject.code);
     const openAudit = fulfillmentBefore.get(subject.code)?.audit === true;
     if (fulfilled && !openAudit) return false;
     if (!subject.prerequisites.every((code) => fulfillmentBefore.has(code)))
-      return false;
-    if (checkCorequisites) {
-      const coreqsSatisfied = subject.corequisites.every(
-        (code) => fulfillmentBefore.has(code) || sameSemesterCodes.has(code),
-      );
-      if (!coreqsSatisfied) return false;
-    }
-    if (
-      !matchesSemesterFilter(
-        subject.suggestedSemester,
-        semesterFilter,
-        semesterNumber,
-      )
-    )
-      return false;
-    if (
-      !matchesClassificationFilter(subject.classification, classificationFilter)
-    )
       return false;
     return true;
   }
@@ -148,14 +109,8 @@ export function buildCandidateSubjects({
     const subject = resolveSubjectByCode(ppc, offeredSubject.code);
     if (!subject || !isEligible(subject)) continue;
 
-    const sections = offeredSubject.sections.filter(
-      (section) =>
-        sectionMatchesShiftFilter(section.shift, shiftFilter) &&
-        matchesCourseFilter(
-          section.targetCourseId,
-          courseFilter,
-          profileCourseId,
-        ),
+    const sections = offeredSubject.sections.filter((section) =>
+      sectionMatchesShiftFilter(section.shift, shiftFilter),
     );
     if (sections.length === 0) continue;
 
@@ -179,39 +134,43 @@ export function buildCandidateSubjects({
       subjectCode: subject.code,
       subjectName: subject.name,
       stale: false,
+      tier: tierOf(subject, semesterNumber),
       sections: mappedSections,
     };
     byCode.set(subject.code, candidate);
     candidates.push(candidate);
   }
 
-  for (const custom of customSections) {
-    if (
-      custom.applicability !== 'both' &&
-      custom.applicability !== yearSemester
-    )
-      continue;
+  if (classification === 'required') {
+    for (const custom of customSections) {
+      if (
+        custom.applicability !== 'both' &&
+        custom.applicability !== yearSemester
+      )
+        continue;
 
-    const linkedSubject = custom.subjectCode
-      ? resolveSubjectByCode(ppc, custom.subjectCode)
-      : null;
-    const stale = custom.subjectCode != null && linkedSubject == null;
-    if (linkedSubject && !isEligible(linkedSubject)) continue;
+      const linkedSubject = custom.subjectCode
+        ? resolveSubjectByCode(ppc, custom.subjectCode)
+        : null;
+      const stale = custom.subjectCode != null && linkedSubject == null;
+      if (linkedSubject && !isEligible(linkedSubject)) continue;
 
-    candidates.push({
-      subjectCode: linkedSubject?.code ?? null,
-      subjectName: linkedSubject?.name ?? custom.name,
-      stale,
-      sections: [
-        {
-          kind: 'custom',
-          subjectCode: linkedSubject?.code ?? null,
-          sourceCustomId: custom.id,
-          custom: { name: custom.name, sessions: custom.sessions },
-          sessions: custom.sessions,
-        },
-      ],
-    });
+      candidates.push({
+        subjectCode: linkedSubject?.code ?? null,
+        subjectName: linkedSubject?.name ?? custom.name,
+        stale,
+        tier: linkedSubject ? tierOf(linkedSubject, semesterNumber) : 'core',
+        sections: [
+          {
+            kind: 'custom',
+            subjectCode: linkedSubject?.code ?? null,
+            sourceCustomId: custom.id,
+            custom: { name: custom.name, sessions: custom.sessions },
+            sessions: custom.sessions,
+          },
+        ],
+      });
+    }
   }
 
   return candidates;
@@ -265,20 +224,34 @@ export function excludeAlreadyPlannedSections(candidates, currentSections) {
 }
 
 /**
- * Prunes the co-requisite look-ahead (UC-11 step 7, see docs/USE_CASES.md):
- * a Subject with co-requisites is kept only when each co-requisite is
- * already fulfilled at that point in the plan or is itself present in the
- * pool — selecting it could otherwise only produce an Unmet Requisite.
- * Exclusions cascade to a fixpoint: removing a Subject may cause Subjects
- * that co-required it to be removed too. Evaluated against the visible
- * (already filtered) pool — callers should re-run this after any filter
- * change. Prunes the listing only; it never touches the user's selection.
+ * Prunes the co-requisite look-ahead — the rule shared by UC-11 step 8,
+ * UC-12's "Co-requisite rule", and UC-27 (see docs/USE_CASES.md): a Subject
+ * with co-requisites is kept only when each co-requisite is already
+ * fulfilled at that point in the plan, already planned in the selected
+ * Planned Semester (`sameSemesterCodes`), or itself present in `candidates`
+ * — selecting it could otherwise only produce an Unmet Requisite. Exclusions
+ * cascade to a fixpoint: removing a Subject may cause Subjects that
+ * co-required it to be removed too.
+ *
+ * `candidates` is expected to be the COMBINED pool — required ∪ optional,
+ * with hidden Subjects already excluded by the caller (via
+ * `buildCandidateSubjects`'s `hiddenSubjects`) — so that a required Subject's
+ * co-requisite can be satisfied by an optional Subject in the pool and vice
+ * versa. Evaluated against the shift-filtered pool; callers should re-run
+ * this after any filter change. Prunes the listing only; it never touches
+ * the user's selection.
  * @param {CandidateSubject[]} candidates
  * @param {{subjects: Array}} ppc
  * @param {Map<string, {audit: boolean}>} fulfillmentBefore
+ * @param {Set<string>} [sameSemesterCodes]
  * @returns {CandidateSubject[]}
  */
-export function pruneCorequisiteLookahead(candidates, ppc, fulfillmentBefore) {
+export function pruneCorequisiteLookahead(
+  candidates,
+  ppc,
+  fulfillmentBefore,
+  sameSemesterCodes = new Set(),
+) {
   const listedCodes = new Set(
     candidates.filter((c) => c.subjectCode != null).map((c) => c.subjectCode),
   );
@@ -289,7 +262,10 @@ export function pruneCorequisiteLookahead(candidates, ppc, fulfillmentBefore) {
     for (const code of listedCodes) {
       const subject = resolveSubjectByCode(ppc, code);
       const coreqsSatisfied = subject.corequisites.every(
-        (req) => fulfillmentBefore.has(req) || listedCodes.has(req),
+        (req) =>
+          fulfillmentBefore.has(req) ||
+          sameSemesterCodes.has(req) ||
+          listedCodes.has(req),
       );
       if (!coreqsSatisfied) {
         listedCodes.delete(code);
@@ -301,4 +277,70 @@ export function pruneCorequisiteLookahead(candidates, ppc, fulfillmentBefore) {
   return candidates.filter(
     (c) => c.subjectCode == null || listedCodes.has(c.subjectCode),
   );
+}
+
+/**
+ * Builds the required and optional candidate pools together and applies the
+ * shared co-requisite look-ahead rule across their union (UC-11 step 8,
+ * UC-12 "Co-requisite rule", UC-27), then returns each classification's
+ * pruned candidates separately for display — so a Subject in one
+ * classification can be kept alive by a co-requisite belonging to the
+ * other, without ever displaying the other classification where it doesn't
+ * belong (e.g. UC-11 lists Required Subjects only, UC-27 lists Optional
+ * Subjects only).
+ * @param {Object} params - same shape as `buildCandidateSubjects`, minus `classification`
+ * @param {string[]} [params.hiddenSubjects] - excluded from the optional pool only (UC-28)
+ * @returns {{ required: CandidateSubject[], optional: CandidateSubject[] }}
+ */
+export function buildCombinedCandidatePool({
+  ppc,
+  offerings,
+  yearSemester,
+  fulfillmentBefore,
+  sameSemesterCodes,
+  customSections,
+  shiftFilter,
+  semesterNumber = null,
+  hiddenSubjects = [],
+}) {
+  const required = buildCandidateSubjects({
+    ppc,
+    offerings,
+    yearSemester,
+    fulfillmentBefore,
+    sameSemesterCodes,
+    customSections,
+    shiftFilter,
+    classification: 'required',
+    semesterNumber,
+  });
+  const optional = buildCandidateSubjects({
+    ppc,
+    offerings,
+    yearSemester,
+    fulfillmentBefore,
+    sameSemesterCodes,
+    customSections: [],
+    shiftFilter,
+    classification: 'optional',
+    semesterNumber,
+    hiddenSubjects,
+  });
+
+  const pruned = pruneCorequisiteLookahead(
+    [...required, ...optional],
+    ppc,
+    fulfillmentBefore,
+    sameSemesterCodes,
+  );
+  const prunedCodes = new Set(
+    pruned.filter((c) => c.subjectCode != null).map((c) => c.subjectCode),
+  );
+
+  return {
+    required: required.filter(
+      (c) => c.subjectCode == null || prunedCodes.has(c.subjectCode),
+    ),
+    optional: optional.filter((c) => prunedCodes.has(c.subjectCode)),
+  };
 }

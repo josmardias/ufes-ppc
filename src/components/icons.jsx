@@ -100,6 +100,15 @@ export function IconUsers(props) {
   );
 }
 
+/** Disclosure chevron for collapsible Subject groups (UC-11 step 6). Rotated via CSS when expanded. */
+export function IconChevronRight(props) {
+  return (
+    <Icon {...props}>
+      <path d="M9 5l7 7-7 7" />
+    </Icon>
+  );
+}
+
 /** Warning severity (see docs/DOMAIN.md, Planned Semester) — paired with color so signals stay legible for color-blind users. */
 export function IconAlertTriangle(props) {
   return (

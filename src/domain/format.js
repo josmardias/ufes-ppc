@@ -46,14 +46,17 @@ export const SHIFT_FILTER_OPTIONS = [
   { value: 'day', label: 'Dia inteiro' },
 ];
 
-/** Course filter checkbox label (see docs/DOMAIN.md, Section): checked restricts to the profile's own course. */
-export const COURSE_FILTER_LABEL = 'Turmas do meu curso';
+/** Two-tier listing headings (see docs/USE_CASES.md, UC-11 step 5): "core" is the likely-enrollment
+ * tier, "other" is Subjects suggested for a later semester (taking them ahead of the suggested path). */
+export const TIER_LABELS = {
+  core: 'Provável matrícula',
+  other: 'Adiantar disciplinas',
+};
 
-/** Semester filter checkbox label (see docs/DOMAIN.md, Suggested Semester): checked also shows Subjects suggested for a later semester. */
-export const SEMESTER_FILTER_LABEL = 'Mostrar adiantadas';
-
-/** Classification filter checkbox label (see docs/DOMAIN.md, Subject): checked also shows Optional Subjects. */
-export const CLASSIFICATION_FILTER_LABEL = 'Optativas';
+/** Hide/restore an Optional Subject (UC-28). */
+export const HIDE_SUBJECT_LABEL = 'Ocultar';
+export const SHOW_HIDDEN_SUBJECTS_LABEL = 'Mostrar ocultas';
+export const RESTORE_SUBJECT_LABEL = 'Restaurar';
 
 export const SIGNAL_LABELS = {
   unmetRequisite: 'Requisito não atendido',

@@ -16,7 +16,10 @@ import { getPpc } from '../data/index.js';
 import {
   cloneProfileRecord,
   createProfileRecord,
+  hideSubjectRecord,
   renameProfileRecord,
+  restoreSubjectRecord,
+  updateProfileDataRecord,
   validateProfileName,
 } from '../domain/profile.js';
 import {
@@ -62,14 +65,23 @@ export const useStore = create((set, get) => ({
 
   /**
    * Creates a new Student profile (UC-02), makes it active, and persists it.
-   * @returns {{ ok: true, profile: import('../domain/types.js').ProfileRecord }|{ ok: false, error: 'empty'|'duplicate' }}
+   * The Course Curriculum (PPC) is chosen via the course → PPC cascade and
+   * seeds the completed-history Credit Entries (see docs/DOMAIN.md, Credit
+   * Entry, and domain/profile.js, `seedCreditEntries`).
+   * @param {{ name: string, ingressYear: number, ingressYearSemester: 1|2,
+   *   shift: "day"|"morning"|"afternoon", ppcId: string, completedSemesters: number }} input
+   * @returns {{ ok: true, profile: import('../domain/types.js').ProfileRecord }
+   *   |{ ok: false, error: 'empty'|'duplicate'|'unknown-ppc' }}
    */
   createProfile(input) {
     const { profiles } = get();
-    const error = validateProfileName(input.name, profiles);
-    if (error) return { ok: false, error };
+    const nameError = validateProfileName(input.name, profiles);
+    if (nameError) return { ok: false, error: nameError };
 
-    const profile = createProfileRecord(input);
+    const ppc = getPpc(input.ppcId);
+    if (!ppc) return { ok: false, error: 'unknown-ppc' };
+
+    const profile = createProfileRecord({ ...input, ppc });
     set({ profiles: [...profiles, profile], activeProfileId: profile.id });
     persist(get);
     return { ok: true, profile };
@@ -171,29 +183,48 @@ export const useStore = create((set, get) => ({
   },
 
   /**
-   * Sets the Course Curriculum (PPC) a profile follows (UC-11 step 3, UC-24).
-   * Only allowed while the profile has no Planned Semesters; switching to a
-   * different PPC additionally requires no Credit Entries (see
-   * docs/DOMAIN.md, Student). Also (re-)derives the profile's `courseId`
-   * from the chosen PPC (see docs/ARCHITECTURE.md, `ProfileRecord`).
+   * Updates the profile's ingress information, shift, Course Curriculum
+   * (PPC), and completed-semester count (UC-24). Only allowed while the
+   * profile has no Planned Semesters; switching to a different PPC
+   * additionally requires no Credit Entries (see docs/DOMAIN.md, Student).
+   * Also (re-)derives the profile's `courseId` from the chosen PPC (see
+   * docs/ARCHITECTURE.md, `ProfileRecord`). Never touches `creditEntries`.
+   * @param {string} id
+   * @param {{ ingressYear: number, ingressYearSemester: 1|2,
+   *   shift: "day"|"morning"|"afternoon", ppcId: string, completedSemesters: number }} input
    * @returns {{ ok: true, profile: import('../domain/types.js').ProfileRecord }
-   *   |{ ok: false, error: 'not-found'|'has-semesters'|'has-credit-entries' }}
+   *   |{ ok: false, error: 'not-found'|'has-semesters'|'has-credit-entries'|'unknown-ppc' }}
    */
-  setProfilePpc(id, ppcId) {
+  updateProfileData(id, input) {
     const { profiles } = get();
     const profile = profiles.find((p) => p.id === id);
     if (!profile) return { ok: false, error: 'not-found' };
     if (profile.semesters.length > 0)
       return { ok: false, error: 'has-semesters' };
-    if (profile.ppcId !== ppcId && profile.creditEntries.length > 0)
+    if (profile.ppcId !== input.ppcId && profile.creditEntries.length > 0)
       return { ok: false, error: 'has-credit-entries' };
 
-    const updated = updateProfile(get, set, id, (p) => ({
-      ...p,
-      ppcId,
-      courseId: getPpc(ppcId)?.courseId ?? null,
-    }));
+    const ppc = getPpc(input.ppcId);
+    if (!ppc) return { ok: false, error: 'unknown-ppc' };
+
+    const updated = updateProfile(get, set, id, (p) =>
+      updateProfileDataRecord(p, { ...input, ppc }),
+    );
     return { ok: true, profile: updated };
+  },
+
+  /** Marks an Optional Subject as hidden (UC-28); idempotent. */
+  hideSubject(id, subjectCode) {
+    updateProfile(get, set, id, (profile) =>
+      hideSubjectRecord(profile, subjectCode),
+    );
+  },
+
+  /** Restores a previously hidden Optional Subject (UC-28). */
+  restoreSubject(id, subjectCode) {
+    updateProfile(get, set, id, (profile) =>
+      restoreSubjectRecord(profile, subjectCode),
+    );
   },
 
   /** Persists the Shift filter toggle (UC-12); pass `null` to clear it. */

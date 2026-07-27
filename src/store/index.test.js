@@ -1,10 +1,24 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { InMemoryStorage } from '../test/inMemoryStorage.js';
 
+const PPC_ID = 'engenharia-eletrica-2022';
+
 beforeEach(() => {
   globalThis.localStorage = new InMemoryStorage();
   vi.resetModules();
 });
+
+function baseInput(overrides = {}) {
+  return {
+    name: 'Maria',
+    ingressYear: 2024,
+    ingressYearSemester: 1,
+    shift: 'morning',
+    ppcId: PPC_ID,
+    completedSemesters: 0,
+    ...overrides,
+  };
+}
 
 describe('store', () => {
   it('loads the default envelope on first use', async () => {
@@ -26,15 +40,12 @@ describe('store', () => {
 
   it('createProfile adds the profile, makes it active, and persists it', async () => {
     const { useStore } = await import('./index.js');
-    const result = useStore.getState().createProfile({
-      name: 'Maria',
-      ingressYear: 2024,
-      ingressYearSemester: 1,
-      shift: 'morning',
-    });
+    const result = useStore.getState().createProfile(baseInput());
 
     expect(result.ok).toBe(true);
     expect(result.profile.name).toBe('Maria');
+    expect(result.profile.ppcId).toBe(PPC_ID);
+    expect(result.profile.courseId).toBe('06');
     expect(useStore.getState().profiles).toEqual([result.profile]);
     expect(useStore.getState().activeProfileId).toBe(result.profile.id);
 
@@ -44,14 +55,19 @@ describe('store', () => {
     expect(reloadedStore.getState().activeProfileId).toBe(result.profile.id);
   });
 
+  it('createProfile seeds Credit Entries for the completed history (UC-02)', async () => {
+    const { useStore } = await import('./index.js');
+    const result = useStore
+      .getState()
+      .createProfile(baseInput({ completedSemesters: 1 }));
+
+    expect(result.ok).toBe(true);
+    expect(result.profile.creditEntries.length).toBeGreaterThan(0);
+  });
+
   it('createProfile rejects an empty name without persisting anything', async () => {
     const { useStore } = await import('./index.js');
-    const result = useStore.getState().createProfile({
-      name: '  ',
-      ingressYear: 2024,
-      ingressYearSemester: 1,
-      shift: 'morning',
-    });
+    const result = useStore.getState().createProfile(baseInput({ name: '  ' }));
 
     expect(result).toEqual({ ok: false, error: 'empty' });
     expect(useStore.getState().profiles).toEqual([]);
@@ -59,33 +75,28 @@ describe('store', () => {
 
   it('createProfile rejects a duplicate name without persisting anything', async () => {
     const { useStore } = await import('./index.js');
-    useStore.getState().createProfile({
-      name: 'Maria',
-      ingressYear: 2024,
-      ingressYearSemester: 1,
-      shift: 'morning',
-    });
-    const result = useStore.getState().createProfile({
-      name: 'Maria',
-      ingressYear: 2025,
-      ingressYearSemester: 2,
-      shift: 'afternoon',
-    });
+    useStore.getState().createProfile(baseInput());
+    const result = useStore.getState().createProfile(baseInput());
 
     expect(result).toEqual({ ok: false, error: 'duplicate' });
     expect(useStore.getState().profiles).toHaveLength(1);
+  });
+
+  it('createProfile rejects an unknown PPC without persisting anything', async () => {
+    const { useStore } = await import('./index.js');
+    const result = useStore
+      .getState()
+      .createProfile(baseInput({ ppcId: 'does-not-exist' }));
+
+    expect(result).toEqual({ ok: false, error: 'unknown-ppc' });
+    expect(useStore.getState().profiles).toEqual([]);
   });
 });
 
 describe('cloneProfile', () => {
   it('copies the profile under a new name without making it active (UC-04)', async () => {
     const { useStore } = await import('./index.js');
-    const { profile: source } = useStore.getState().createProfile({
-      name: 'Maria',
-      ingressYear: 2024,
-      ingressYearSemester: 1,
-      shift: 'morning',
-    });
+    const { profile: source } = useStore.getState().createProfile(baseInput());
 
     const result = useStore.getState().cloneProfile(source.id, 'Maria (cópia)');
 
@@ -102,12 +113,7 @@ describe('cloneProfile', () => {
 
   it('rejects a duplicate name without persisting anything', async () => {
     const { useStore } = await import('./index.js');
-    const { profile: source } = useStore.getState().createProfile({
-      name: 'Maria',
-      ingressYear: 2024,
-      ingressYearSemester: 1,
-      shift: 'morning',
-    });
+    const { profile: source } = useStore.getState().createProfile(baseInput());
 
     const result = useStore.getState().cloneProfile(source.id, 'Maria');
 
@@ -119,12 +125,7 @@ describe('cloneProfile', () => {
 describe('deleteProfile', () => {
   it('removes the profile and persists the change', async () => {
     const { useStore } = await import('./index.js');
-    const { profile } = useStore.getState().createProfile({
-      name: 'Maria',
-      ingressYear: 2024,
-      ingressYearSemester: 1,
-      shift: 'morning',
-    });
+    const { profile } = useStore.getState().createProfile(baseInput());
 
     useStore.getState().deleteProfile(profile.id);
 
@@ -137,12 +138,7 @@ describe('deleteProfile', () => {
 
   it('clears the active selection when the deleted profile was active', async () => {
     const { useStore } = await import('./index.js');
-    const { profile } = useStore.getState().createProfile({
-      name: 'Maria',
-      ingressYear: 2024,
-      ingressYearSemester: 1,
-      shift: 'morning',
-    });
+    const { profile } = useStore.getState().createProfile(baseInput());
 
     useStore.getState().deleteProfile(profile.id);
 
@@ -151,18 +147,10 @@ describe('deleteProfile', () => {
 
   it('leaves the active selection untouched when a different profile is deleted', async () => {
     const { useStore } = await import('./index.js');
-    const { profile: active } = useStore.getState().createProfile({
-      name: 'Maria',
-      ingressYear: 2024,
-      ingressYearSemester: 1,
-      shift: 'morning',
-    });
-    const { profile: other } = useStore.getState().createProfile({
-      name: 'João',
-      ingressYear: 2024,
-      ingressYearSemester: 1,
-      shift: 'morning',
-    });
+    const { profile: active } = useStore.getState().createProfile(baseInput());
+    const { profile: other } = useStore
+      .getState()
+      .createProfile(baseInput({ name: 'João' }));
     useStore.getState().setActiveProfileId(active.id);
 
     useStore.getState().deleteProfile(other.id);
@@ -174,12 +162,7 @@ describe('deleteProfile', () => {
 describe('renameProfile', () => {
   it('updates the name and persists the change', async () => {
     const { useStore } = await import('./index.js');
-    const { profile } = useStore.getState().createProfile({
-      name: 'Maria',
-      ingressYear: 2024,
-      ingressYearSemester: 1,
-      shift: 'morning',
-    });
+    const { profile } = useStore.getState().createProfile(baseInput());
 
     const result = useStore.getState().renameProfile(profile.id, 'Maria Silva');
 
@@ -193,12 +176,7 @@ describe('renameProfile', () => {
 
   it('allows renaming a profile to its own current name', async () => {
     const { useStore } = await import('./index.js');
-    const { profile } = useStore.getState().createProfile({
-      name: 'Maria',
-      ingressYear: 2024,
-      ingressYearSemester: 1,
-      shift: 'morning',
-    });
+    const { profile } = useStore.getState().createProfile(baseInput());
 
     const result = useStore.getState().renameProfile(profile.id, 'Maria');
 
@@ -207,18 +185,10 @@ describe('renameProfile', () => {
 
   it('rejects a name that duplicates another profile', async () => {
     const { useStore } = await import('./index.js');
-    useStore.getState().createProfile({
-      name: 'Maria',
-      ingressYear: 2024,
-      ingressYearSemester: 1,
-      shift: 'morning',
-    });
-    const { profile: joao } = useStore.getState().createProfile({
-      name: 'João',
-      ingressYear: 2024,
-      ingressYearSemester: 1,
-      shift: 'morning',
-    });
+    useStore.getState().createProfile(baseInput());
+    const { profile: joao } = useStore
+      .getState()
+      .createProfile(baseInput({ name: 'João' }));
 
     const result = useStore.getState().renameProfile(joao.id, 'Maria');
 
@@ -233,12 +203,7 @@ describe('renameProfile', () => {
 describe('exportProfile / importProfile', () => {
   it('round-trips a profile through export and import under a fresh id', async () => {
     const { useStore } = await import('./index.js');
-    const { profile } = useStore.getState().createProfile({
-      name: 'Maria',
-      ingressYear: 2024,
-      ingressYearSemester: 1,
-      shift: 'morning',
-    });
+    const { profile } = useStore.getState().createProfile(baseInput());
 
     const exported = useStore.getState().exportProfile(profile.id);
     expect(exported.profile.id).toBeUndefined();
@@ -262,12 +227,7 @@ describe('exportProfile / importProfile', () => {
 
   it('reports a duplicate name conflict without overwrite, and overwrites when asked', async () => {
     const { useStore } = await import('./index.js');
-    const { profile: original } = useStore.getState().createProfile({
-      name: 'Maria',
-      ingressYear: 2024,
-      ingressYearSemester: 1,
-      shift: 'morning',
-    });
+    const { profile: original } = useStore.getState().createProfile(baseInput());
     const exported = useStore.getState().exportProfile(original.id);
 
     const conflict = useStore
@@ -286,12 +246,7 @@ describe('exportProfile / importProfile', () => {
 
   it('rejects a profile referencing an unknown PPC', async () => {
     const { useStore } = await import('./index.js');
-    const { profile } = useStore.getState().createProfile({
-      name: 'Maria',
-      ingressYear: 2024,
-      ingressYearSemester: 1,
-      shift: 'morning',
-    });
+    const { profile } = useStore.getState().createProfile(baseInput());
     const exported = useStore.getState().exportProfile(profile.id);
     exported.profile.ppcId = 'does-not-exist';
 
@@ -304,51 +259,9 @@ describe('exportProfile / importProfile', () => {
 describe('planner actions', () => {
   async function setup() {
     const { useStore } = await import('./index.js');
-    const { profile } = useStore.getState().createProfile({
-      name: 'Maria',
-      ingressYear: 2024,
-      ingressYearSemester: 1,
-      shift: 'morning',
-    });
+    const { profile } = useStore.getState().createProfile(baseInput());
     return { useStore, profileId: profile.id };
   }
-
-  it('setProfilePpc persists the PPC while there are no Planned Semesters', async () => {
-    const { useStore, profileId } = await setup();
-    const result = useStore.getState().setProfilePpc(profileId, 'test-ppc');
-    expect(result.ok).toBe(true);
-    expect(useStore.getState().profiles[0].ppcId).toBe('test-ppc');
-
-    vi.resetModules();
-    const { useStore: reloadedStore } = await import('./index.js');
-    expect(reloadedStore.getState().profiles[0].ppcId).toBe('test-ppc');
-  });
-
-  it('setProfilePpc rejects switching once Planned Semesters exist', async () => {
-    const { useStore, profileId } = await setup();
-    useStore.getState().setProfilePpc(profileId, 'test-ppc');
-    useStore.getState().addPlannedSemester(profileId, []);
-
-    const result = useStore.getState().setProfilePpc(profileId, 'other-ppc');
-    expect(result).toEqual({ ok: false, error: 'has-semesters' });
-    expect(useStore.getState().profiles[0].ppcId).toBe('test-ppc');
-  });
-
-  it('setProfilePpc derives courseId from the chosen PPC', async () => {
-    const { useStore, profileId } = await setup();
-    const result = useStore
-      .getState()
-      .setProfilePpc(profileId, 'engenharia-eletrica-2022');
-    expect(result.ok).toBe(true);
-    expect(useStore.getState().profiles[0].courseId).toBe('06');
-  });
-
-  it('setProfilePpc sets courseId to null for an unknown PPC', async () => {
-    const { useStore, profileId } = await setup();
-    const result = useStore.getState().setProfilePpc(profileId, 'test-ppc');
-    expect(result.ok).toBe(true);
-    expect(useStore.getState().profiles[0].courseId).toBeNull();
-  });
 
   it('addPlannedSemester appends a semester with the given sections and persists it', async () => {
     const { useStore, profileId } = await setup();
@@ -436,5 +349,136 @@ describe('planner actions', () => {
     const { useStore, profileId } = await setup();
     useStore.getState().setShiftFilter(profileId, 'afternoon');
     expect(useStore.getState().profiles[0].shiftFilter).toBe('afternoon');
+  });
+});
+
+describe('updateProfileData (UC-24)', () => {
+  async function setup() {
+    const { useStore } = await import('./index.js');
+    const { profile } = useStore.getState().createProfile(baseInput());
+    return { useStore, profileId: profile.id };
+  }
+
+  it('updates ingress, shift, PPC, and completedSemesters while there are no Planned Semesters', async () => {
+    const { useStore, profileId } = await setup();
+
+    const result = useStore.getState().updateProfileData(profileId, {
+      ingressYear: 2025,
+      ingressYearSemester: 2,
+      shift: 'afternoon',
+      ppcId: PPC_ID,
+      completedSemesters: 2,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(useStore.getState().profiles[0].ingressYear).toBe(2025);
+    expect(useStore.getState().profiles[0].ingressYearSemester).toBe(2);
+    expect(useStore.getState().profiles[0].shift).toBe('afternoon');
+    expect(useStore.getState().profiles[0].completedSemesters).toBe(2);
+
+    vi.resetModules();
+    const { useStore: reloadedStore } = await import('./index.js');
+    expect(reloadedStore.getState().profiles[0].completedSemesters).toBe(2);
+  });
+
+  it('rejects the update once Planned Semesters exist', async () => {
+    const { useStore, profileId } = await setup();
+    useStore.getState().addPlannedSemester(profileId, []);
+
+    const result = useStore.getState().updateProfileData(profileId, {
+      ingressYear: 2025,
+      ingressYearSemester: 1,
+      shift: 'day',
+      ppcId: PPC_ID,
+      completedSemesters: 0,
+    });
+
+    expect(result).toEqual({ ok: false, error: 'has-semesters' });
+  });
+
+  it('rejects switching to a different PPC while Credit Entries exist', async () => {
+    const { useStore } = await import('./index.js');
+    // Credit Entries are seeded at creation (UC-02), not by updateProfileData.
+    const { profile } = useStore
+      .getState()
+      .createProfile(baseInput({ completedSemesters: 1 }));
+    expect(profile.creditEntries.length).toBeGreaterThan(0);
+
+    const result = useStore.getState().updateProfileData(profile.id, {
+      ingressYear: 2024,
+      ingressYearSemester: 1,
+      shift: 'morning',
+      ppcId: 'other-ppc',
+      completedSemesters: 1,
+    });
+
+    expect(result).toEqual({ ok: false, error: 'has-credit-entries' });
+  });
+
+  it('never touches creditEntries', async () => {
+    const { useStore, profileId } = await setup();
+    useStore.getState().updateProfileData(profileId, {
+      ingressYear: 2024,
+      ingressYearSemester: 1,
+      shift: 'morning',
+      ppcId: PPC_ID,
+      completedSemesters: 1,
+    });
+    const before = useStore.getState().profiles[0].creditEntries;
+
+    useStore.getState().updateProfileData(profileId, {
+      ingressYear: 2024,
+      ingressYearSemester: 1,
+      shift: 'morning',
+      ppcId: PPC_ID,
+      completedSemesters: 0,
+    });
+
+    expect(useStore.getState().profiles[0].creditEntries).toEqual(before);
+  });
+
+  it('rejects an unknown PPC', async () => {
+    const { useStore, profileId } = await setup();
+
+    const result = useStore.getState().updateProfileData(profileId, {
+      ingressYear: 2024,
+      ingressYearSemester: 1,
+      shift: 'morning',
+      ppcId: 'does-not-exist',
+      completedSemesters: 0,
+    });
+
+    expect(result).toEqual({ ok: false, error: 'unknown-ppc' });
+  });
+});
+
+describe('hideSubject / restoreSubject (UC-28)', () => {
+  async function setup() {
+    const { useStore } = await import('./index.js');
+    const { profile } = useStore.getState().createProfile(baseInput());
+    return { useStore, profileId: profile.id };
+  }
+
+  it('hideSubject adds the code to hiddenSubjects and persists it', async () => {
+    const { useStore, profileId } = await setup();
+
+    useStore.getState().hideSubject(profileId, 'OPT01');
+
+    expect(useStore.getState().profiles[0].hiddenSubjects).toEqual(['OPT01']);
+
+    vi.resetModules();
+    const { useStore: reloadedStore } = await import('./index.js');
+    expect(reloadedStore.getState().profiles[0].hiddenSubjects).toEqual([
+      'OPT01',
+    ]);
+  });
+
+  it('restoreSubject removes the code and persists it', async () => {
+    const { useStore, profileId } = await setup();
+    useStore.getState().hideSubject(profileId, 'OPT01');
+
+    useStore.getState().restoreSubject(profileId, 'OPT01');
+
+    expect(useStore.getState().profiles[0].hiddenSubjects).toEqual([]);
   });
 });

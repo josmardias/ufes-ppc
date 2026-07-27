@@ -68,15 +68,17 @@ university: "University side — static reference data" {
 student: "Student side — what this tool manages" {
   profile: "Student (Aluno)" {
     shape: sql_table
-    ppc_id: "chosen at first Planned Semester (flat list);\neditable only with zero semesters —\nswitching also requires zero Credit Entries"
+    ppc_id: "chosen at profile creation (course → PPC,\npre-filled when single option);\neditable only with zero semesters —\nswitching also requires zero Credit Entries"
     ingress: "year + Year Semester (1st/2nd)"
+    completed_semesters: "last completed semester — history seeded\nas Credit Entries; the plan starts right after"
     shift: "day | morning | afternoon —\ndefault Section-list filter"
     shift_filter: "persisted toggle override\n(morning | afternoon | whole day);\ncleared when last semester is deleted"
+    hidden_subjects: "Optional Subjects marked 'not interested' —\nexcluded from planning listings only;\ninert when unresolved after a PPC switch"
   }
 
   planned_semester: "Planned Semester (Período)" {
     shape: sql_table
-    position: "ordered: student's 1st, 2nd, 3rd…"
+    position: "ordered — starts right after the\nprofile's completed-semester count"
     label: "derived: position + ingress → e.g. 2024/1"
     contents: "intended Sections + applied Custom Section\ncopies — deleted with the semester"
     status: "clean | warnings only | errors — derived from\nplanning signals; flagged semesters may be\nheld while the student decides"
@@ -113,6 +115,7 @@ student: "Student side — what this tool manages" {
     shape: sql_table
     subject: "must belong to student's PPC"
     effect: "timeless — fulfilled from the very start,\nfor every Planned Semester"
+    seeding: "profile creation seeds the completed\nsemesters' suggested path as credits"
     lifecycle: "must be deleted before switching PPC"
   }
 

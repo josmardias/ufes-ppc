@@ -120,7 +120,7 @@ A Section is included in a course's snapshot when its subject code belongs to th
 
 Each Section in the dataset carries a **shift** (`morning` | `afternoon` | `day`), **precomputed by the generation scripts** (not derived at runtime): `morning` when all sessions end at or before 13:00, `afternoon` when all sessions start at or after 13:00, `day` otherwise.
 
-Each Section also carries its **target course** — `targetCourseId` and `targetCourseName`, taken from the source PDF's "Curso" cell. The id is **normalized at generation time**: official documents sometimes attach an entry-semester/cohort marker to the course code (e.g. `12 B`); the marker is stripped — `targetCourseId` identifies the course only, never a cohort. Whether a Section is _own-course_ is resolved **at runtime**, by comparing `targetCourseId` with the profile's `courseId` (see `ProfileRecord`): matching is course-level and PPC-version-agnostic — every PPC version of a course is the same course for Section-scope purposes. This powers the course toggle when listing available Sections (UC-11, UC-12); it is presentation/filtering data only — the tool still does not model enrollment eligibility, and Enrollment Scopes and seat counts remain excluded from the dataset.
+Each Section also carries its **target course** — `targetCourseId` and `targetCourseName`, taken from the source PDF's "Curso" cell. The id is **normalized at generation time**: official documents sometimes attach an entry-semester/cohort marker to the course code (e.g. `12 B`); the marker is stripped — `targetCourseId` identifies the course only, never a cohort. Whether a Section is _own-course_ is resolved **at runtime**, by comparing `targetCourseId` with the profile's `courseId` (see `ProfileRecord`): matching is course-level and PPC-version-agnostic — every PPC version of a course is the same course for Section-scope purposes. This powers the other-course badge on Sections in the planning listings (UC-11, UC-12, UC-27); it is presentation data only — the tool still does not model enrollment eligibility, and Enrollment Scopes and seat counts remain excluded from the dataset.
 
 ---
 
@@ -155,6 +155,8 @@ All data is persisted in **localStorage** under a **single key** holding one env
 
 On load, the storage layer compares `schemaVersion` with the current version and applies **sequential migration functions** (`migrateV1toV2`, …) — pure, individually tested functions living in `src/storage`. Stored data is never silently discarded: users build their plans over weeks, and losing them on upgrade is the one failure this app must never have. Malformed data that cannot be migrated or validated is surfaced as an error, not wiped.
 
+Migrations must be **deterministic forever** — a browser may hold years-old data, so a migration must not depend on the dataset registry's contents at run time. Example: the migration that backfills `ppcId`/`courseId` on profiles created before the PPC moved to profile creation (UC-02) hardcodes `engenharia-eletrica-2022` — the only PPC that shipped when the migration was authored — rather than reading "the only registry entry", which a later dataset addition would silently make ambiguous. The same migration sets `completedSemesters` to 0 (existing plans already start at position 1) and `hiddenSubjects` to `[]`.
+
 ### Concurrent tabs
 
 The store listens to the `storage` event. When another tab writes the envelope, the app shows a warning ("changed in another tab") and offers a reload. There is no cross-tab state merging; each write is a full serialized envelope, so data stays structurally valid regardless.
@@ -165,21 +167,27 @@ The store listens to the `storage` event. When another tab writes the envelope, 
 {
   id: string,                // generated, internal — never taken from imports
   name: string,
-  ppcId: string|null,
-  courseId: string|null,
+  ppcId: string,
+  courseId: string,
   ingressYear: number,
   ingressYearSemester: 1|2,
+  completedSemesters: number,
   shift: "day"|"morning"|"afternoon",
   shiftFilter: "morning"|"afternoon"|"day"|null,
   semesters: PlannedSemester[],
   creditEntries: CreditEntry[],
   customSections: CustomSection[],
+  hiddenSubjects: string[],
 }
 ```
 
-`name`, `ingressYear`, `ingressYearSemester`, and `shift` are provided by the user at profile creation (UC-02) and are never null. `ppcId` identifies the Course Curriculum the student follows in `src/data`; it is recorded when the first Planned Semester is created (UC-11) and is null until then — features that need the Course Curriculum, such as Credit Entries (UC-15), become available from that point on. `courseId` is the official UFES course code, copied from the chosen PPC dataset whenever `ppcId` is set (and kept in sync if the PPC changes, UC-24); it is null while `ppcId` is null. The profile thus records course (`courseId`), curriculum version (`ppcId`), and ingress (`ingressYear` + `ingressYearSemester`) as separate facts: all PPC versions of a course share the same `courseId`, which is what Section target course ids are matched against (see Offerings dataset). Adding `courseId` is a schema change — bump `schemaVersion` and migrate existing profiles by deriving it from the PPC dataset referenced by `ppcId`. While the profile has no Planned Semesters, profile data (including the PPC) is editable; switching to a different PPC additionally requires the profile to have no Credit Entries.
+`name`, `ingressYear`, `ingressYearSemester`, `shift`, `ppcId`, and `completedSemesters` are provided by the user at profile creation (UC-02) and are never null — the PPC is chosen there via the course → PPC cascade, and legacy profiles are backfilled by migration (see Migrations above). `courseId` is the official UFES course code, copied from the chosen PPC dataset whenever `ppcId` is set (and kept in sync if the PPC changes, UC-24). The profile thus records course (`courseId`), curriculum version (`ppcId`), and ingress (`ingressYear` + `ingressYearSemester`) as separate facts: all PPC versions of a course share the same `courseId`, which is what Section target course ids are matched against (see Offerings dataset). While the profile has no Planned Semesters, profile data (including the PPC and `completedSemesters`) is editable; switching to a different PPC additionally requires the profile to have no Credit Entries.
 
-`shiftFilter` is the persisted Section-list filter override: null means "use the profile's `shift`". It is reset to null when the last Planned Semester is deleted. The course toggle on the same lists (own course vs. all courses, UC-11/UC-12) is deliberately **not** persisted — it resets to own-course each time, so the toggle state adds no `ProfileRecord` field (the `courseId` it matches against is a separate, persisted fact — see above).
+`completedSemesters` is the last completed semester recorded at creation (UC-02): creation seeds a Credit Entry for each Required Subject suggested up to it, and the plan's Planned Semesters start at position `completedSemesters + 1` — the offset feeds position/label derivation and UC-14's deletion floor. Changing it (UC-24) never touches `creditEntries`.
+
+`shiftFilter` is the persisted Section-list filter override: null means "use the profile's `shift`". It is reset to null when the last Planned Semester is deleted. It is the **only** filter on the planning listings (UC-11, UC-12, UC-27) — course and suggested-semester scoping are presentation (badges and the two-tier grouping), not filters.
+
+`hiddenSubjects` stores the codes of Optional Subjects the student marked as hidden (UC-28). It affects planning listings only, is included in export/import and clone, and entries that do not resolve in the current PPC are kept inert (same spirit as stale Custom Sections).
 
 A `PlannedSemester` is the container for everything planned in it:
 
@@ -263,3 +271,4 @@ Pull requests run everything except the deploy step. The app is served from the 
 - Storage access must not leak outside `src/storage`; only the store calls `src/storage`.
 - UI strings must be written in **pt-BR**, hardcoded inline — there is no i18n catalog or library. Date and weekday formatting goes through `Intl` with `pt-BR`.
 - Code comments and documentation must be written in **English**.
+- The UI is designed **mobile-first**: the narrow, touch-driven viewport is the primary design target and the desktop layout is the progressive enhancement — never the reverse. Every new surface must work on a small screen before it is widened. The one layout commitment the docs make is UC-09's: the planner keeps the weekly day × time grid on narrow screens (compacted), rather than degrading to a per-day list.

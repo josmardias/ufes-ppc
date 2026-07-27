@@ -1,16 +1,23 @@
-// Add a Section to a Planned Semester (UC-12, see docs/USE_CASES.md). Lists
-// Sections of Required Subjects whose Subject is not yet fulfilled (or
-// carries an open Audit Mark) and whose prerequisites/co-requisites are
-// satisfied, filtered by the effective Shift filter; previews the chosen
-// candidate on the weekly grid before adding it.
+// Add an Optional Section to a Planned Semester (UC-27, see
+// docs/USE_CASES.md), and hide/restore an Optional Subject from this
+// listing (UC-28). Same eligibility, shared co-requisite rule, two-tier
+// presentation, and shift filter as AddSectionDialog (UC-12), restricted to
+// Optional Subjects, with no Custom Sections and hidden Subjects excluded by
+// default.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useStore } from '../../store/index.js';
 import {
   buildCombinedCandidatePool,
   candidateSectionKey,
   excludeAlreadyPlannedSections,
 } from '../../domain/eligibility.js';
-import { SHIFT_FILTER_OPTIONS } from '../../domain/format.js';
+import {
+  HIDE_SUBJECT_LABEL,
+  RESTORE_SUBJECT_LABEL,
+  SHIFT_FILTER_OPTIONS,
+  SHOW_HIDDEN_SUBJECTS_LABEL,
+} from '../../domain/format.js';
 import CandidateGroupList from './CandidateGroupList.jsx';
 import FilterToggle from './FilterToggle.jsx';
 import WeeklyGrid from './WeeklyGrid.jsx';
@@ -21,45 +28,45 @@ const BUTTON_FOCUS_CLASS =
 /**
  * @param {{
  *   open: boolean,
+ *   profile: import('../../domain/types.js').ProfileRecord,
  *   ppc: {id: string, subjects: Array},
  *   offerings: {subjects: Array}|undefined,
  *   yearSemester: 1|2,
  *   fulfillmentBefore: Map,
  *   sameSemesterCodes: Set<string>,
- *   customSections: Array,
  *   currentSections: Array, // already-planned, evaluated sections of the target semester
  *   shiftFilter: "morning"|"afternoon"|"day",
- *   profileCourseId: string|null,
- *   hiddenSubjects: string[],
- *   semesterNumber: number, // 1-based ordinal of the semester being planned, matched against a Subject's Suggested Semester
+ *   semesterNumber: number,
  *   onShiftFilterChange: (value: string) => void,
  *   onConfirm: (sectionTemplate: object) => void,
  *   onClose: () => void,
  * }} props
  */
-export default function AddSectionDialog({
+export default function AddOptionalDialog({
   open,
+  profile,
   ppc,
   offerings,
   yearSemester,
   fulfillmentBefore,
   sameSemesterCodes,
-  customSections,
   currentSections,
   shiftFilter,
-  profileCourseId,
-  hiddenSubjects,
   semesterNumber,
   onShiftFilterChange,
   onConfirm,
   onClose,
 }) {
+  const hideSubject = useStore((state) => state.hideSubject);
+  const restoreSubject = useStore((state) => state.restoreSubject);
   const ref = useRef(null);
   const [chosenKey, setChosenKey] = useState(null);
+  const [showHidden, setShowHidden] = useState(false);
 
   useEffect(() => {
     if (open) {
       setChosenKey(null);
+      setShowHidden(false);
       ref.current?.showModal();
     } else if (ref.current?.open) {
       ref.current.close();
@@ -73,11 +80,11 @@ export default function AddSectionDialog({
       yearSemester,
       fulfillmentBefore,
       sameSemesterCodes,
-      customSections,
+      customSections: [],
       shiftFilter,
       semesterNumber,
-      hiddenSubjects,
-    }).required;
+      hiddenSubjects: profile.hiddenSubjects,
+    }).optional;
     return excludeAlreadyPlannedSections(built, currentSections);
   }, [
     ppc,
@@ -85,12 +92,46 @@ export default function AddSectionDialog({
     yearSemester,
     fulfillmentBefore,
     sameSemesterCodes,
-    customSections,
     currentSections,
     shiftFilter,
     semesterNumber,
-    hiddenSubjects,
+    profile.hiddenSubjects,
   ]);
+
+  // Sourced separately, without hidden-Subject filtering, purely to power
+  // the "Mostrar ocultas" reveal (UC-28) — kept apart from `candidates` so
+  // the primary listing's co-requisite look-ahead stays computed against
+  // the hidden-excluding pool used everywhere else.
+  const hiddenCandidates = useMemo(() => {
+    if (!showHidden) return [];
+    const built = buildCombinedCandidatePool({
+      ppc,
+      offerings,
+      yearSemester,
+      fulfillmentBefore,
+      sameSemesterCodes,
+      customSections: [],
+      shiftFilter,
+      semesterNumber,
+      hiddenSubjects: [],
+    }).optional;
+    return excludeAlreadyPlannedSections(built, currentSections)
+      .filter((c) => profile.hiddenSubjects.includes(c.subjectCode))
+      .map((c) => ({ ...c, stale: true }));
+  }, [
+    showHidden,
+    ppc,
+    offerings,
+    yearSemester,
+    fulfillmentBefore,
+    sameSemesterCodes,
+    currentSections,
+    shiftFilter,
+    semesterNumber,
+    profile.hiddenSubjects,
+  ]);
+
+  const listedCandidates = [...candidates, ...hiddenCandidates];
 
   const chosen =
     candidates
@@ -103,13 +144,26 @@ export default function AddSectionDialog({
     setChosenKey(null);
   }
 
-  function renderSection(section) {
+  function isHiddenCandidate(candidate) {
+    return profile.hiddenSubjects.includes(candidate.subjectCode);
+  }
+
+  function renderSection(section, candidate) {
     const key = candidateSectionKey(section);
+    if (isHiddenCandidate(candidate)) {
+      return (
+        <span className="flex items-center gap-2 rounded px-2 py-1 text-sm text-slate-400">
+          {section.kind === 'offering'
+            ? `Turma ${section.turma}`
+            : section.custom.name}
+        </span>
+      );
+    }
     return (
       <label className="flex items-center gap-2 rounded px-2 py-1 text-sm text-slate-700 hover:bg-slate-50">
         <input
           type="radio"
-          name="add-section-choice"
+          name="add-optional-choice"
           checked={chosenKey === key}
           onChange={() => setChosenKey(key)}
           className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
@@ -118,10 +172,33 @@ export default function AddSectionDialog({
           ? `Turma ${section.turma}`
           : section.custom.name}
         {section.kind === 'offering' &&
-          section.targetCourseId !== profileCourseId &&
+          section.targetCourseId !== profile.courseId &&
           section.targetCourseName &&
           ` (${section.targetCourseName})`}
       </label>
+    );
+  }
+
+  function groupExtra(candidate) {
+    if (isHiddenCandidate(candidate)) {
+      return (
+        <button
+          type="button"
+          onClick={() => restoreSubject(profile.id, candidate.subjectCode)}
+          className={`shrink-0 rounded px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 ${BUTTON_FOCUS_CLASS} focus-visible:ring-slate-400`}
+        >
+          {RESTORE_SUBJECT_LABEL}
+        </button>
+      );
+    }
+    return (
+      <button
+        type="button"
+        onClick={() => hideSubject(profile.id, candidate.subjectCode)}
+        className={`shrink-0 rounded px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 ${BUTTON_FOCUS_CLASS} focus-visible:ring-slate-400`}
+      >
+        {HIDE_SUBJECT_LABEL}
+      </button>
     );
   }
 
@@ -133,13 +210,22 @@ export default function AddSectionDialog({
     >
       <div className="flex max-h-[92vh] flex-col gap-4 p-6">
         <h2 className="text-lg font-semibold text-slate-900">
-          Adicionar turma
+          Adicionar optativa
         </h2>
 
         <div className="flex flex-wrap items-center justify-end gap-4">
+          <label className="flex items-center gap-2 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              checked={showHidden}
+              onChange={(event) => setShowHidden(event.target.checked)}
+              className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
+            />
+            {SHOW_HIDDEN_SUBJECTS_LABEL}
+          </label>
           <FilterToggle
             legend="Turno"
-            name="add-section-shift"
+            name="add-optional-shift"
             options={SHIFT_FILTER_OPTIONS}
             value={shiftFilter}
             onChange={onShiftFilterChange}
@@ -149,10 +235,11 @@ export default function AddSectionDialog({
         <div className="grid flex-1 grid-cols-1 gap-4 overflow-hidden md:grid-cols-[20rem_1fr]">
           <div className="overflow-y-auto pr-2">
             <CandidateGroupList
-              candidates={candidates}
+              candidates={listedCandidates}
               selectedKeys={chosenKey ? new Set([chosenKey]) : new Set()}
               renderSection={renderSection}
-              emptyMessage="Nenhuma turma disponível para este período com o turno selecionado."
+              groupExtra={groupExtra}
+              emptyMessage="Nenhuma optativa disponível para este período com o turno selecionado."
               resetKey={open}
             />
           </div>

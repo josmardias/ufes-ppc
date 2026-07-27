@@ -2,9 +2,35 @@ import { describe, expect, it } from 'vitest';
 import {
   cloneProfileRecord,
   createProfileRecord,
+  hideSubjectRecord,
   renameProfileRecord,
+  restoreSubjectRecord,
+  seedCreditEntries,
+  updateProfileDataRecord,
   validateProfileName,
 } from './profile.js';
+
+const ppc = {
+  id: 'test-ppc',
+  courseId: '06',
+  subjects: [
+    { code: 'MAT01', name: 'Cálculo I', suggestedSemester: 1 },
+    { code: 'MAT02', name: 'Cálculo II', suggestedSemester: 2 },
+    {
+      code: 'OPT01',
+      name: 'Optativa X',
+      suggestedSemester: 1,
+      classification: 'optional',
+    },
+    { code: 'ELE05', name: 'Sem sugestão', suggestedSemester: null },
+    {
+      code: 'ELE06',
+      name: 'Requerida explícita',
+      suggestedSemester: 2,
+      classification: 'required',
+    },
+  ],
+};
 
 describe('validateProfileName', () => {
   it('rejects an empty name', () => {
@@ -28,13 +54,48 @@ describe('validateProfileName', () => {
   });
 });
 
+describe('seedCreditEntries', () => {
+  it('seeds a Credit Entry for each Required Subject suggested at or before completedSemesters', () => {
+    const entries = seedCreditEntries(ppc, 1);
+    expect(entries).toEqual([{ subjectCode: 'MAT01', audit: false }]);
+  });
+
+  it('includes Subjects with no known classification as Required', () => {
+    const entries = seedCreditEntries(ppc, 2);
+    const codes = entries.map((e) => e.subjectCode);
+    expect(codes).toContain('MAT02');
+  });
+
+  it('never seeds an Optional Subject', () => {
+    const entries = seedCreditEntries(ppc, 5);
+    expect(entries.map((e) => e.subjectCode)).not.toContain('OPT01');
+  });
+
+  it('never seeds a Subject with no Suggested Semester', () => {
+    const entries = seedCreditEntries(ppc, 5);
+    expect(entries.map((e) => e.subjectCode)).not.toContain('ELE05');
+  });
+
+  it('returns no entries when completedSemesters is 0', () => {
+    expect(seedCreditEntries(ppc, 0)).toEqual([]);
+  });
+
+  it('excludes a Subject suggested after completedSemesters', () => {
+    const entries = seedCreditEntries(ppc, 1);
+    expect(entries.map((e) => e.subjectCode)).not.toContain('MAT02');
+    expect(entries.map((e) => e.subjectCode)).not.toContain('ELE06');
+  });
+});
+
 describe('createProfileRecord', () => {
-  it('builds a ProfileRecord with the given input and empty planning data', () => {
+  it('builds a ProfileRecord with the given input, chosen PPC, and empty planning data', () => {
     const profile = createProfileRecord({
       name: '  Maria  ',
       ingressYear: 2024,
       ingressYearSemester: 1,
       shift: 'morning',
+      ppc,
+      completedSemesters: 0,
     });
 
     expect(profile.id).toBeTypeOf('string');
@@ -42,12 +103,29 @@ describe('createProfileRecord', () => {
     expect(profile.ingressYear).toBe(2024);
     expect(profile.ingressYearSemester).toBe(1);
     expect(profile.shift).toBe('morning');
-    expect(profile.ppcId).toBeNull();
-    expect(profile.courseId).toBeNull();
+    expect(profile.ppcId).toBe('test-ppc');
+    expect(profile.courseId).toBe('06');
+    expect(profile.completedSemesters).toBe(0);
     expect(profile.shiftFilter).toBeNull();
     expect(profile.semesters).toEqual([]);
     expect(profile.creditEntries).toEqual([]);
     expect(profile.customSections).toEqual([]);
+    expect(profile.hiddenSubjects).toEqual([]);
+  });
+
+  it('seeds Credit Entries for the completed history (UC-02 step 4)', () => {
+    const profile = createProfileRecord({
+      name: 'Maria',
+      ingressYear: 2024,
+      ingressYearSemester: 1,
+      shift: 'morning',
+      ppc,
+      completedSemesters: 1,
+    });
+
+    expect(profile.creditEntries).toEqual([
+      { subjectCode: 'MAT01', audit: false },
+    ]);
   });
 
   it('generates distinct ids for each profile', () => {
@@ -56,26 +134,35 @@ describe('createProfileRecord', () => {
       ingressYear: 2024,
       ingressYearSemester: 1,
       shift: 'day',
+      ppc,
+      completedSemesters: 0,
     });
     const b = createProfileRecord({
       name: 'B',
       ingressYear: 2024,
       ingressYearSemester: 1,
       shift: 'day',
+      ppc,
+      completedSemesters: 0,
     });
     expect(a.id).not.toBe(b.id);
   });
 });
 
 describe('cloneProfileRecord', () => {
-  it('copies all planning data under a new name and a fresh id', () => {
-    const source = createProfileRecord({
+  function baseProfile() {
+    return createProfileRecord({
       name: 'Maria',
       ingressYear: 2024,
       ingressYearSemester: 1,
       shift: 'morning',
+      ppc,
+      completedSemesters: 0,
     });
-    source.ppcId = 'engenharia-eletrica-2022';
+  }
+
+  it('copies all planning data under a new name and a fresh id', () => {
+    const source = baseProfile();
     source.semesters = [
       { sections: [{ subjectCode: 'ELE01', failed: false, audit: false }] },
     ];
@@ -90,13 +177,17 @@ describe('cloneProfileRecord', () => {
     expect(clone.creditEntries).toEqual(source.creditEntries);
   });
 
+  it('copies hiddenSubjects (UC-28)', () => {
+    const source = baseProfile();
+    source.hiddenSubjects = ['OPT01'];
+
+    const clone = cloneProfileRecord(source, 'Copy');
+
+    expect(clone.hiddenSubjects).toEqual(['OPT01']);
+  });
+
   it('does not share references with the source profile', () => {
-    const source = createProfileRecord({
-      name: 'Maria',
-      ingressYear: 2024,
-      ingressYearSemester: 1,
-      shift: 'morning',
-    });
+    const source = baseProfile();
     source.semesters = [{ sections: [] }];
 
     const clone = cloneProfileRecord(source, 'Copy');
@@ -117,11 +208,87 @@ describe('renameProfileRecord', () => {
       ingressYear: 2024,
       ingressYearSemester: 1,
       shift: 'morning',
+      ppc,
+      completedSemesters: 0,
     });
     const renamed = renameProfileRecord(profile, '  Maria Silva  ');
 
     expect(renamed.id).toBe(profile.id);
     expect(renamed.name).toBe('Maria Silva');
     expect(renamed.ingressYear).toBe(profile.ingressYear);
+  });
+});
+
+describe('updateProfileDataRecord', () => {
+  it('updates ingress, shift, PPC, and completedSemesters (UC-24), never touching creditEntries', () => {
+    const profile = createProfileRecord({
+      name: 'Maria',
+      ingressYear: 2024,
+      ingressYearSemester: 1,
+      shift: 'morning',
+      ppc,
+      completedSemesters: 0,
+    });
+    profile.creditEntries = [{ subjectCode: 'MAT01', audit: false }];
+
+    const otherPpc = { id: 'other-ppc', courseId: '99' };
+    const updated = updateProfileDataRecord(profile, {
+      ingressYear: 2025,
+      ingressYearSemester: 2,
+      shift: 'afternoon',
+      ppc: otherPpc,
+      completedSemesters: 3,
+    });
+
+    expect(updated.ingressYear).toBe(2025);
+    expect(updated.ingressYearSemester).toBe(2);
+    expect(updated.shift).toBe('afternoon');
+    expect(updated.ppcId).toBe('other-ppc');
+    expect(updated.courseId).toBe('99');
+    expect(updated.completedSemesters).toBe(3);
+    expect(updated.creditEntries).toEqual(profile.creditEntries);
+  });
+});
+
+describe('hideSubjectRecord / restoreSubjectRecord', () => {
+  it('adds a Subject code to hiddenSubjects', () => {
+    const profile = createProfileRecord({
+      name: 'Maria',
+      ingressYear: 2024,
+      ingressYearSemester: 1,
+      shift: 'morning',
+      ppc,
+      completedSemesters: 0,
+    });
+    const updated = hideSubjectRecord(profile, 'OPT01');
+    expect(updated.hiddenSubjects).toEqual(['OPT01']);
+  });
+
+  it('is idempotent — hiding an already-hidden Subject changes nothing', () => {
+    const profile = createProfileRecord({
+      name: 'Maria',
+      ingressYear: 2024,
+      ingressYearSemester: 1,
+      shift: 'morning',
+      ppc,
+      completedSemesters: 0,
+    });
+    const once = hideSubjectRecord(profile, 'OPT01');
+    const twice = hideSubjectRecord(once, 'OPT01');
+    expect(twice.hiddenSubjects).toEqual(['OPT01']);
+  });
+
+  it('removes a Subject code from hiddenSubjects', () => {
+    const profile = createProfileRecord({
+      name: 'Maria',
+      ingressYear: 2024,
+      ingressYearSemester: 1,
+      shift: 'morning',
+      ppc,
+      completedSemesters: 0,
+    });
+    const hidden = hideSubjectRecord(profile, 'OPT01');
+    const restored = restoreSubjectRecord(hidden, 'OPT01');
+    expect(restored.hiddenSubjects).toEqual([]);
   });
 });
