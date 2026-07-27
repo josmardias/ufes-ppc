@@ -89,9 +89,9 @@ export default function ResolveConflictDialog({
     <dialog
       ref={ref}
       onClose={onClose}
-      className="overscroll-contain rounded-lg p-0 backdrop:bg-slate-900/40"
+      className="overscroll-contain m-0 h-dvh max-h-none w-screen max-w-none rounded-none p-0 backdrop:bg-slate-900/40 sm:m-auto sm:h-auto sm:w-96 sm:max-w-[92vw] sm:rounded-lg"
     >
-      <div className="flex w-96 flex-col gap-4 p-6">
+      <div className="flex h-full max-h-none flex-col gap-4 p-4 sm:h-auto sm:max-h-[92vh] sm:p-6">
         <div>
           <h2 className="text-lg font-semibold text-slate-900">
             {signalType === 'conflict'
@@ -104,7 +104,7 @@ export default function ResolveConflictDialog({
           </p>
         </div>
 
-        <ul className="space-y-2">
+        <ul className="min-h-0 flex-1 space-y-2 overflow-y-auto">
           {resolutionSet.map((section) => {
             const isKeeper = keeper?.id === section.id;
             const willBeRemoved = removedIdSet.has(section.id);

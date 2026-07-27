@@ -63,9 +63,9 @@ export default function SectionDetailDialog({
     <dialog
       ref={ref}
       onClose={onClose}
-      className="overscroll-contain rounded-lg p-0 backdrop:bg-slate-900/40"
+      className="overscroll-contain m-0 h-dvh max-h-none w-screen max-w-none rounded-none p-0 backdrop:bg-slate-900/40 sm:m-auto sm:h-auto sm:w-96 sm:max-w-[92vw] sm:rounded-lg"
     >
-      <div className="flex w-96 flex-col gap-4 p-6">
+      <div className="flex h-full max-h-none flex-col gap-4 p-4 sm:h-auto sm:max-h-[92vh] sm:p-6">
         <div>
           <h2 className="text-lg font-semibold text-slate-900">
             {subjectName(section, ppc)}
@@ -75,6 +75,7 @@ export default function SectionDetailDialog({
           )}
         </div>
 
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto">
         {section.sessions.length > 0 && (
           <ul className="space-y-1 text-sm text-slate-600">
             {section.sessions.map((session, i) => (
@@ -135,6 +136,7 @@ export default function SectionDetailDialog({
             </button>
           </div>
         )}
+        </div>
 
         <div className="flex justify-end gap-2 border-t border-slate-100 pt-3">
           <button

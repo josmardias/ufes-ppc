@@ -106,7 +106,7 @@ export default function AddSectionDialog({
   function renderSection(section) {
     const key = candidateSectionKey(section);
     return (
-      <label className="flex items-center gap-2 rounded px-2 py-1 text-sm text-slate-700 hover:bg-slate-50">
+      <label className="flex items-center gap-2 rounded px-2 py-2 text-sm text-slate-700 hover:bg-slate-50">
         <input
           type="radio"
           name="add-section-choice"
@@ -128,10 +128,10 @@ export default function AddSectionDialog({
   return (
     <dialog
       ref={ref}
-      className="overscroll-contain w-[min(80rem,96vw)] rounded-lg p-0 backdrop:bg-slate-900/40"
+      className="overscroll-contain m-0 h-dvh max-h-none w-screen max-w-none rounded-none p-0 backdrop:bg-slate-900/40 sm:m-auto sm:h-auto sm:max-h-[92vh] sm:w-[min(80rem,96vw)] sm:rounded-lg"
       onClose={onClose}
     >
-      <div className="flex max-h-[92vh] flex-col gap-4 p-6">
+      <div className="flex h-full max-h-none flex-col gap-4 p-4 sm:h-auto sm:max-h-[92vh] sm:p-6">
         <h2 className="text-lg font-semibold text-slate-900">
           Adicionar turma
         </h2>
@@ -146,8 +146,8 @@ export default function AddSectionDialog({
           />
         </div>
 
-        <div className="grid flex-1 grid-cols-1 gap-4 overflow-hidden md:grid-cols-[20rem_1fr]">
-          <div className="overflow-y-auto pr-2">
+        <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(8rem,1fr)_minmax(6rem,10rem)] gap-4 overflow-hidden md:grid-rows-1 md:grid-cols-[20rem_1fr]">
+          <div className="min-h-0 overflow-y-auto pr-2">
             <CandidateGroupList
               candidates={candidates}
               selectedKeys={chosenKey ? new Set([chosenKey]) : new Set()}
@@ -157,7 +157,7 @@ export default function AddSectionDialog({
             />
           </div>
 
-          <div className="overflow-y-auto border-t border-slate-100 pt-3 md:border-t-0 md:border-l md:pt-0 md:pl-4">
+          <div className="min-h-0 overflow-y-auto border-t border-slate-100 pt-3 md:border-t-0 md:border-l md:pt-0 md:pl-4">
             <WeeklyGrid
               ppc={ppc}
               sections={currentSections}

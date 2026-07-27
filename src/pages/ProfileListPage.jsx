@@ -28,8 +28,8 @@ const IMPORT_ERROR_MESSAGES = {
 
 const BUTTON_FOCUS_CLASS =
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2';
-const ACTION_BUTTON_CLASS = `inline-flex items-center gap-1.5 rounded px-2 py-1 text-sm text-slate-600 hover:bg-slate-100 hover:text-slate-900 ${BUTTON_FOCUS_CLASS} focus-visible:ring-slate-400`;
-const DANGER_ACTION_BUTTON_CLASS = `inline-flex items-center gap-1.5 rounded px-2 py-1 text-sm text-red-600 hover:bg-red-50 hover:text-red-700 ${BUTTON_FOCUS_CLASS} focus-visible:ring-red-400`;
+const ACTION_BUTTON_CLASS = `inline-flex items-center gap-1.5 rounded px-2 py-1.5 text-sm text-slate-600 hover:bg-slate-100 hover:text-slate-900 ${BUTTON_FOCUS_CLASS} focus-visible:ring-slate-400`;
+const DANGER_ACTION_BUTTON_CLASS = `inline-flex items-center gap-1.5 rounded px-2 py-1.5 text-sm text-red-600 hover:bg-red-50 hover:text-red-700 ${BUTTON_FOCUS_CLASS} focus-visible:ring-red-400`;
 
 function buildExportFilename(name) {
   const slug =
@@ -101,7 +101,7 @@ export default function ProfileListPage() {
   }
 
   return (
-    <main className="mx-auto max-w-2xl p-6">
+    <main className="mx-auto max-w-2xl p-4 sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
           <h1 className="text-2xl font-semibold text-balance text-slate-900">

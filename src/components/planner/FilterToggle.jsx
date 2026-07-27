@@ -31,7 +31,7 @@ export default function FilterToggle({
             className="peer absolute inset-0 z-10 cursor-pointer opacity-0"
           />
           <span
-            className={`block rounded px-2 py-1 transition-colors peer-focus-visible:outline-none peer-focus-visible:ring-2 peer-focus-visible:ring-slate-500 peer-focus-visible:ring-offset-1 ${
+            className={`block rounded px-3 py-1.5 transition-colors peer-focus-visible:outline-none peer-focus-visible:ring-2 peer-focus-visible:ring-slate-500 peer-focus-visible:ring-offset-1 ${
               value === option.value
                 ? 'bg-slate-900 text-white'
                 : 'text-slate-600 hover:bg-slate-200'

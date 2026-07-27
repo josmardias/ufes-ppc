@@ -262,9 +262,9 @@ export default function WeeklyGrid({
   return (
     <div className="overflow-x-auto">
       <div
-        className="grid min-w-xl"
+        className="grid min-w-0"
         style={{
-          gridTemplateColumns: `3rem repeat(${days.length}, minmax(6rem, 1fr))`,
+          gridTemplateColumns: `clamp(1.75rem, 8vw, 3rem) repeat(${days.length}, minmax(0, 1fr))`,
         }}
       >
         <div />

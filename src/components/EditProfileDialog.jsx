@@ -100,13 +100,17 @@ export default function EditProfileDialog({ open, profile, onClose }) {
     <dialog
       ref={ref}
       onClose={onClose}
-      className="overscroll-contain rounded-lg p-0 backdrop:bg-slate-900/40"
+      className="overscroll-contain m-0 h-dvh max-h-none w-screen max-w-none rounded-none p-0 backdrop:bg-slate-900/40 sm:m-auto sm:h-auto sm:w-80 sm:max-w-[92vw] sm:rounded-lg"
     >
-      <form onSubmit={handleSubmit} className="flex w-80 flex-col gap-4 p-6">
+      <form
+        onSubmit={handleSubmit}
+        className="flex h-full max-h-none flex-col gap-4 p-4 sm:h-auto sm:max-h-[92vh] sm:p-6"
+      >
         <h2 className="text-lg font-semibold text-slate-900">
           Editar dados do perfil
         </h2>
 
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
         <label className="flex flex-col gap-1 text-sm text-slate-700">
           Ano de ingresso
           <input
@@ -214,6 +218,7 @@ export default function EditProfileDialog({ open, profile, onClose }) {
             Não altera os Aproveitamentos já registrados.
           </span>
         </label>
+        </div>
 
         {error && (
           <p role="alert" aria-live="polite" className="text-sm text-red-600">
@@ -221,7 +226,7 @@ export default function EditProfileDialog({ open, profile, onClose }) {
           </p>
         )}
 
-        <div className="flex justify-end gap-2">
+        <div className="flex justify-end gap-2 border-t border-slate-100 pt-3">
           <button
             type="button"
             onClick={onClose}

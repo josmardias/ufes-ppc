@@ -14,7 +14,7 @@ export default function Header() {
 
   return (
     <header className="border-b border-slate-200 bg-white">
-      <div className="mx-auto flex max-w-2xl items-center gap-4 px-6 py-3">
+      <div className="mx-auto flex max-w-2xl items-center gap-4 px-4 py-3 sm:px-6">
         {!isHome && (
           <Link
             href="/"

@@ -33,7 +33,7 @@ const BUTTON_FOCUS_CLASS =
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2';
 const PRIMARY_BUTTON_CLASS = `inline-flex items-center gap-1.5 rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800 ${BUTTON_FOCUS_CLASS} focus-visible:ring-slate-500`;
 const SECONDARY_BUTTON_CLASS = `inline-flex items-center gap-1.5 rounded border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 ${BUTTON_FOCUS_CLASS} focus-visible:ring-slate-400`;
-const DANGER_BUTTON_CLASS = `inline-flex items-center gap-1.5 rounded px-2 py-1 text-sm text-red-600 hover:bg-red-50 hover:text-red-700 ${BUTTON_FOCUS_CLASS} focus-visible:ring-red-400`;
+const DANGER_BUTTON_CLASS = `inline-flex items-center gap-1.5 rounded px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 hover:text-red-700 ${BUTTON_FOCUS_CLASS} focus-visible:ring-red-400`;
 
 export default function PlannerPage() {
   const profile = useActiveProfile();
@@ -228,7 +228,7 @@ export default function PlannerPage() {
   }
 
   return (
-    <main className="mx-auto max-w-5xl p-6">
+    <main className="mx-auto max-w-5xl p-4 sm:p-6">
       <h1 className="text-2xl font-semibold text-pretty wrap-break-word text-slate-900">
         {profile.name}
       </h1>
@@ -284,12 +284,12 @@ export default function PlannerPage() {
           </aside>
 
           <section>
-            <div className="flex items-center justify-between gap-4">
+            <div className="flex flex-wrap items-center justify-between gap-4">
               <h2 className="text-lg font-semibold text-slate-900">
                 {clampedIndex + 1}º período · {semester.year}/
                 {semester.yearSemester}
               </h2>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
                   onClick={() => setAddSectionOpen(true)}

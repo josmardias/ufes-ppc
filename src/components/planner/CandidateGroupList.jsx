@@ -87,7 +87,7 @@ export default function CandidateGroupList({
                         type="button"
                         onClick={() => toggleExpanded(groupKey)}
                         aria-expanded={isExpanded}
-                        className={`flex flex-1 items-center gap-1.5 rounded px-1 py-1 text-left text-sm font-semibold hover:bg-slate-50 ${BUTTON_FOCUS_CLASS} focus-visible:ring-slate-400 ${flagged ? 'text-amber-700' : 'text-slate-800'}`}
+                        className={`flex flex-1 items-center gap-1.5 rounded px-2 py-2 text-left text-sm font-semibold hover:bg-slate-50 ${BUTTON_FOCUS_CLASS} focus-visible:ring-slate-400 ${flagged ? 'text-amber-700' : 'text-slate-800'}`}
                       >
                         <IconChevronRight
                           className={`size-3.5 shrink-0 transition-transform ${isExpanded ? 'rotate-90' : ''}`}

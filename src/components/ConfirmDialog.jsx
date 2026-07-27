@@ -40,9 +40,9 @@ export default function ConfirmDialog({
     <dialog
       ref={ref}
       onClose={onCancel}
-      className="overscroll-contain rounded-lg p-0 backdrop:bg-slate-900/40"
+      className="overscroll-contain m-0 h-dvh max-h-none w-screen max-w-none rounded-none p-0 backdrop:bg-slate-900/40 sm:m-auto sm:h-auto sm:w-80 sm:max-w-[92vw] sm:rounded-lg"
     >
-      <div className="flex w-80 flex-col gap-4 p-6">
+      <div className="flex h-full max-h-none flex-col justify-center gap-4 overflow-y-auto p-4 sm:h-auto sm:max-h-[92vh] sm:justify-start sm:p-6">
         <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
         <p className="text-sm text-slate-700 text-pretty">{message}</p>
 
