@@ -3,12 +3,14 @@ import {
   effectiveShiftFilter,
   keeperRemovalIds,
   plannedSectionOffering,
+  plannedSectionOfferingMismatch,
   plannedSectionSessions,
   sectionMatchesShiftFilter,
   sectionOverlapsWindow,
   sectionsConflictForPass,
   sectionsConflictInWindow,
   sectionsOverlap,
+  sessionsEqual,
   stillConflicted,
   timeToMinutes,
 } from './schedule.js';
@@ -279,30 +281,21 @@ describe('timeToMinutes', () => {
 });
 
 describe('plannedSectionSessions', () => {
-  const offerings = {
-    subjects: [
-      {
-        code: 'ELE01',
-        sections: [
-          {
-            turma: '01',
-            sessions: [{ day: 'Seg', startTime: '08:00', endTime: '10:00' }],
-          },
-        ],
-      },
-    ],
-  };
-
-  it('resolves an offering Section by subject code and turma', () => {
-    const section = { kind: 'offering', subjectCode: 'ELE01', turma: '01' };
-    expect(plannedSectionSessions(section, offerings)).toEqual([
+  it('returns the embedded sessions for an offering Section', () => {
+    const section = {
+      kind: 'offering',
+      subjectCode: 'ELE01',
+      turma: '01',
+      sessions: [{ day: 'Seg', startTime: '08:00', endTime: '10:00' }],
+    };
+    expect(plannedSectionSessions(section)).toEqual([
       { day: 'Seg', startTime: '08:00', endTime: '10:00' },
     ]);
   });
 
-  it('returns an empty array for an unresolved offering Section', () => {
+  it('returns an empty array for an offering Section with no embedded sessions', () => {
     const section = { kind: 'offering', subjectCode: 'ELE99', turma: '01' };
-    expect(plannedSectionSessions(section, offerings)).toEqual([]);
+    expect(plannedSectionSessions(section)).toEqual([]);
   });
 
   it('returns the embedded sessions for a Custom Section', () => {
@@ -310,7 +303,7 @@ describe('plannedSectionSessions', () => {
       kind: 'custom',
       custom: { name: 'Estágio', sessions: [] },
     };
-    expect(plannedSectionSessions(section, offerings)).toEqual([]);
+    expect(plannedSectionSessions(section)).toEqual([]);
   });
 });
 
@@ -349,5 +342,81 @@ describe('plannedSectionOffering', () => {
       custom: { name: 'Estágio', sessions: [] },
     };
     expect(plannedSectionOffering(section, offerings)).toBeNull();
+  });
+});
+
+describe('sessionsEqual', () => {
+  it('is true for identical session lists', () => {
+    const sessions = [{ day: 'Seg', startTime: '08:00', endTime: '10:00' }];
+    expect(sessionsEqual(sessions, [...sessions])).toBe(true);
+  });
+
+  it('is false when a session\u2019s time differs', () => {
+    const a = [{ day: 'Seg', startTime: '08:00', endTime: '10:00' }];
+    const b = [{ day: 'Seg', startTime: '08:00', endTime: '11:00' }];
+    expect(sessionsEqual(a, b)).toBe(false);
+  });
+
+  it('is false when the session count differs', () => {
+    const a = [{ day: 'Seg', startTime: '08:00', endTime: '10:00' }];
+    const b = [
+      { day: 'Seg', startTime: '08:00', endTime: '10:00' },
+      { day: 'Ter', startTime: '08:00', endTime: '10:00' },
+    ];
+    expect(sessionsEqual(a, b)).toBe(false);
+  });
+});
+
+describe('plannedSectionOfferingMismatch', () => {
+  const offerings = {
+    subjects: [
+      {
+        code: 'ELE01',
+        sections: [
+          {
+            turma: '01',
+            sessions: [{ day: 'Seg', startTime: '08:00', endTime: '10:00' }],
+          },
+        ],
+      },
+    ],
+  };
+
+  it('is false when the embedded copy still matches the current snapshot', () => {
+    const section = {
+      kind: 'offering',
+      subjectCode: 'ELE01',
+      turma: '01',
+      sessions: [{ day: 'Seg', startTime: '08:00', endTime: '10:00' }],
+    };
+    expect(plannedSectionOfferingMismatch(section, offerings)).toBe(false);
+  });
+
+  it('is true when no Section with the same subject code and turma exists anymore', () => {
+    const section = {
+      kind: 'offering',
+      subjectCode: 'ELE01',
+      turma: '02',
+      sessions: [{ day: 'Seg', startTime: '08:00', endTime: '10:00' }],
+    };
+    expect(plannedSectionOfferingMismatch(section, offerings)).toBe(true);
+  });
+
+  it('is true when the sessions differ from the current snapshot', () => {
+    const section = {
+      kind: 'offering',
+      subjectCode: 'ELE01',
+      turma: '01',
+      sessions: [{ day: 'Ter', startTime: '10:00', endTime: '12:00' }],
+    };
+    expect(plannedSectionOfferingMismatch(section, offerings)).toBe(true);
+  });
+
+  it('is false for a Custom Section — Custom Sections are never flagged', () => {
+    const section = {
+      kind: 'custom',
+      custom: { name: 'Estágio', sessions: [] },
+    };
+    expect(plannedSectionOfferingMismatch(section, offerings)).toBe(false);
   });
 });

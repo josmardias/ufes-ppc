@@ -227,7 +227,9 @@ describe('exportProfile / importProfile', () => {
 
   it('reports a duplicate name conflict without overwrite, and overwrites when asked', async () => {
     const { useStore } = await import('./index.js');
-    const { profile: original } = useStore.getState().createProfile(baseInput());
+    const { profile: original } = useStore
+      .getState()
+      .createProfile(baseInput());
     const exported = useStore.getState().exportProfile(original.id);
 
     const conflict = useStore
@@ -352,103 +354,71 @@ describe('planner actions', () => {
   });
 });
 
-describe('updateProfileData (UC-24)', () => {
+describe('Credit Entry actions (UC-15/16/20/21)', () => {
   async function setup() {
     const { useStore } = await import('./index.js');
     const { profile } = useStore.getState().createProfile(baseInput());
     return { useStore, profileId: profile.id };
   }
 
-  it('updates ingress, shift, PPC, and completedSemesters while there are no Planned Semesters', async () => {
+  it('addCreditEntry adds a non-audit Credit Entry and persists it', async () => {
     const { useStore, profileId } = await setup();
 
-    const result = useStore.getState().updateProfileData(profileId, {
-      ingressYear: 2025,
-      ingressYearSemester: 2,
-      shift: 'afternoon',
-      ppcId: PPC_ID,
-      completedSemesters: 2,
-    });
+    const result = useStore.getState().addCreditEntry(profileId, 'QUI15928');
 
     expect(result.ok).toBe(true);
-    expect(useStore.getState().profiles[0].ingressYear).toBe(2025);
-    expect(useStore.getState().profiles[0].ingressYearSemester).toBe(2);
-    expect(useStore.getState().profiles[0].shift).toBe('afternoon');
-    expect(useStore.getState().profiles[0].completedSemesters).toBe(2);
+    expect(useStore.getState().profiles[0].creditEntries).toEqual([
+      { subjectCode: 'QUI15928', audit: false },
+    ]);
 
     vi.resetModules();
     const { useStore: reloadedStore } = await import('./index.js');
-    expect(reloadedStore.getState().profiles[0].completedSemesters).toBe(2);
+    expect(reloadedStore.getState().profiles[0].creditEntries).toEqual([
+      { subjectCode: 'QUI15928', audit: false },
+    ]);
   });
 
-  it('rejects the update once Planned Semesters exist', async () => {
-    const { useStore, profileId } = await setup();
-    useStore.getState().addPlannedSemester(profileId, []);
-
-    const result = useStore.getState().updateProfileData(profileId, {
-      ingressYear: 2025,
-      ingressYearSemester: 1,
-      shift: 'day',
-      ppcId: PPC_ID,
-      completedSemesters: 0,
-    });
-
-    expect(result).toEqual({ ok: false, error: 'has-semesters' });
-  });
-
-  it('rejects switching to a different PPC while Credit Entries exist', async () => {
-    const { useStore } = await import('./index.js');
-    // Credit Entries are seeded at creation (UC-02), not by updateProfileData.
-    const { profile } = useStore
-      .getState()
-      .createProfile(baseInput({ completedSemesters: 1 }));
-    expect(profile.creditEntries.length).toBeGreaterThan(0);
-
-    const result = useStore.getState().updateProfileData(profile.id, {
-      ingressYear: 2024,
-      ingressYearSemester: 1,
-      shift: 'morning',
-      ppcId: 'other-ppc',
-      completedSemesters: 1,
-    });
-
-    expect(result).toEqual({ ok: false, error: 'has-credit-entries' });
-  });
-
-  it('never touches creditEntries', async () => {
-    const { useStore, profileId } = await setup();
-    useStore.getState().updateProfileData(profileId, {
-      ingressYear: 2024,
-      ingressYearSemester: 1,
-      shift: 'morning',
-      ppcId: PPC_ID,
-      completedSemesters: 1,
-    });
-    const before = useStore.getState().profiles[0].creditEntries;
-
-    useStore.getState().updateProfileData(profileId, {
-      ingressYear: 2024,
-      ingressYearSemester: 1,
-      shift: 'morning',
-      ppcId: PPC_ID,
-      completedSemesters: 0,
-    });
-
-    expect(useStore.getState().profiles[0].creditEntries).toEqual(before);
-  });
-
-  it('rejects an unknown PPC', async () => {
+  it('addCreditEntry rejects a Subject unknown to the Course Curriculum', async () => {
     const { useStore, profileId } = await setup();
 
-    const result = useStore.getState().updateProfileData(profileId, {
-      ingressYear: 2024,
-      ingressYearSemester: 1,
-      shift: 'morning',
-      ppcId: 'does-not-exist',
-      completedSemesters: 0,
-    });
+    const result = useStore.getState().addCreditEntry(profileId, 'UNKNOWN');
 
-    expect(result).toEqual({ ok: false, error: 'unknown-ppc' });
+    expect(result).toEqual({ ok: false, error: 'unknown-subject' });
+    expect(useStore.getState().profiles[0].creditEntries).toEqual([]);
+  });
+
+  it('addCreditEntry rejects a Subject that already has a Credit Entry', async () => {
+    const { useStore, profileId } = await setup();
+    useStore.getState().addCreditEntry(profileId, 'QUI15928');
+
+    const result = useStore.getState().addCreditEntry(profileId, 'QUI15928');
+
+    expect(result).toEqual({ ok: false, error: 'duplicate' });
+    expect(useStore.getState().profiles[0].creditEntries).toHaveLength(1);
+  });
+
+  it('removeCreditEntry removes the entry and persists the change', async () => {
+    const { useStore, profileId } = await setup();
+    useStore.getState().addCreditEntry(profileId, 'QUI15928');
+
+    useStore.getState().removeCreditEntry(profileId, 'QUI15928');
+
+    expect(useStore.getState().profiles[0].creditEntries).toEqual([]);
+
+    vi.resetModules();
+    const { useStore: reloadedStore } = await import('./index.js');
+    expect(reloadedStore.getState().profiles[0].creditEntries).toEqual([]);
+  });
+
+  it('toggleCreditEntryAudit flips the Audit Mark on the targeted Credit Entry', async () => {
+    const { useStore, profileId } = await setup();
+    useStore.getState().addCreditEntry(profileId, 'QUI15928');
+
+    useStore.getState().toggleCreditEntryAudit(profileId, 'QUI15928');
+    expect(useStore.getState().profiles[0].creditEntries[0].audit).toBe(true);
+
+    useStore.getState().toggleCreditEntryAudit(profileId, 'QUI15928');
+    expect(useStore.getState().profiles[0].creditEntries[0].audit).toBe(false);
   });
 });
 

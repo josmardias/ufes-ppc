@@ -9,7 +9,7 @@
 **Goals:**
 
 - Simulate an academic path semester by semester, using past Offerings to predict which Sections will likely be available.
-- Surface planning signals — Schedule Conflicts, Duplicate Subjects, Redundant Enrollments, Unmet Requisites (see `DOMAIN.md`) — as information, never as hard blocks.
+- Surface planning signals — Schedule Conflicts, Duplicate Subjects, Redundant Enrollments, Offering Mismatches, Unmet Requisites (see `DOMAIN.md`) — as information, never as hard blocks.
 - Work entirely client-side: profiles persist in the browser and can be exported/imported as files.
 
 **Non-goals:**
@@ -77,6 +77,7 @@ Domain terms follow the same convention as `DOMAIN.md`: English name with PT-BR 
 **Notes:**
 
 - The seeded Credit Entries are ordinary Credit Entries — the user reviews and corrects them with UC-15/UC-16 (e.g. removing the credit for a Subject that was actually failed or skipped). Completed history is credit-level by design — see Purpose & Scope.
+- Profile data — ingress information, shift, course/PPC, and the completed-semester count — is **immutable after creation** (see `DOMAIN.md`, Student). To fix a mistake, the user deletes the profile (UC-05) and creates a new one. Only the name can be changed later (UC-08).
 
 **Alternative Flow — User cancels:**
 
@@ -254,19 +255,21 @@ The planner presents a Planned Semester as a **weekly schedule**: each Section's
 **Main Flow:**
 
 1. The system loads the planning data for the active Student.
-2. The system presents the list of the Student's Planned Semesters, each with its status — clean, warnings only, or errors — and marks the one corresponding to the real-world current date, when the plan reaches it.
-3. The system presents the selected Planned Semester as a weekly schedule: sessions on the day × time grid, session-less Sections in the "no schedule" strip, Failed Marks and Audit Marks indicated.
-4. Sections flagged by planning signals are visually distinguished by severity — warning (Schedule Conflict, Duplicate Subject, Redundant Enrollment) or error (Unmet Requisite) — across **all** their sessions.
+2. The system presents the list of the Student's Planned Semesters, each with its status — clean, warnings only, or errors — and marks the one corresponding to the real-world current date, when the plan reaches it. Above them, always, sits the **Completed (Concluídos)** entry — the pre-semester holding the Credit Entries (see `DOMAIN.md`, Credit Entry); it carries no Year Semester label and no status.
+3. The system presents the selected Planned Semester as a weekly schedule: sessions on the day × time grid, session-less Sections in the "no schedule" strip, Failed Marks and Audit Marks indicated. Sessions come from each Section's embedded copy (see `DOMAIN.md`, Planned Semester) — the schedule never shifts under a dataset update.
+4. Sections flagged by planning signals are visually distinguished by severity — warning (Schedule Conflict, Duplicate Subject, Redundant Enrollment, Offering Mismatch) or error (Unmet Requisite) — across **all** their sessions.
 5. Selecting a session (or a strip chip) emphasizes the sibling sessions of the same Section and opens its details: the resolution flow when the clicked session collides in time or the Section is a Duplicate Subject (UC-25); otherwise the Section's data and its actions — remove (UC-13), Failed Mark (UC-22, UC-23), Audit Mark (UC-20, UC-21), and the Redundant Enrollment resolution when flagged (UC-26). A Section that collides only at other sessions opens its plain details from a collision-free session — the resolution flow is one click away, on the colliding ones.
+6. Selecting the Completed (Concluídos) entry opens the credited history as a list — each Credit Entry with its Audit Mark indicated — with actions to add (UC-15) and remove (UC-16) Credit Entries and to toggle their Audit Marks (UC-20, UC-21). No weekly grid — Credit Entries have no sessions.
 
 **Notes:**
 
 - The grid shows Monday–Friday, adding Saturday only when some Section in the semester holds a Saturday session; its time range covers all sessions in the semester.
+- A Section flagged with an Offering Mismatch opens its plain details, which explain the mismatch — informational only, no dedicated resolution (see `DOMAIN.md`, Offering Mismatch); the user may keep the Section or remove it (UC-13).
 - The app is designed **mobile-first** (see `ARCHITECTURE.md`, Constraints): the narrow, touch-driven viewport is the primary design target, not an afterthought. On narrow screens the weekly grid is kept, compacted (short Section labels, details in an overlay), rather than switching to a per-day view — the week at a glance is the planner's core surface.
 
 **Alternative Flow — No Planned Semesters exist:**
 
-- The system informs the user that no Planned Semesters exist and offers the option to add the first one. In this state the user may also edit the profile data (UC-24).
+- The system informs the user that no Planned Semesters exist and offers the option to add the first one. The Completed (Concluídos) entry is still shown and fully manageable — the credited history can be reviewed and corrected before the first Planned Semester is created.
 
 ---
 
@@ -311,7 +314,7 @@ The planner presents a Planned Semester as a **weekly schedule**: each Section's
 8. A Subject with co-requisites is listed only when each co-requisite is either already fulfilled at that point in the plan or itself available — in this listing or in the optional pool (UC-27, excluding hidden Subjects, UC-28) — since selecting it could otherwise only produce an Unmet Requisite. Exclusions **cascade**: a Subject removed by this rule may remove Subjects that co-required it, until the list is stable. The rule is evaluated against the shift-filtered pool, so changing the filter re-runs it — hiding a co-requisite's Sections also hides its dependents. It prunes the _listing_ only; the user remains free to deselect a listed co-requisite while keeping its dependent selected (surfacing the error after creation).
 9. As the user builds the selection, the system continuously indicates the signals the current selection would produce — Duplicate Subjects (several Sections selected under one Subject group) and Schedule Conflicts among selected Sections.
 10. The user confirms.
-11. The system creates the new Planned Semester containing exactly the selected, currently visible Sections and persists it. Nothing is persisted before this point.
+11. The system creates the new Planned Semester containing exactly the selected, currently visible Sections — each persisted as a self-contained copy of its sessions and target course, captured from the snapshot at this moment (see `DOMAIN.md`, Planned Semester) — and persists it. Nothing is persisted before this point.
 12. The user iterates on the weekly schedule — adding and removing Sections (UC-12, UC-13, UC-27), resolving signals (UC-25, UC-26) — until the semester is clean.
 
 **Filter and selection rules:**
@@ -349,11 +352,11 @@ The planner presents a Planned Semester as a **weekly schedule**: each Section's
 **Main Flow:**
 
 1. The user requests to add a Section to the selected Planned Semester.
-2. The system presents the Sections available for that semester's Year Semester (from the curated Offering snapshot) of **Required** Subjects — Subjects with no known classification count as Required — whose prerequisites are satisfied by non-failed Sections in earlier Planned Semesters or Credit Entries, and whose co-requisites pass the shared look-ahead rule (see "Co-requisite rule" below). Subjects already fulfilled at that point in the plan — a non-failed Section in an earlier Planned Semester or a Credit Entry — are excluded, unless their fulfillment carries an Audit Mark still open at the selected semester (UC-20). The Student's Custom Sections with matching applicability are also presented — linked ones under the same requisite rules, unlinked ones unconditionally. Sections already present, as-is, in the selected Planned Semester are also excluded — an offering Section matched by Subject code and turma, a Custom Section by its name and sessions; a Subject disappears from the list once every one of its Sections is excluded this way.
+2. The system presents the Sections available for that semester's Year Semester (from the curated Offering snapshot) of **Required** Subjects — Subjects with no known classification count as Required — whose prerequisites are satisfied by non-failed Sections in earlier Planned Semesters or Credit Entries, and whose co-requisites pass the shared look-ahead rule (see "Co-requisite rule" below). Subjects already fulfilled at that point in the plan — a non-failed Section in an earlier Planned Semester or a Credit Entry — are excluded, unless their fulfillment carries an Audit Mark still open at the selected semester (UC-20). The Student's Custom Sections with matching applicability are also presented — linked ones under the same requisite rules, unlinked ones unconditionally. Sections already present, as-is, in the selected Planned Semester are also excluded — an offering Section matched by Subject code, turma, **and sessions** (so the rescheduled version of a Section flagged with an Offering Mismatch stays addable), a Custom Section by its name and sessions; a Subject disappears from the list once every one of its Sections is excluded this way.
 3. The listing follows UC-11's presentation: split into the same two tiers (likely enrollment — Suggested Semester at or before the selected semester's position, or none — and others below), grouped by Subject, groups collapsible and starting collapsed, other-course Sections badged with their target course. The only filter is the effective shift filter — the profile's shift by default, or the persisted toggle (morning, afternoon, or whole day) once the user sets it; day-shift Sections appear under every filter option; the user may change the toggle at any time and the system persists it on the profile.
 4. While browsing, the user can preview a candidate: the system shows the candidate's sessions in place on the weekly schedule, so fits and collisions are visible before adding.
 5. The user selects a Section.
-6. The system adds the Section to the Planned Semester and persists the change. Adding a Custom Section creates an independent copy inside the semester — later catalog edits do not affect it.
+6. The system adds the Section to the Planned Semester and persists the change — an offering Section as a self-contained copy of its sessions and target course, captured from the snapshot at this moment (see `DOMAIN.md`, Planned Semester). Adding a Custom Section likewise creates an independent copy inside the semester — later catalog edits do not affect it.
 7. The system re-evaluates planning signals for this semester and all later ones and updates the indicators.
 
 **Co-requisite rule (shared by UC-12 and UC-27):**
@@ -368,7 +371,7 @@ Exclusions cascade to a fixpoint, as in UC-11 step 8. The rule prunes the listin
 
 **Notes:**
 
-- The system does not prevent adding a Section that causes a planning signal — Schedule Conflict, Duplicate Subject, or Redundant Enrollment. Signals are surfaced as information, not as a hard block.
+- The system does not prevent adding a Section that causes a planning signal — Schedule Conflict, Duplicate Subject, or Redundant Enrollment. Signals are surfaced as information, not as a hard block. (An Offering Mismatch can never arise here — candidates come from the current snapshot, so they match it by construction.)
 - Other Sections (turmas) of an already-planned Subject remain listed — adding one surfaces a Duplicate Subject warning as usual; only the literally identical Section is hidden (step 2).
 - The available list includes Sections offered under an **equivalent** code of a PPC Subject (see `DOMAIN.md`, Equivalence). Adding one fulfills the corresponding PPC Subject exactly as a Section under the Subject's own code would.
 - Adding a Section to an earlier Planned Semester is the natural fix for an Unmet Requisite in a later one — the cascade re-evaluates automatically.
@@ -434,7 +437,7 @@ Exclusions cascade to a fixpoint, as in UC-11 step 8. The rule prunes the listin
 
 - Hiding is a lasting, per-profile preference: it survives reloads, is exported and imported with the profile (UC-06, UC-07), and is copied on clone (UC-04).
 - Hiding affects **listing only** — the UC-27 pool and, through it, the combined co-requisite pool (UC-11 step 8, UC-12): hiding a Subject that others co-require can cascade-prune those dependents from the listings. It never removes Sections already planned and never changes planning-signal evaluation.
-- Hidden entries whose Subject code does not resolve in the current PPC (after a PPC switch, UC-24) are kept and simply inert — same "kept, ignored" treatment as stale Custom Sections — so switching back loses nothing.
+- Hidden entries whose Subject code does not resolve in the current PPC (possible after a dataset update changes the PPC's subject codes) are kept and simply inert — same "kept, ignored" treatment as stale Custom Sections — so nothing is lost if a later update makes them resolve again.
 
 **Alternative Flow — User cancels:**
 
@@ -490,7 +493,7 @@ Exclusions cascade to a fixpoint, as in UC-11 step 8. The rule prunes the listin
 2. The system asks the user to confirm the deletion.
 3. The user confirms.
 4. The system removes the Planned Semester and all its contents — Sections, applied Custom Section copies, and any Failed Marks or Audit Marks they carry — and persists the change.
-5. If no Planned Semesters remain, the system also clears the persisted shift filter toggle (see UC-12). All other profile data — PPC, completed-semester count, Credit Entries, hidden Subjects, the Custom Section catalog — is kept, and profile data becomes editable (UC-24).
+5. If no Planned Semesters remain, the system also clears the persisted shift filter toggle (see UC-12). All other profile data — PPC, completed-semester count, Credit Entries, hidden Subjects, the Custom Section catalog — is kept.
 
 **Validation:**
 
@@ -579,11 +582,11 @@ Exclusions cascade to a fixpoint, as in UC-11 step 8. The rule prunes the listin
 
 **Preconditions:**
 
-- An active Student profile has been selected. (Every profile has a Course Curriculum — it is chosen at creation, UC-02.)
+- The Schedule Planner is open — Credit Entries are managed from the Completed (Concluídos) entry, which is always present there (UC-09). (Every profile has a Course Curriculum — it is chosen at creation, UC-02.)
 
 **Main Flow:**
 
-1. The user requests to add a Credit Entry.
+1. The user opens the Completed (Concluídos) entry and requests to add a Credit Entry.
 2. The system presents the list of Subjects from the Student's Course Curriculum that do not already have a Credit Entry.
 3. The user selects a Subject and confirms.
 4. The system persists the Credit Entry on the Student profile.
@@ -613,12 +616,12 @@ Exclusions cascade to a fixpoint, as in UC-11 step 8. The rule prunes the listin
 
 **Preconditions:**
 
-- An active Student profile has been selected.
+- The Schedule Planner is open — Credit Entries are managed from the Completed (Concluídos) entry (UC-09).
 - At least one Credit Entry exists on the profile.
 
 **Main Flow:**
 
-1. The user selects a Credit Entry and requests to remove it.
+1. The user selects a Credit Entry in the Completed (Concluídos) entry and requests to remove it.
 2. The system asks the user to confirm the removal.
 3. The user confirms.
 4. The system removes the Credit Entry from the Student profile and persists the change.
@@ -627,7 +630,6 @@ Exclusions cascade to a fixpoint, as in UC-11 step 8. The rule prunes the listin
 
 - Removing a Credit Entry may cause Unmet Requisites in Planned Semesters that relied on it, cascading recursively. The system does not block the removal but surfaces the resulting flags.
 - Removing a Credit Entry also removes any Audit Mark it carries (UC-20).
-- Credit Entries must be removed before the profile can switch to a different Course Curriculum (UC-24).
 
 **Alternative Flow — User cancels:**
 
@@ -698,7 +700,7 @@ Custom Sections (Turmas Personalizadas) let the Student plan around commitments 
 **Notes:**
 
 - Copies already applied to Planned Semesters — including the last one — are never affected: they are independent snapshots taken when added (UC-12). The user manages those inside the semesters themselves (UC-13).
-- A catalog entry whose Subject link does not resolve in the current Course Curriculum (after a PPC switch, UC-24) is shown de-emphasized and behaves as unlinked until edited or deleted.
+- A catalog entry whose Subject link does not resolve in the current Course Curriculum (possible after a dataset update changes the PPC's subject codes) is shown de-emphasized and behaves as unlinked until edited or deleted.
 
 **Alternative Flow — User cancels:**
 
@@ -751,7 +753,7 @@ Audit Marks (Ouvinte) let the Student plan to attend an already-fulfilled Subjec
 
 **Main Flow:**
 
-1. The user selects the fulfillment carrier — a Credit Entry, or a Section in a Planned Semester — and requests to mark it for Audit.
+1. The user selects the fulfillment carrier — a Credit Entry (in the Completed (Concluídos) entry, UC-09), or a Section in a Planned Semester — and requests to mark it for Audit.
 2. The system records the Audit Mark on that carrier and persists it.
 3. While the mark is **open**, the Subject is included among suggested and available Sections when planning Planned Semesters after the carrier (UC-11, UC-12, UC-27).
 
@@ -848,36 +850,6 @@ Failed Marks (Reprovação) let the Student make the plan reflect a real-life fa
 
 ## Profile Data Editing
 
-### UC-24 — Edit Student Profile Data
+### UC-24 — Edit Student Profile Data (removed)
 
-**Actor:** User
-
-**Goal:** Change the profile's ingress information, shift, Course Curriculum (PPC), or completed-semester count.
-
-**Preconditions:**
-
-- An active Student profile has been selected.
-- The profile has **no Planned Semesters** — either none were ever created, or all were deleted (UC-14). (Renaming is available at any time via UC-08.)
-
-**Main Flow:**
-
-1. The user requests to edit the profile data.
-2. The system presents the current ingress year, ingress Year Semester, shift, Course Curriculum (course → PPC, same cascading rules as UC-02), and completed-semester count for modification.
-3. The user changes the data and confirms.
-4. The system persists the updated profile.
-
-**Validation:**
-
-- Switching to a different PPC requires the profile to have **no Credit Entries** — they reference Subjects of the current PPC and must be removed first (UC-16). Since creation typically seeds Credit Entries (UC-02), switching PPC in practice means clearing the credited history first.
-- The completed-semester count follows the same rules as at creation (UC-02): an integer between 0 and the count of semesters fully elapsed since ingress.
-
-**Notes:**
-
-- Switching the PPC also updates the profile's derived course id to the new PPC's course (see `ARCHITECTURE.md`, `ProfileRecord`).
-- The Custom Section catalog survives a PPC switch. Entries whose Subject link does not resolve in the new PPC become stale — kept, shown de-emphasized, and treated as unlinked (UC-18). Switching back to the original PPC makes the links functional again. Hidden Subjects (UC-28) get the same treatment — kept, inert until they resolve again.
-- Changing ingress information changes the Year Semester labels derived for future Planned Semesters.
-- Changing the completed-semester count moves the position where Planned Semesters start (UC-11) — it never touches Credit Entries: the user adjusts those separately (UC-15, UC-16).
-
-**Alternative Flow — User cancels:**
-
-- No changes are made.
+**Removed.** Profile data — ingress information, shift, Course Curriculum (PPC), and completed-semester count — is **immutable after creation** (UC-02; see `DOMAIN.md`, Student). To change it, the user deletes the profile (UC-05) and creates a new one. Only the profile's name can be changed after creation (UC-08). The UC number is not reused.

@@ -1,6 +1,6 @@
 // Groups PPC datasets by their course, for the course → PPC cascading pick
-// at profile creation (UC-02) and profile data editing (UC-24). Pure,
-// framework-agnostic (see docs/DOMAIN.md, Course Curriculum and Student).
+// at profile creation (UC-02). Pure, framework-agnostic (see docs/DOMAIN.md,
+// Course Curriculum and Student).
 
 /**
  * @typedef {Object} CourseOption

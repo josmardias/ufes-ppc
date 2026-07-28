@@ -5,7 +5,7 @@
 // fulfillment state to plan against (see domain/evaluation.js).
 
 import { resolveSubjectByCode } from './subjects.js';
-import { sectionMatchesShiftFilter } from './schedule.js';
+import { sectionMatchesShiftFilter, sessionsEqual } from './schedule.js';
 
 /**
  * @typedef {Object} CandidateSubject
@@ -180,21 +180,24 @@ export function buildCandidateSubjects({
  * Whether a candidate Section is already present, as-is, in the target
  * Planned Semester (`currentSections`, the persisted shape — see
  * domain/semester.js, `createPlannedSection`). An offering Section matches
- * by Subject code + turma; a Custom Section has no persisted link back to
- * its catalog entry, so it matches by its embedded name and sessions
- * instead (see docs/DOMAIN.md, Custom Section).
+ * by Subject code + turma **and sessions** — session-strict, so a rescheduled
+ * turma (flagged with an Offering Mismatch, see docs/DOMAIN.md) stays
+ * addable rather than being excluded as already-planned (UC-12 step 2). A
+ * Custom Section has no persisted link back to its catalog entry, so it
+ * matches by its embedded name and sessions instead (see docs/DOMAIN.md,
+ * Custom Section).
  */
 function matchesPlannedSection(section, planned) {
   if (planned.kind !== section.kind) return false;
   if (section.kind === 'offering')
     return (
       planned.subjectCode === section.subjectCode &&
-      planned.turma === section.turma
+      planned.turma === section.turma &&
+      sessionsEqual(planned.sessions, section.sessions)
     );
   return (
     planned.custom.name === section.custom.name &&
-    JSON.stringify(planned.custom.sessions) ===
-      JSON.stringify(section.custom.sessions)
+    sessionsEqual(planned.custom.sessions, section.custom.sessions)
   );
 }
 

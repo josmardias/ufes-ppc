@@ -372,7 +372,7 @@ describe('buildCandidateSubjects', () => {
 });
 
 describe('excludeAlreadyPlannedSections', () => {
-  it('excludes an offering Section already present by Subject code + turma', () => {
+  it('excludes an offering Section already present by Subject code + turma + sessions', () => {
     const result = excludeAlreadyPlannedSections(
       [
         {
@@ -391,12 +391,49 @@ describe('excludeAlreadyPlannedSections', () => {
           kind: 'offering',
           subjectCode: 'MAT01',
           turma: '01',
+          sessions: [],
           failed: false,
           audit: false,
         },
       ],
     );
     expect(result).toEqual([]);
+  });
+
+  it('keeps a rescheduled turma addable (an Offering Mismatch, not excluded here)', () => {
+    const result = excludeAlreadyPlannedSections(
+      [
+        {
+          subjectCode: 'MAT01',
+          subjectName: 'Cálculo I',
+          stale: false,
+          tier: 'core',
+          sections: [
+            {
+              kind: 'offering',
+              subjectCode: 'MAT01',
+              turma: '01',
+              sessions: [
+                { day: 'Seg', startTime: '08:00', endTime: '10:00' },
+              ],
+            },
+          ],
+        },
+      ],
+      [
+        {
+          id: 's1',
+          kind: 'offering',
+          subjectCode: 'MAT01',
+          turma: '01',
+          // Stale embedded copy: the turma's sessions changed since it was planned.
+          sessions: [{ day: 'Ter', startTime: '10:00', endTime: '12:00' }],
+          failed: false,
+          audit: false,
+        },
+      ],
+    );
+    expect(result).toHaveLength(1);
   });
 
   it('keeps a different turma of an already-planned Subject (a Duplicate Subject, not excluded here)', () => {
@@ -479,6 +516,7 @@ describe('excludeAlreadyPlannedSections', () => {
           kind: 'offering',
           subjectCode: 'MAT01',
           turma: '01',
+          sessions: [],
           failed: false,
           audit: false,
         },

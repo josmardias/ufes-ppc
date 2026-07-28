@@ -11,6 +11,7 @@ import { evaluatePlan } from '../domain/evaluation.js';
 import {
   createPlannedSection,
   currentSemesterIndex,
+  semesterOrdinal,
 } from '../domain/semester.js';
 import {
   effectiveShiftFilter,
@@ -18,6 +19,7 @@ import {
   stillConflicted,
 } from '../domain/schedule.js';
 import SemesterList from '../components/planner/SemesterList.jsx';
+import CompletedEntryView from '../components/planner/CompletedEntryView.jsx';
 import WeeklyGrid from '../components/planner/WeeklyGrid.jsx';
 import NoScheduleStrip from '../components/planner/NoScheduleStrip.jsx';
 import SectionDetailDialog from '../components/planner/SectionDetailDialog.jsx';
@@ -25,9 +27,8 @@ import ResolveConflictDialog from '../components/planner/ResolveConflictDialog.j
 import AddSectionDialog from '../components/planner/AddSectionDialog.jsx';
 import AddSemesterDialog from '../components/planner/AddSemesterDialog.jsx';
 import AddOptionalDialog from '../components/planner/AddOptionalDialog.jsx';
-import EditProfileDialog from '../components/EditProfileDialog.jsx';
 import ConfirmDialog from '../components/ConfirmDialog.jsx';
-import { IconPencil, IconPlus, IconTrash } from '../components/icons.jsx';
+import { IconPlus, IconTrash } from '../components/icons.jsx';
 
 const BUTTON_FOCUS_CLASS =
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2';
@@ -62,6 +63,10 @@ export default function PlannerPage() {
       ? (currentSemesterIndex(profile) ?? evaluation.semesters.length - 1)
       : 0;
   const [selectedIndex, setSelectedIndex] = useState(defaultIndex);
+  // Whether the Completed (Concluídos) entry is the active view instead of
+  // a Planned Semester (UC-09 step 6) — independent of `selectedIndex`,
+  // which keeps remembering the last-viewed semester underneath.
+  const [viewingCompleted, setViewingCompleted] = useState(false);
   // The UC-25 anchor is a value snapshot taken at click time, not a
   // reference into the Section — the Section (and the clicked session's
   // originating window) may be pruned while the flow stays open.
@@ -71,7 +76,6 @@ export default function PlannerPage() {
   const [addSectionOpen, setAddSectionOpen] = useState(false);
   const [addOptionalOpen, setAddOptionalOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  const [editProfileOpen, setEditProfileOpen] = useState(false);
 
   const semesters = evaluation?.semesters ?? [];
   const clampedIndex = Math.min(
@@ -128,7 +132,7 @@ export default function PlannerPage() {
     } else if (entry?.source.kind === 'section') {
       const sourceSemester = semesters[entry.source.semesterIndex];
       redundantSource = {
-        label: `${entry.source.semesterIndex + 1}º período (${sourceSemester.year}/${sourceSemester.yearSemester})`,
+        label: `${semesterOrdinal(entry.source.semesterIndex, profile.completedSemesters)}º período (${sourceSemester.year}/${sourceSemester.yearSemester})`,
         kind: 'section',
         semesterIndex: entry.source.semesterIndex,
         sectionId: entry.source.sectionId,
@@ -142,7 +146,17 @@ export default function PlannerPage() {
     const newIndex = profile.semesters.length;
     addPlannedSemester(profile.id, sections);
     setAddSemesterOpen(false);
+    setViewingCompleted(false);
     setSelectedIndex(newIndex);
+  }
+
+  function handleSelectSemester(index) {
+    setViewingCompleted(false);
+    setSelectedIndex(index);
+  }
+
+  function handleSelectCompleted() {
+    setViewingCompleted(true);
   }
 
   function handleAddSection(sectionTemplate) {
@@ -237,57 +251,58 @@ export default function PlannerPage() {
         {ppc ? ` · ${ppc.name}` : ''}
       </p>
 
-      {semesters.length === 0 ? (
-        <div className="mt-8 flex flex-col items-center gap-3 rounded-lg border border-dashed border-slate-300 px-6 py-12 text-center">
-          <p className="font-medium text-slate-700">
-            Nenhum período planejado ainda
-          </p>
-          <p className="max-w-sm text-sm text-pretty text-slate-500">
-            Adicione o primeiro período para começar a montar seu cronograma.
-          </p>
-          <div className="flex flex-wrap justify-center gap-2">
-            <button
-              type="button"
-              onClick={() => setAddSemesterOpen(true)}
-              className={PRIMARY_BUTTON_CLASS}
-            >
-              <IconPlus className="size-4" />
-              Adicionar período
-            </button>
-            <button
-              type="button"
-              onClick={() => setEditProfileOpen(true)}
-              className={SECONDARY_BUTTON_CLASS}
-            >
-              <IconPencil className="size-4" />
-              Editar dados do perfil
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-[16rem_1fr]">
-          <aside>
-            <SemesterList
-              semesters={semesters}
-              selectedIndex={clampedIndex}
-              currentIndex={currentIndex}
-              onSelect={setSelectedIndex}
-            />
-            <button
-              type="button"
-              onClick={() => setAddSemesterOpen(true)}
-              className={`mt-3 w-full justify-center ${SECONDARY_BUTTON_CLASS}`}
-            >
-              <IconPlus className="size-4" />
-              Adicionar período
-            </button>
-          </aside>
+      <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-[16rem_1fr]">
+        <aside>
+          <SemesterList
+            semesters={semesters}
+            selectedIndex={clampedIndex}
+            currentIndex={currentIndex}
+            completedSemesters={profile.completedSemesters}
+            viewingCompleted={viewingCompleted}
+            onSelect={handleSelectSemester}
+            onSelectCompleted={handleSelectCompleted}
+          />
+          <button
+            type="button"
+            onClick={() => setAddSemesterOpen(true)}
+            className={`mt-3 w-full justify-center ${SECONDARY_BUTTON_CLASS}`}
+          >
+            <IconPlus className="size-4" />
+            Adicionar período
+          </button>
+        </aside>
 
+        {viewingCompleted ? (
+          <CompletedEntryView profile={profile} ppc={ppc} />
+        ) : semesters.length === 0 ? (
+          <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-slate-300 px-6 py-12 text-center">
+            <p className="font-medium text-slate-700">
+              Nenhum período planejado ainda
+            </p>
+            <p className="max-w-sm text-sm text-pretty text-slate-500">
+              Adicione o primeiro período para começar a montar seu cronograma.
+            </p>
+            <div className="flex flex-wrap justify-center gap-2">
+              <button
+                type="button"
+                onClick={() => setAddSemesterOpen(true)}
+                className={PRIMARY_BUTTON_CLASS}
+              >
+                <IconPlus className="size-4" />
+                Adicionar período
+              </button>
+            </div>
+            <p className="max-w-sm text-xs text-pretty text-slate-400">
+              Para corrigir dados do perfil (ingresso, turno, PPC ou período
+              concluído), exclua este perfil e crie um novo.
+            </p>
+          </div>
+        ) : (
           <section>
             <div className="flex flex-wrap items-center justify-between gap-4">
               <h2 className="text-lg font-semibold text-slate-900">
-                {clampedIndex + 1}º período · {semester.year}/
-                {semester.yearSemester}
+                {semesterOrdinal(clampedIndex, profile.completedSemesters)}º
+                período · {semester.year}/{semester.yearSemester}
               </h2>
               <div className="flex flex-wrap gap-2">
                 <button
@@ -338,8 +353,8 @@ export default function PlannerPage() {
               />
             </div>
           </section>
-        </div>
-      )}
+        )}
+      </div>
 
       <AddSemesterDialog
         open={addSemesterOpen}
@@ -366,7 +381,10 @@ export default function PlannerPage() {
           shiftFilter={effectiveShiftFilter(profile)}
           profileCourseId={profile.courseId}
           hiddenSubjects={profile.hiddenSubjects}
-          semesterNumber={profile.completedSemesters + clampedIndex + 1}
+          semesterNumber={semesterOrdinal(
+            clampedIndex,
+            profile.completedSemesters,
+          )}
           onShiftFilterChange={(value) => setShiftFilter(profile.id, value)}
           onConfirm={handleAddSection}
           onClose={() => setAddSectionOpen(false)}
@@ -384,23 +402,25 @@ export default function PlannerPage() {
           sameSemesterCodes={semester.sameSemesterCodes}
           currentSections={semester.sections}
           shiftFilter={effectiveShiftFilter(profile)}
-          semesterNumber={profile.completedSemesters + clampedIndex + 1}
+          semesterNumber={semesterOrdinal(
+            clampedIndex,
+            profile.completedSemesters,
+          )}
           onShiftFilterChange={(value) => setShiftFilter(profile.id, value)}
           onConfirm={handleAddOptional}
           onClose={() => setAddOptionalOpen(false)}
         />
       )}
 
-      <EditProfileDialog
-        open={editProfileOpen}
-        profile={profile}
-        onClose={() => setEditProfileOpen(false)}
-      />
-
       <SectionDetailDialog
         open={selection != null && selection.signalType == null}
         section={selectedSection}
         ppc={ppc}
+        offerings={
+          selectedSemester
+            ? getOfferings(ppc.id, selectedSemester.yearSemester)
+            : undefined
+        }
         redundantSource={redundantSource}
         onClose={closeSelection}
         onRemove={() =>

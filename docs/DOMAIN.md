@@ -28,11 +28,13 @@ Throughout this document, each concept is presented with its English name follow
 | Equivalence                                | Equivalência                      |
 | Planned Semester                           | Período                           |
 | Credit Entry                               | Aproveitamento                    |
+| Completed (pre-semester entry)             | Concluídos                        |
 | Failed Mark                                | Reprovação                        |
 | Schedule Conflict                          | Conflito de Horário               |
 | Unmet Requisite                            | Requisito não atendido            |
 | Duplicate Subject                          | Disciplina Duplicada              |
 | Redundant Enrollment                       | Matrícula Redundante              |
+| Offering Mismatch                          | Divergência da Oferta             |
 | Warning / Error (planning signal severity) | Aviso / Erro                      |
 | Custom Section                             | Turma Personalizada               |
 | Audit Mark (attend as listener)            | Ouvinte                           |
@@ -125,7 +127,7 @@ A Student (Aluno) is enrolled in a single course at UFES and follows one version
 
 A student may enroll in Sections from other courses if the Enrollment Scope of those Sections allows it.
 
-In this tool, the profile records the course, the curriculum version, and the ingress information as **separate facts**. The course and the PPC are chosen at profile creation — a cascading pick (course, then that course's PPC version), each field pre-filled when only one option exists — and can only be changed while the plan has no Planned Semesters; choosing the PPC also records the **course id** — the official UFES course code, identical across all PPC versions of the same course. The course id is what Section target courses are matched against (see Section): for Section-scope purposes, all PPC versions of a course are the same course. Because Credit Entries reference PPC Subjects, they must also be deleted before switching to a different PPC.
+In this tool, the profile records the course, the curriculum version, and the ingress information as **separate facts**. The course and the PPC are chosen at profile creation — a cascading pick (course, then that course's PPC version), each field pre-filled when only one option exists; choosing the PPC also records the **course id** — the official UFES course code, identical across all PPC versions of the same course. The course id is what Section target courses are matched against (see Section): for Section-scope purposes, all PPC versions of a course are the same course. Profile data — ingress information, shift, course/PPC, and the completed-semester count — is **immutable after creation**: to change it, the Student deletes the profile and creates a new one; only the profile's name can be changed at any time (see `USE_CASES.md`, UC-02, UC-05, UC-08). This keeps every derived fact — the seeded history, plan positions, Year Semester labels — anchored to a single act of creation.
 
 The profile also records the Student's **last completed semester** — an integer count provided at creation. It seeds the completed history as Credit Entries (the Required Subjects suggested up to that semester) and offsets where Planned Semesters start: the plan begins at the position right after the completed count. Completed history is credit-level by design — the tool simulates what lies ahead rather than managing past records (see `USE_CASES.md`, Purpose & Scope). Finally, the profile keeps the Student's **hidden** Optional Subjects (see Subject above).
 
@@ -177,7 +179,9 @@ A Planned Semester captures intended enrollment, not grades or academic outcomes
 
 Any Planned Semester can be **edited** at any time — Sections added or removed, Failed Marks and Audit Marks toggled — whether it lies in the past, present, or future of the student's real timeline. This is how the plan is kept aligned with reality: grades come in, a failure is recorded in the semester where it happened, and the semesters after it are replanned. Every edit re-evaluates the planning signals of that semester and of all later ones (see Unmet Requisite). Only the **last** Planned Semester can be deleted, because every semester is anchored to its position in the plan; deletion stops at the plan's starting position — the completed history below it is credit-level.
 
-Four derived **planning signals** can flag Sections in a Planned Semester: Schedule Conflict, Duplicate Subject, and Redundant Enrollment are **warnings (Avisos)**; Unmet Requisite is an **error (Erro)**. Severity reflects reach — a warning stays contained in its own semester (the fulfillment conferred to later semesters is unaffected), while an error means the flagged Section confers nothing forward, breaking whatever depended on it, however far down the plan. A signal always flags the Section as a whole, not an individual session of it. A Planned Semester's **status** summarizes its signals: **clean** (no signals), **warnings only**, or **errors** (at least one error, regardless of warnings). A flagged Planned Semester is still a meaningful planning artifact — a student may intentionally hold conflicting or blocked Sections while weighing their options. Nothing is ever forbidden or hidden; signals are information, not hard blocks.
+A Section added to a Planned Semester is persisted as a **self-contained copy** of its planning data: the weekly sessions and the target course, captured from the Offering snapshot at the moment it is added (the professor is never copied — it is looked up live while the snapshot still matches). The plan renders and evaluates schedules from these copies, so a dataset update can never silently rearrange a planned schedule; the snapshot is consulted only when listing candidate Sections and to detect Offering Mismatches (see below).
+
+Five derived **planning signals** can flag Sections in a Planned Semester: Schedule Conflict, Duplicate Subject, Redundant Enrollment, and Offering Mismatch are **warnings (Avisos)**; Unmet Requisite is an **error (Erro)**. Severity reflects reach — a warning stays contained in its own semester (the fulfillment conferred to later semesters is unaffected), while an error means the flagged Section confers nothing forward, breaking whatever depended on it, however far down the plan. A signal always flags the Section as a whole, not an individual session of it. A Planned Semester's **status** summarizes its signals: **clean** (no signals), **warnings only**, or **errors** (at least one error, regardless of warnings). A flagged Planned Semester is still a meaningful planning artifact — a student may intentionally hold conflicting or blocked Sections while weighing their options. Nothing is ever forbidden or hidden; signals are information, not hard blocks.
 
 ---
 
@@ -209,9 +213,11 @@ A Credit Entry (Aproveitamento) is the formal recognition that a Student has alr
 
 A Credit Entry belongs to the Student's profile and is **timeless**: the credited Subject counts as fulfilled from the very start of the timeline, for every Planned Semester. No information about when the credit was granted is recorded.
 
-The Subject must belong to the Student's Course Curriculum. No information about the external institution or the original Subject is recorded — the Student simply identifies which curriculum Subject was credited. Because Credit Entries reference PPC Subjects, they must be deleted before the profile can switch to a different PPC.
+The Subject must belong to the Student's Course Curriculum. No information about the external institution or the original Subject is recorded — the Student simply identifies which curriculum Subject was credited.
 
 In this tool, Credit Entries also represent the Student's **completed semesters**: profile creation seeds one for each Required Subject suggested up to the last completed semester, and the Student corrects that history at credit level (see `USE_CASES.md`, UC-02, UC-15, UC-16).
+
+In the planner, Credit Entries are surfaced as a single **Completed (Concluídos)** entry — a pre-semester listed above the Planned Semesters (see `USE_CASES.md`, UC-09). Like the entries it holds, it is timeless: one entry for the whole credited history, always present (even when empty), with no Year Semester label and no planning-signal status — Credit Entries are evaluation inputs, never signal carriers. It is where the Student reviews and manages the credited history (UC-15, UC-16) and its Audit Marks (UC-20, UC-21).
 
 A Credit Entry may carry an **Audit Mark** (see below).
 
@@ -238,6 +244,17 @@ A Duplicate Subject is a **warning** (see Planned Semester), derived and never s
 A student cannot enroll in a Subject they have already passed or been credited for — attending it again is only possible informally, as a listener (see Audit Mark). A Redundant Enrollment flags a Section whose Subject is already fulfilled at that point in the plan — by a non-failed Section in an earlier Planned Semester or by a Credit Entry — when that fulfillment does **not** carry an open Audit Mark. An open Audit Mark is precisely the state that legitimizes planning the Subject again, so it suppresses the flag.
 
 A Section rarely becomes redundant through the planning lists — fulfilled Subjects are excluded there — but it can become redundant after the fact: adding a Credit Entry for a Subject already planned ahead, removing the Failed Mark that had justified a re-take, or adding the Subject to an earlier Planned Semester. A Redundant Enrollment is a **warning** (see Planned Semester), derived and never stored, contained in its own semester. Its resolutions differ from a conflict's: remove the Section, or mark the fulfillment source for Audit to make the re-take legitimate.
+A Redundant Enrollment is a **warning** (see Planned Semester), derived and never stored, contained in its own semester. Its resolutions differ from a conflict's: remove the Section, or mark the fulfillment source for Audit to make the re-take legitimate.
+
+---
+
+### Offering Mismatch (Divergência da Oferta)
+
+Planned Sections are self-contained copies (see Planned Semester), while the Offerings dataset is a snapshot that dataset updates **replace** (see Offering). An Offering Mismatch flags a planned offering Section that no longer matches the current snapshot: no Section with the same Subject code and turma exists there, or one exists but with different weekly sessions. Either way, the plan holds a Section the current data no longer supports — dropped, renamed, or rescheduled since it was planned.
+
+An Offering Mismatch is a **warning** (see Planned Semester), derived and never stored, contained in its own semester: the Section keeps its planned place on the schedule (rendering uses the embedded copy) and keeps conferring fulfillment forward. The match compares Subject code, turma, and weekly sessions — never the professor, which is not part of the copy. Custom Sections are never flagged — they do not come from Offerings.
+
+The flag is informational only — the system offers no dedicated resolution flow. The Student may keep the Section as planned, or remove it and, if desired, re-add the Subject from the planning listings, which always reflect the current snapshot.
 
 ---
 
@@ -252,7 +269,7 @@ Like a regular Section, a Custom Section has weekly sessions (day of the week, s
 
 Adding a Custom Section to a Planned Semester creates an **independent copy** inside that semester. Later edits to — or deletion of — the catalog entry never affect copies already applied; the Student manages those within the semesters themselves. Applied copies participate in Schedule Conflict detection like any other Section.
 
-A catalog entry whose Subject link does not resolve in the current PPC (after a PPC switch) is **stale**: it is kept, visually de-emphasized, and behaves as unlinked until edited, deleted, or the original PPC is selected again.
+A catalog entry whose Subject link does not resolve in the current PPC dataset (possible after a dataset update changes the PPC's subject codes) is **stale**: it is kept, visually de-emphasized, and behaves as unlinked until edited or deleted — or until a later dataset update makes the link resolve again.
 
 ---
 

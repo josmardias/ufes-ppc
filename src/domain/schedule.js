@@ -140,10 +140,13 @@ export function effectiveShiftFilter(profile) {
 }
 
 /**
- * The raw Offerings-dataset Section a Planned Section resolves to (see
- * docs/ARCHITECTURE.md, Offerings dataset), looked up by subject code (as
- * offered — possibly an equivalent) and turma. Custom Sections have no
- * Offerings-dataset counterpart, so this returns null for them.
+ * The raw Offerings-dataset Section a Planned Section's (subject code, as
+ * offered — possibly an equivalent, and turma) currently resolves to (see
+ * docs/ARCHITECTURE.md, Offerings dataset). Used only to compare against
+ * the embedded planning copy (Offering Mismatch) and for display
+ * enrichment (e.g. the professor, looked up live — never persisted). Custom
+ * Sections have no Offerings-dataset counterpart, so this returns null for
+ * them.
  * @param {import('./types.js').PlannedSection} section
  * @param {{subjects: Array}|undefined} offerings
  */
@@ -156,17 +159,47 @@ export function plannedSectionOffering(section, offerings) {
 }
 
 /**
- * The weekly sessions of a Planned Section, resolved against the Offerings
- * snapshot for its semester's Year Semester. Custom Sections carry their own
- * embedded sessions; offering Sections are looked up by subject code (as
- * offered — possibly an equivalent) and turma.
+ * Whether two Session lists are exactly equal — order-sensitive strict
+ * equality (see docs/DOMAIN.md, Offering Mismatch), the comparison the
+ * mismatch check and the UC-12 "as-is" exclusion rely on for offering
+ * Sections.
+ * @param {import('./types.js').Session[]} a
+ * @param {import('./types.js').Session[]} b
+ */
+export function sessionsEqual(a, b) {
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
+/**
+ * The weekly sessions of a Planned Section, read from its embedded planning
+ * copy exclusively (see docs/DOMAIN.md, Planned Semester): a Custom Section
+ * carries its own embedded sessions, and an offering Section carries the
+ * copy captured when it was added (`createPlannedSection`) — never resolved
+ * live against the Offerings snapshot, so a dataset update can never shift a
+ * planned schedule.
  * @param {import('./types.js').PlannedSection} section
- * @param {{subjects: Array}|undefined} offerings
  * @returns {import('./types.js').Session[]}
  */
-export function plannedSectionSessions(section, offerings) {
+export function plannedSectionSessions(section) {
   if (section.kind === 'custom') return section.custom.sessions;
-  return plannedSectionOffering(section, offerings)?.sessions ?? [];
+  return section.sessions ?? [];
+}
+
+/**
+ * Whether a planned offering Section's embedded copy no longer matches the
+ * current Offerings snapshot — the Offering Mismatch signal (see
+ * docs/DOMAIN.md): no Section with the same subject code (as offered) and
+ * turma exists there, or one exists but with different weekly sessions.
+ * Custom Sections are never flagged — they do not come from Offerings.
+ * @param {import('./types.js').PlannedSection} section
+ * @param {{subjects: Array}|undefined} offerings
+ */
+export function plannedSectionOfferingMismatch(section, offerings) {
+  if (section.kind !== 'offering') return false;
+  const current = plannedSectionOffering(section, offerings);
+  return (
+    current == null || !sessionsEqual(current.sessions, section.sessions ?? [])
+  );
 }
 
 /** Converts an "HH:MM" time string to minutes since midnight. */

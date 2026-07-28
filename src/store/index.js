@@ -14,12 +14,15 @@ import {
 } from '../storage/profileFile.js';
 import { getPpc } from '../data/index.js';
 import {
+  addCreditEntryRecord,
   cloneProfileRecord,
   createProfileRecord,
   hideSubjectRecord,
+  removeCreditEntryRecord,
   renameProfileRecord,
   restoreSubjectRecord,
-  updateProfileDataRecord,
+  toggleCreditEntryAudit as toggleCreditEntryAuditDomain,
+  validateCreditEntry,
   validateProfileName,
 } from '../domain/profile.js';
 import {
@@ -182,37 +185,6 @@ export const useStore = create((set, get) => ({
     return { ok: true, profile: imported };
   },
 
-  /**
-   * Updates the profile's ingress information, shift, Course Curriculum
-   * (PPC), and completed-semester count (UC-24). Only allowed while the
-   * profile has no Planned Semesters; switching to a different PPC
-   * additionally requires no Credit Entries (see docs/DOMAIN.md, Student).
-   * Also (re-)derives the profile's `courseId` from the chosen PPC (see
-   * docs/ARCHITECTURE.md, `ProfileRecord`). Never touches `creditEntries`.
-   * @param {string} id
-   * @param {{ ingressYear: number, ingressYearSemester: 1|2,
-   *   shift: "day"|"morning"|"afternoon", ppcId: string, completedSemesters: number }} input
-   * @returns {{ ok: true, profile: import('../domain/types.js').ProfileRecord }
-   *   |{ ok: false, error: 'not-found'|'has-semesters'|'has-credit-entries'|'unknown-ppc' }}
-   */
-  updateProfileData(id, input) {
-    const { profiles } = get();
-    const profile = profiles.find((p) => p.id === id);
-    if (!profile) return { ok: false, error: 'not-found' };
-    if (profile.semesters.length > 0)
-      return { ok: false, error: 'has-semesters' };
-    if (profile.ppcId !== input.ppcId && profile.creditEntries.length > 0)
-      return { ok: false, error: 'has-credit-entries' };
-
-    const ppc = getPpc(input.ppcId);
-    if (!ppc) return { ok: false, error: 'unknown-ppc' };
-
-    const updated = updateProfile(get, set, id, (p) =>
-      updateProfileDataRecord(p, { ...input, ppc }),
-    );
-    return { ok: true, profile: updated };
-  },
-
   /** Marks an Optional Subject as hidden (UC-28); idempotent. */
   hideSubject(id, subjectCode) {
     updateProfile(get, set, id, (profile) =>
@@ -273,6 +245,40 @@ export const useStore = create((set, get) => ({
   toggleAuditMark(id, semesterIndex, sectionId) {
     updateProfile(get, set, id, (profile) =>
       toggleSectionMark(profile, semesterIndex, sectionId, 'audit'),
+    );
+  },
+
+  /**
+   * Adds a Credit Entry for a Subject to the Completed (Concluídos) entry
+   * (UC-15).
+   * @returns {{ ok: true }|{ ok: false, error: 'not-found'|'unknown-subject'|'duplicate' }}
+   */
+  addCreditEntry(id, subjectCode) {
+    const { profiles } = get();
+    const profile = profiles.find((p) => p.id === id);
+    if (!profile) return { ok: false, error: 'not-found' };
+
+    const ppc = getPpc(profile.ppcId);
+    const error = validateCreditEntry(profile, ppc, subjectCode);
+    if (error) return { ok: false, error };
+
+    updateProfile(get, set, id, (profile) =>
+      addCreditEntryRecord(profile, subjectCode),
+    );
+    return { ok: true };
+  },
+
+  /** Removes a Credit Entry by Subject code (UC-16). */
+  removeCreditEntry(id, subjectCode) {
+    updateProfile(get, set, id, (profile) =>
+      removeCreditEntryRecord(profile, subjectCode),
+    );
+  },
+
+  /** Toggles the Audit Mark on a Credit Entry (UC-20/21). */
+  toggleCreditEntryAudit(id, subjectCode) {
+    updateProfile(get, set, id, (profile) =>
+      toggleCreditEntryAuditDomain(profile, subjectCode),
     );
   },
 }));

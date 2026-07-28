@@ -1,9 +1,8 @@
-// Drives the course → PPC cascading pick shared by profile creation (UC-02)
-// and profile data editing (UC-24, see docs/USE_CASES.md): each field
-// pre-fills when only one option exists; with several options it starts
-// empty and requires an explicit choice. Choosing a course resets the PPC
-// pick (auto-filling it too when the chosen course has a single PPC
-// version).
+// Drives the course → PPC cascading pick for profile creation (UC-02, see
+// docs/USE_CASES.md): each field pre-fills when only one option exists;
+// with several options it starts empty and requires an explicit choice.
+// Choosing a course resets the PPC pick (auto-filling it too when the
+// chosen course has a single PPC version).
 
 import { useState } from 'react';
 import { ppcs } from '../data/index.js';

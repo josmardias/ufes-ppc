@@ -8,6 +8,7 @@ import {
   elapsedSemesters,
   formatYearSemesterLabel,
   removeSectionFromSemester,
+  semesterOrdinal,
   semesterPosition,
   toggleSectionMark,
 } from './semester.js';
@@ -64,6 +65,18 @@ describe('semesterPosition', () => {
       yearSemester: 2,
     });
     expect(semesterPosition(2024, 1, 1, 3)).toEqual(semesterPosition(2024, 1, 4));
+  });
+});
+
+describe('semesterOrdinal', () => {
+  it('is index + 1 when no semesters are completed', () => {
+    expect(semesterOrdinal(0)).toBe(1);
+    expect(semesterOrdinal(2)).toBe(3);
+  });
+
+  it('offsets by completedSemesters (the first Planned Semester displays completedSemesters + 1)', () => {
+    expect(semesterOrdinal(0, 3)).toBe(4);
+    expect(semesterOrdinal(1, 3)).toBe(5);
   });
 });
 
@@ -152,11 +165,54 @@ describe('createPlannedSection', () => {
       kind: 'offering',
       subjectCode: 'ELE01',
       turma: '01',
+      sessions: [],
     });
     expect(section.id).toBeTypeOf('string');
     expect(section.failed).toBe(false);
     expect(section.audit).toBe(false);
     expect(section.subjectCode).toBe('ELE01');
+  });
+
+  it('embeds the candidate\'s sessions and target course on an offering Section, never the professor', () => {
+    const section = createPlannedSection({
+      kind: 'offering',
+      subjectCode: 'ELE01',
+      turma: '01',
+      shift: 'morning',
+      targetCourseId: '12',
+      targetCourseName: 'Engenharia Elétrica',
+      professor: 'Fulano',
+      sessions: [{ day: 'Seg', startTime: '08:00', endTime: '10:00' }],
+    });
+    expect(section.sessions).toEqual([
+      { day: 'Seg', startTime: '08:00', endTime: '10:00' },
+    ]);
+    expect(section.targetCourseId).toBe('12');
+    expect(section.targetCourseName).toBe('Engenharia Elétrica');
+    expect(section.professor).toBeUndefined();
+  });
+
+  it('defaults an offering Section\'s target course to null when the candidate has none', () => {
+    const section = createPlannedSection({
+      kind: 'offering',
+      subjectCode: 'ELE01',
+      turma: '01',
+      sessions: [],
+    });
+    expect(section.targetCourseId).toBeNull();
+    expect(section.targetCourseName).toBeNull();
+  });
+
+  it('embeds the custom copy on a Custom Section, without a top-level sessions field', () => {
+    const custom = { name: 'Estágio', sessions: [] };
+    const section = createPlannedSection({
+      kind: 'custom',
+      subjectCode: null,
+      sourceCustomId: 'c1',
+      custom,
+    });
+    expect(section.custom).toEqual(custom);
+    expect(section.sessions).toBeUndefined();
   });
 });
 

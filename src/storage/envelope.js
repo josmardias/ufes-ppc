@@ -2,12 +2,13 @@
 // "src/storage" and "Persistence"). This is the only module allowed to call
 // `localStorage`; it is called only by src/store.
 
-import { getPpc } from '../data/index.js';
+import { getOfferings, getPpc } from '../data/index.js';
+import { semesterPosition } from '../domain/semester.js';
 
 export const STORAGE_KEY = 'ufes-ppc:envelope';
 
 /** Bumped on breaking shape changes; see the `migrations` map below. */
-export const CURRENT_SCHEMA_VERSION = 3;
+export const CURRENT_SCHEMA_VERSION = 4;
 
 /** @returns {import('../domain/types.js').Envelope} */
 export function defaultEnvelope() {
@@ -65,10 +66,66 @@ function migrateV2toV3(envelope) {
 }
 
 /**
+ * Backfills the embedded planning copy (`sessions`, `targetCourseId`/
+ * `targetCourseName` — see docs/ARCHITECTURE.md, `ProfileRecord`) onto
+ * planned offering Sections created before copies existed. A Section is
+ * left untouched if it already carries a copy (`sessions != null`).
+ *
+ * This is the **one documented exception** to the migration-determinism
+ * rule (see docs/ARCHITECTURE.md, Migrations): it reads the CURRENT
+ * Offerings snapshot, deliberately — accepted because the user base at the
+ * time was small and directly reachable. A Section that does not resolve
+ * gets an empty copy (no sessions, no target course) and simply surfaces as
+ * an Offering Mismatch (see docs/DOMAIN.md), which is the truth.
+ */
+function migrateV3toV4(envelope) {
+  return {
+    ...envelope,
+    schemaVersion: 4,
+    profiles: envelope.profiles.map((profile) => ({
+      ...profile,
+      semesters: profile.semesters.map((semester, index) => {
+        const { yearSemester } = semesterPosition(
+          profile.ingressYear,
+          profile.ingressYearSemester,
+          index,
+          profile.completedSemesters,
+        );
+        const offerings = getOfferings(profile.ppcId, yearSemester);
+        return {
+          ...semester,
+          sections: semester.sections.map((section) => {
+            if (section.kind !== 'offering' || section.sessions != null) {
+              return section;
+            }
+            const subject = offerings?.subjects.find(
+              (s) => s.code === section.subjectCode,
+            );
+            const match = subject?.sections.find(
+              (sec) => sec.turma === section.turma,
+            );
+            return {
+              ...section,
+              sessions: match?.sessions ?? [],
+              targetCourseId: match?.targetCourseId ?? null,
+              targetCourseName: match?.targetCourseName ?? null,
+            };
+          }),
+        };
+      }),
+    })),
+  };
+}
+
+/**
  * Sequential migration functions, keyed by the schema version they migrate
  * FROM (e.g. `1: migrateV1toV2`).
  */
-const migrations = { 1: migrateV1toV2, 2: migrateV2toV3 };
+const migrations = {
+  1: migrateV1toV2,
+  2: migrateV2toV3,
+  3: migrateV3toV4,
+};
 
 /**
  * Applies sequential migrations to bring an envelope-shaped object up to

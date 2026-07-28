@@ -52,12 +52,14 @@ const ppc = {
   ],
 };
 
-function section(subjectCode, turma, sessions = []) {
+function section(subjectCode, turma, sessions = [], target = {}) {
   return {
     kind: 'offering',
     subjectCode,
     turma,
     sessions,
+    targetCourseId: target.targetCourseId ?? null,
+    targetCourseName: target.targetCourseName ?? null,
     failed: false,
     audit: false,
     id: `${subjectCode}-${turma}`,
@@ -194,40 +196,27 @@ describe('evaluatePlan', () => {
   });
 
   it('flags a Schedule Conflict for overlapping sessions in the same semester', () => {
-    const offerings = {
-      subjects: [
-        {
-          code: 'MAT01',
-          sections: [
-            {
-              turma: '01',
-              sessions: [{ day: 'Seg', startTime: '08:00', endTime: '10:00' }],
-            },
-          ],
-        },
-        {
-          code: 'ELE02',
-          sections: [
-            {
-              turma: '01',
-              sessions: [{ day: 'Seg', startTime: '09:00', endTime: '11:00' }],
-            },
-          ],
-        },
-      ],
-    };
     const profile = baseProfile({
       semesters: [
-        { sections: [section('MAT01', '01'), section('ELE02', '01')] },
+        {
+          sections: [
+            section('MAT01', '01', [
+              { day: 'Seg', startTime: '08:00', endTime: '10:00' },
+            ]),
+            section('ELE02', '01', [
+              { day: 'Seg', startTime: '09:00', endTime: '11:00' },
+            ]),
+          ],
+        },
       ],
     });
-    const result = evaluatePlan(profile, ppc, { 1: offerings });
+    const result = evaluatePlan(profile, ppc, {});
     expect(
       result.semesters[0].sections.every((s) => s.signals.scheduleConflict),
     ).toBe(true);
   });
 
-  it("resolves an offering Section's target course from the Offerings snapshot", () => {
+  it("uses the Section's embedded target course, never a live Offerings lookup", () => {
     const offerings = {
       subjects: [
         {
@@ -235,8 +224,8 @@ describe('evaluatePlan', () => {
           sections: [
             {
               turma: '01',
-              targetCourseId: '11',
-              targetCourseName: 'Engenharia Mecânica',
+              targetCourseId: '99',
+              targetCourseName: 'Curso diferente do planejado',
               sessions: [],
             },
           ],
@@ -244,7 +233,16 @@ describe('evaluatePlan', () => {
       ],
     };
     const profile = baseProfile({
-      semesters: [{ sections: [section('MAT01', '01')] }],
+      semesters: [
+        {
+          sections: [
+            section('MAT01', '01', [], {
+              targetCourseId: '11',
+              targetCourseName: 'Engenharia Mecânica',
+            }),
+          ],
+        },
+      ],
     });
     const result = evaluatePlan(profile, ppc, { 1: offerings });
     expect(result.semesters[0].sections[0].targetCourseId).toBe('11');
@@ -325,10 +323,94 @@ describe('evaluatePlan', () => {
   });
 
   it('computes a clean status when there are no signals', () => {
+    const offerings = {
+      subjects: [{ code: 'MAT01', sections: [{ turma: '01', sessions: [] }] }],
+    };
     const profile = baseProfile({
       semesters: [{ sections: [section('MAT01', '01')] }],
     });
-    const result = evaluatePlan(profile, ppc, {});
+    const result = evaluatePlan(profile, ppc, { 1: offerings });
     expect(result.semesters[0].status).toBe('clean');
+  });
+});
+
+describe('evaluatePlan — offeringMismatch (see docs/DOMAIN.md, Offering Mismatch)', () => {
+  it('flags a mismatch when no Section with the same subject code and turma exists in the current snapshot', () => {
+    const profile = baseProfile({
+      semesters: [{ sections: [section('MAT01', '01')] }],
+    });
+    const result = evaluatePlan(profile, ppc, { 1: { subjects: [] } });
+    expect(result.semesters[0].sections[0].signals.offeringMismatch).toBe(
+      true,
+    );
+    expect(result.semesters[0].status).toBe('warnings');
+  });
+
+  it('flags a mismatch when the current snapshot has a different session for the same subject code and turma', () => {
+    const offerings = {
+      subjects: [
+        {
+          code: 'MAT01',
+          sections: [
+            {
+              turma: '01',
+              sessions: [{ day: 'Ter', startTime: '10:00', endTime: '12:00' }],
+            },
+          ],
+        },
+      ],
+    };
+    const profile = baseProfile({
+      semesters: [
+        {
+          sections: [
+            section('MAT01', '01', [
+              { day: 'Seg', startTime: '08:00', endTime: '10:00' },
+            ]),
+          ],
+        },
+      ],
+    });
+    const result = evaluatePlan(profile, ppc, { 1: offerings });
+    expect(result.semesters[0].sections[0].signals.offeringMismatch).toBe(
+      true,
+    );
+  });
+
+  it('does not flag a Custom Section', () => {
+    const profile = baseProfile({
+      semesters: [
+        {
+          sections: [
+            {
+              kind: 'custom',
+              subjectCode: null,
+              custom: { name: 'Estágio', sessions: [] },
+              failed: false,
+              audit: false,
+              id: 'c1',
+            },
+          ],
+        },
+      ],
+    });
+    const result = evaluatePlan(profile, ppc, { 1: { subjects: [] } });
+    expect(result.semesters[0].sections[0].signals.offeringMismatch).toBe(
+      false,
+    );
+  });
+
+  it('still confers fulfillment forward despite the mismatch (a warning, contained in its own semester)', () => {
+    const profile = baseProfile({
+      semesters: [
+        { sections: [section('MAT01', '01')] },
+        { sections: [section('MAT02', '01')] },
+      ],
+    });
+    const result = evaluatePlan(profile, ppc, { 1: { subjects: [] } });
+    expect(result.semesters[0].sections[0].signals.offeringMismatch).toBe(
+      true,
+    );
+    expect(result.semesters[1].sections[0].signals.unmetRequisite).toBe(false);
   });
 });

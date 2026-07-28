@@ -185,3 +185,138 @@ describe('migrateV2toV3 (backfills ppcId/courseId, adds completedSemesters/hidde
     expect(envelope.profiles[0].hiddenSubjects).toEqual([]);
   });
 });
+
+describe('migrateV3toV4 (backfills the embedded planning copy on offering Sections)', () => {
+  function profileAtV3(sections) {
+    return {
+      id: 'p1',
+      ppcId: 'engenharia-eletrica-2022',
+      courseId: '06',
+      ingressYear: 2024,
+      ingressYearSemester: 1,
+      completedSemesters: 0,
+      semesters: [{ sections }],
+    };
+  }
+
+  it('backfills sessions and target course from the current Offerings snapshot when the Section still resolves', () => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        schemaVersion: 3,
+        activeProfileId: null,
+        profiles: [
+          profileAtV3([
+            {
+              id: 's1',
+              kind: 'offering',
+              subjectCode: 'ELE08552',
+              turma: '06.1',
+              failed: false,
+              audit: false,
+            },
+          ]),
+        ],
+      }),
+    );
+
+    const envelope = loadEnvelope();
+
+    expect(envelope.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+    const migrated = envelope.profiles[0].semesters[0].sections[0];
+    expect(migrated.sessions).toEqual([
+      { day: 'Ter', startTime: '09:00', endTime: '11:00' },
+    ]);
+    expect(migrated.targetCourseId).toBe('06');
+    expect(migrated.targetCourseName).toBe('Engenharia Elétrica');
+  });
+
+  it('backfills an empty copy when the Section no longer resolves in the current snapshot', () => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        schemaVersion: 3,
+        activeProfileId: null,
+        profiles: [
+          profileAtV3([
+            {
+              id: 's1',
+              kind: 'offering',
+              subjectCode: 'DOES-NOT-EXIST',
+              turma: '01',
+              failed: false,
+              audit: false,
+            },
+          ]),
+        ],
+      }),
+    );
+
+    const envelope = loadEnvelope();
+
+    const migrated = envelope.profiles[0].semesters[0].sections[0];
+    expect(migrated.sessions).toEqual([]);
+    expect(migrated.targetCourseId).toBeNull();
+    expect(migrated.targetCourseName).toBeNull();
+  });
+
+  it('leaves a Custom Section untouched', () => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        schemaVersion: 3,
+        activeProfileId: null,
+        profiles: [
+          profileAtV3([
+            {
+              id: 's1',
+              kind: 'custom',
+              subjectCode: null,
+              custom: { name: 'Estágio', sessions: [] },
+              failed: false,
+              audit: false,
+            },
+          ]),
+        ],
+      }),
+    );
+
+    const envelope = loadEnvelope();
+
+    const migrated = envelope.profiles[0].semesters[0].sections[0];
+    expect(migrated).toEqual({
+      id: 's1',
+      kind: 'custom',
+      subjectCode: null,
+      custom: { name: 'Estágio', sessions: [] },
+      failed: false,
+      audit: false,
+    });
+  });
+
+  it('leaves an already-migrated Section untouched', () => {
+    const already = {
+      id: 's1',
+      kind: 'offering',
+      subjectCode: 'ELE08552',
+      turma: '06.1',
+      sessions: [],
+      targetCourseId: null,
+      targetCourseName: null,
+      failed: false,
+      audit: false,
+    };
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        schemaVersion: 3,
+        activeProfileId: null,
+        profiles: [profileAtV3([already])],
+      }),
+    );
+
+    const envelope = loadEnvelope();
+
+    expect(envelope.profiles[0].semesters[0].sections[0]).toEqual(already);
+  });
+});

@@ -68,19 +68,19 @@ university: "University side — static reference data" {
 student: "Student side — what this tool manages" {
   profile: "Student (Aluno)" {
     shape: sql_table
-    ppc_id: "chosen at profile creation (course → PPC,\npre-filled when single option);\neditable only with zero semesters —\nswitching also requires zero Credit Entries"
+    ppc_id: "chosen at profile creation (course → PPC,\npre-filled when single option);\nimmutable after creation — delete the\nprofile and create a new one to change"
     ingress: "year + Year Semester (1st/2nd)"
     completed_semesters: "last completed semester — history seeded\nas Credit Entries; the plan starts right after"
     shift: "day | morning | afternoon —\ndefault Section-list filter"
     shift_filter: "persisted toggle override\n(morning | afternoon | whole day);\ncleared when last semester is deleted"
-    hidden_subjects: "Optional Subjects marked 'not interested' —\nexcluded from planning listings only;\ninert when unresolved after a PPC switch"
+    hidden_subjects: "Optional Subjects marked 'not interested' —\nexcluded from planning listings only;\ninert when unresolved (dataset update)"
   }
 
   planned_semester: "Planned Semester (Período)" {
     shape: sql_table
     position: "ordered — starts right after the\nprofile's completed-semester count"
     label: "derived: position + ingress → e.g. 2024/1"
-    contents: "intended Sections + applied Custom Section\ncopies — deleted with the semester"
+    contents: "intended Sections (self-contained copies:\nsessions + target course, no professor) +\napplied Custom Section copies —\ndeleted with the semester"
     status: "clean | warnings only | errors — derived from\nplanning signals; flagged semesters may be\nheld while the student decides"
     editing: "any semester editable (add, remove, mark\nfailed/audit) — edits cascade forward;\nonly the last is deletable"
   }
@@ -105,7 +105,7 @@ student: "Student side — what this tool manages" {
     shape: sql_table
     storage: "catalog on the profile"
     purpose: "stand-in for missing Offering data,\nor non-academic commitment (lab, job…)"
-    subject_link: "optional — linked ⇒ behaves like a\nregular Section; stale after PPC switch\n(kept, de-emphasized, acts unlinked)"
+    subject_link: "optional — linked ⇒ behaves like a\nregular Section; stale when unresolved\n(kept, de-emphasized, acts unlinked)"
     applicability: "Year Semester 1 | 2 | both"
     apply: "adding to a semester creates an independent\ncopy — catalog edits never touch copies"
     sessions: "weekly (day + start/end)"
@@ -116,7 +116,7 @@ student: "Student side — what this tool manages" {
     subject: "must belong to student's PPC"
     effect: "timeless — fulfilled from the very start,\nfor every Planned Semester"
     seeding: "profile creation seeds the completed\nsemesters' suggested path as credits"
-    lifecycle: "must be deleted before switching PPC"
+    surface: "managed in the 'Completed (Concluídos)'\npre-semester entry of the planner"
   }
 
   audit_mark: "Audit Mark (Ouvinte)" {
@@ -148,6 +148,13 @@ student: "Student side — what this tool manages" {
     fix: "remove the Section, or audit-mark\nthe fulfillment source"
   }
 
+  offering_mismatch: "Offering Mismatch (Divergência da Oferta)" {
+    shape: sql_table
+    severity: "warning — contained in its semester"
+    definition: "planned offering Section with no equal match\n(code + turma + sessions) in the current\nsnapshot — dropped, renamed, or rescheduled"
+    policy: "informational only — Section keeps its\nplanned place (embedded copy); keep or\nremove, no dedicated resolution"
+  }
+
   profile -> planned_semester: "ordered sequence of"
   profile -> credit_entry: has
   profile -> custom_section: "catalog of"
@@ -155,6 +162,7 @@ student: "Student side — what this tool manages" {
   planned_semester -> conflict: "may contain"
   planned_semester -> duplicate_subject: "may contain"
   planned_semester -> redundant_enrollment: "may contain"
+  planned_semester -> offering_mismatch: "may contain"
   planned_semester -> failed_mark: "Sections may carry"
   planned_semester -> unmet_requisite: "recomputed on every change"
   failed_mark -> unmet_requisite: "triggers, cascading recursively" {style.stroke-dash: 3}
@@ -174,7 +182,7 @@ rules: "Requisite evaluation for semester N (position-based, not calendar-based)
 }
 
 student.profile -> university.ppc: "follows one (by PPC id)"
-student.planned_semester -> university.section: "holds intended"
+student.planned_semester -> university.section: "holds self-contained copies of"
 student.credit_entry -> university.subject: credits
 student.custom_section -> university.subject: "optionally linked to" {style.stroke-dash: 3}
 student.planned_semester -> rules: "eligibility checked by" {style.stroke-dash: 3}

@@ -3,8 +3,8 @@
 // semester, grouped by Subject in two tiers, with nothing pre-selected — the
 // user builds the selection from scratch, with live Duplicate Subject /
 // Schedule Conflict indicators, before confirming. The Course Curriculum
-// (PPC) is fixed at profile creation (UC-02) / editing (UC-24) and is never
-// chosen here.
+// (PPC) is fixed at profile creation (UC-02) and immutable after — it is
+// never chosen here.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { getOfferings, getPpc } from '../../data/index.js';
@@ -20,6 +20,7 @@ import {
 import {
   createPlannedSection,
   formatYearSemesterLabel,
+  semesterOrdinal,
   semesterPosition,
 } from '../../domain/semester.js';
 import { SHIFT_FILTER_OPTIONS } from '../../domain/format.js';
@@ -76,7 +77,7 @@ export default function AddSemesterDialog({
 
   const ppc = getPpc(profile.ppcId);
   const newIndex = profile.semesters.length;
-  const semesterNumber = profile.completedSemesters + newIndex + 1;
+  const semesterNumber = semesterOrdinal(newIndex, profile.completedSemesters);
   // Memoized so its object identity stays stable across renders (unlike a
   // plain call to semesterPosition, which returns a fresh object every
   // time) — it's a dependency of the `candidates` memo below.

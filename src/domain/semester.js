@@ -31,11 +31,25 @@ export function semesterPosition(
 }
 
 /**
+ * The absolute program position ("Nº período") of the Planned Semester at
+ * `index` (0-based, relative to the plan's own start) — the ordinal to
+ * display, e.g. "Nº período". Offset by `completedSemesters` for the same
+ * reason as `semesterPosition`: the first Planned Semester takes the
+ * position right after the completed-semester count, not position 1 (see
+ * docs/DOMAIN.md, Planned Semester; docs/USE_CASES.md UC-11 step 3).
+ * @param {number} index
+ * @param {number} [completedSemesters]
+ */
+export function semesterOrdinal(index, completedSemesters = 0) {
+  return completedSemesters + index + 1;
+}
+
+/**
  * The number of semesters fully elapsed between the Student's ingress
  * information and `today` (see docs/USE_CASES.md, UC-02): the derived
  * default and cap for the "last completed semester" input at profile
- * creation and editing (UC-24). Never negative — a Student cannot have
- * completed semesters before their own ingress.
+ * creation. Never negative — a Student cannot have completed semesters
+ * before their own ingress.
  * @param {number} ingressYear
  * @param {1|2} ingressYearSemester
  * @param {Date} [today]
@@ -72,12 +86,23 @@ export function currentSemesterIndex(profile, today = new Date()) {
 /**
  * Builds a persisted PlannedSection from a candidate section template (see
  * domain/eligibility.js) — keeps only the fields that belong in the
- * persisted shape (see docs/ARCHITECTURE.md, Persistence): an `offering`
- * Section is a reference (subject code + turma), while a `custom` Section
- * embeds an independent copy.
+ * persisted shape (see docs/ARCHITECTURE.md, Persistence, `ProfileRecord`).
+ * An `offering` Section carries the subject code it was offered under, the
+ * `turma`, and an embedded planning copy captured from the candidate at this
+ * moment — `sessions` and `targetCourseId`/`targetCourseName`, never the
+ * professor (see docs/DOMAIN.md, Planned Semester). A `custom` Section
+ * embeds an independent copy of its own.
  */
 export function createPlannedSection(candidateSection) {
-  const { kind, subjectCode, turma, custom } = candidateSection;
+  const {
+    kind,
+    subjectCode,
+    turma,
+    custom,
+    sessions,
+    targetCourseId,
+    targetCourseName,
+  } = candidateSection;
   const base = {
     id: crypto.randomUUID(),
     kind,
@@ -85,7 +110,15 @@ export function createPlannedSection(candidateSection) {
     failed: false,
     audit: false,
   };
-  return kind === 'custom' ? { ...base, custom } : { ...base, turma };
+  return kind === 'custom'
+    ? { ...base, custom }
+    : {
+        ...base,
+        turma,
+        sessions,
+        targetCourseId: targetCourseId ?? null,
+        targetCourseName: targetCourseName ?? null,
+      };
 }
 
 /** Appends a new Planned Semester containing exactly `sections` (UC-11). */

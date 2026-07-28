@@ -7,7 +7,7 @@
 
 import { resolveSubjectByCode, totalFulfilledWorkload } from './subjects.js';
 import {
-  plannedSectionOffering,
+  plannedSectionOfferingMismatch,
   plannedSectionSessions,
   sectionsOverlap,
 } from './schedule.js';
@@ -23,9 +23,9 @@ import { semesterPosition } from './semester.js';
  * @typedef {Object} EvaluatedSection
  * @property {string|null} resolvedSubjectCode - the canonical PPC Subject code, or null if unresolved
  * @property {import('./types.js').Session[]} sessions
- * @property {string|null} targetCourseId - the Section's target course (see docs/DOMAIN.md, Section); null for a Custom Section or an unresolved offering Section
+ * @property {string|null} targetCourseId - the Section's target course, from its embedded planning copy (see docs/DOMAIN.md, Planned Semester); null for a Custom Section
  * @property {string|null} targetCourseName
- * @property {{unmetRequisite: boolean, scheduleConflict: boolean, duplicateSubject: boolean, redundantEnrollment: boolean}} signals
+ * @property {{unmetRequisite: boolean, scheduleConflict: boolean, duplicateSubject: boolean, redundantEnrollment: boolean, offeringMismatch: boolean}} signals
  */
 
 /**
@@ -46,7 +46,8 @@ function statusFromSignals(sections) {
     if (
       section.signals.scheduleConflict ||
       section.signals.duplicateSubject ||
-      section.signals.redundantEnrollment
+      section.signals.redundantEnrollment ||
+      section.signals.offeringMismatch
     ) {
       hasWarning = true;
     }
@@ -88,8 +89,8 @@ export function evaluatePlan(profile, ppc, offeringsByYearSemester) {
     const resolved = semester.sections.map((section) => ({
       section,
       subject: resolveSubjectByCode(ppc, section.subjectCode),
-      sessions: plannedSectionSessions(section, offerings),
-      offering: plannedSectionOffering(section, offerings),
+      sessions: plannedSectionSessions(section),
+      offeringMismatch: plannedSectionOfferingMismatch(section, offerings),
     }));
 
     const sameSemesterCodes = new Set(
@@ -106,7 +107,7 @@ export function evaluatePlan(profile, ppc, offeringsByYearSemester) {
     }
 
     const evaluatedSections = resolved.map(
-      ({ section, subject, sessions, offering }) => {
+      ({ section, subject, sessions, offeringMismatch }) => {
         const scheduleConflict = resolved.some(
           (other) =>
             other.section !== section &&
@@ -140,13 +141,14 @@ export function evaluatePlan(profile, ppc, offeringsByYearSemester) {
           ...section,
           resolvedSubjectCode: subject?.code ?? null,
           sessions,
-          targetCourseId: offering?.targetCourseId ?? null,
-          targetCourseName: offering?.targetCourseName ?? null,
+          targetCourseId: section.targetCourseId ?? null,
+          targetCourseName: section.targetCourseName ?? null,
           signals: {
             unmetRequisite,
             scheduleConflict,
             duplicateSubject,
             redundantEnrollment,
+            offeringMismatch,
           },
         };
       },

@@ -10,6 +10,7 @@
 
 import { useEffect, useRef } from 'react';
 import { WEEKDAY_LABELS } from '../../domain/format.js';
+import { plannedSectionOffering } from '../../domain/schedule.js';
 
 const BUTTON_FOCUS_CLASS =
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2';
@@ -29,6 +30,9 @@ function subjectName(section, ppc) {
  *   open: boolean,
  *   section: object|null,
  *   ppc: {subjects: Array},
+ *   offerings: {subjects: Array}|undefined - the current Offerings snapshot for
+ *     the Section's semester, used only for the professor's live lookup (see
+ *     docs/DOMAIN.md, Planned Semester — the professor is never persisted)
  *   redundantSource: {label: string, kind: "credit"|"section"}|null,
  *   onClose: () => void,
  *   onRemove: () => void,
@@ -41,6 +45,7 @@ export default function SectionDetailDialog({
   open,
   section,
   ppc,
+  offerings,
   redundantSource,
   onClose,
   onRemove,
@@ -58,6 +63,14 @@ export default function SectionDetailDialog({
   if (!section) return null;
   const signals = section.signals ?? {};
   const hasLinkedSubject = section.resolvedSubjectCode != null;
+  // The professor is never part of the embedded planning copy — it is looked
+  // up live from the snapshot, and only while the Section still matches it
+  // (see docs/DOMAIN.md, Planned Semester); a mismatched Section shows no
+  // professor rather than a possibly-stale one.
+  const professor =
+    section.kind === 'offering' && !signals.offeringMismatch
+      ? (plannedSectionOffering(section, offerings)?.professor ?? null)
+      : null;
 
   return (
     <dialog
@@ -71,7 +84,10 @@ export default function SectionDetailDialog({
             {subjectName(section, ppc)}
           </h2>
           {section.kind === 'offering' && (
-            <p className="text-sm text-slate-500">Turma {section.turma}</p>
+            <p className="text-sm text-slate-500">
+              Turma {section.turma}
+              {professor ? ` · ${professor}` : ''}
+            </p>
           )}
         </div>
 
@@ -94,6 +110,16 @@ export default function SectionDetailDialog({
           >
             Requisito não atendido: os pré ou co-requisitos desta disciplina não
             estão satisfeitos neste ponto do planejamento.
+          </p>
+        )}
+
+        {signals.offeringMismatch && (
+          <p className="rounded bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            Divergência da oferta: esta turma não corresponde mais à oferta
+            atual (foi removida, renomeada ou mudou de horário). O planejamento
+            mantém a turma como estava quando adicionada; você pode mantê-la
+            assim ou removê-la e adicionar a disciplina novamente a partir da
+            listagem atual.
           </p>
         )}
 

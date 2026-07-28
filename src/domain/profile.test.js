@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import {
+  addCreditEntryRecord,
   cloneProfileRecord,
   createProfileRecord,
   hideSubjectRecord,
+  removeCreditEntryRecord,
   renameProfileRecord,
   restoreSubjectRecord,
   seedCreditEntries,
-  updateProfileDataRecord,
+  toggleCreditEntryAudit,
+  validateCreditEntry,
   validateProfileName,
 } from './profile.js';
 
@@ -219,9 +222,9 @@ describe('renameProfileRecord', () => {
   });
 });
 
-describe('updateProfileDataRecord', () => {
-  it('updates ingress, shift, PPC, and completedSemesters (UC-24), never touching creditEntries', () => {
-    const profile = createProfileRecord({
+describe('validateCreditEntry', () => {
+  function baseProfile() {
+    return createProfileRecord({
       name: 'Maria',
       ingressYear: 2024,
       ingressYearSemester: 1,
@@ -229,24 +232,72 @@ describe('updateProfileDataRecord', () => {
       ppc,
       completedSemesters: 0,
     });
-    profile.creditEntries = [{ subjectCode: 'MAT01', audit: false }];
+  }
 
-    const otherPpc = { id: 'other-ppc', courseId: '99' };
-    const updated = updateProfileDataRecord(profile, {
-      ingressYear: 2025,
-      ingressYearSemester: 2,
-      shift: 'afternoon',
-      ppc: otherPpc,
-      completedSemesters: 3,
+  it('rejects a Subject that does not exist in the Course Curriculum (UC-15)', () => {
+    expect(validateCreditEntry(baseProfile(), ppc, 'UNKNOWN')).toBe(
+      'unknown-subject',
+    );
+  });
+
+  it('rejects a Subject that already has a Credit Entry (UC-15)', () => {
+    const profile = addCreditEntryRecord(baseProfile(), 'MAT01');
+    expect(validateCreditEntry(profile, ppc, 'MAT01')).toBe('duplicate');
+  });
+
+  it('accepts a Subject from the Course Curriculum with no existing Credit Entry', () => {
+    expect(validateCreditEntry(baseProfile(), ppc, 'MAT01')).toBeNull();
+  });
+});
+
+describe('addCreditEntryRecord / removeCreditEntryRecord / toggleCreditEntryAudit', () => {
+  function baseProfile() {
+    return createProfileRecord({
+      name: 'Maria',
+      ingressYear: 2024,
+      ingressYearSemester: 1,
+      shift: 'morning',
+      ppc,
+      completedSemesters: 0,
     });
+  }
 
-    expect(updated.ingressYear).toBe(2025);
-    expect(updated.ingressYearSemester).toBe(2);
-    expect(updated.shift).toBe('afternoon');
-    expect(updated.ppcId).toBe('other-ppc');
-    expect(updated.courseId).toBe('99');
-    expect(updated.completedSemesters).toBe(3);
-    expect(updated.creditEntries).toEqual(profile.creditEntries);
+  it('adds a non-audit Credit Entry for the given Subject (UC-15)', () => {
+    const updated = addCreditEntryRecord(baseProfile(), 'MAT01');
+    expect(updated.creditEntries).toEqual([
+      { subjectCode: 'MAT01', audit: false },
+    ]);
+  });
+
+  it('removes a Credit Entry by Subject code, along with its Audit Mark (UC-16)', () => {
+    let profile = addCreditEntryRecord(baseProfile(), 'MAT01');
+    profile = toggleCreditEntryAudit(profile, 'MAT01');
+    expect(profile.creditEntries).toEqual([
+      { subjectCode: 'MAT01', audit: true },
+    ]);
+
+    const removed = removeCreditEntryRecord(profile, 'MAT01');
+    expect(removed.creditEntries).toEqual([]);
+  });
+
+  it('leaves other Credit Entries untouched when removing one', () => {
+    let profile = addCreditEntryRecord(baseProfile(), 'MAT01');
+    profile = addCreditEntryRecord(profile, 'MAT02');
+
+    const removed = removeCreditEntryRecord(profile, 'MAT01');
+    expect(removed.creditEntries).toEqual([
+      { subjectCode: 'MAT02', audit: false },
+    ]);
+  });
+
+  it('toggles the Audit Mark on a Credit Entry (UC-20/21)', () => {
+    const profile = addCreditEntryRecord(baseProfile(), 'MAT01');
+
+    const marked = toggleCreditEntryAudit(profile, 'MAT01');
+    expect(marked.creditEntries[0].audit).toBe(true);
+
+    const unmarked = toggleCreditEntryAudit(marked, 'MAT01');
+    expect(unmarked.creditEntries[0].audit).toBe(false);
   });
 });
 

@@ -1,4 +1,5 @@
-// Pure profile creation and validation logic (UC-02 — see docs/USE_CASES.md).
+// Pure profile creation and validation logic (UC-02, UC-15, UC-16, UC-28 —
+// see docs/USE_CASES.md).
 
 /**
  * Validates a candidate profile name against existing profiles.
@@ -106,33 +107,6 @@ export function renameProfileRecord(profile, newName) {
 }
 
 /**
- * Updates the profile's ingress information, shift, Course Curriculum (PPC),
- * and completed-semester count (UC-24). Assumes the caller has already
- * enforced the preconditions: no Planned Semesters exist, and — when `ppc`
- * differs from the profile's current PPC — no Credit Entries exist either
- * (see docs/ARCHITECTURE.md, `ProfileRecord`). Never touches `creditEntries`.
- * @param {import('./types.js').ProfileRecord} profile
- * @param {{ ingressYear: number, ingressYearSemester: 1|2,
- *   shift: "day"|"morning"|"afternoon", ppc: {id: string, courseId: string},
- *   completedSemesters: number }} input
- * @returns {import('./types.js').ProfileRecord}
- */
-export function updateProfileDataRecord(
-  profile,
-  { ingressYear, ingressYearSemester, shift, ppc, completedSemesters },
-) {
-  return {
-    ...profile,
-    ingressYear,
-    ingressYearSemester,
-    shift,
-    ppcId: ppc.id,
-    courseId: ppc.courseId,
-    completedSemesters,
-  };
-}
-
-/**
  * Marks an Optional Subject as hidden (UC-28), so it stops being offered
  * when planning. Idempotent — hiding an already-hidden Subject is a no-op.
  * @param {import('./types.js').ProfileRecord} profile
@@ -159,6 +133,72 @@ export function restoreSubjectRecord(profile, subjectCode) {
     ...profile,
     hiddenSubjects: profile.hiddenSubjects.filter(
       (code) => code !== subjectCode,
+    ),
+  };
+}
+
+/**
+ * Validates a candidate Credit Entry (UC-15) against the Student's profile
+ * and Course Curriculum.
+ * @param {import('./types.js').ProfileRecord} profile
+ * @param {{subjects: Array}} ppc
+ * @param {string} subjectCode
+ * @returns {'unknown-subject'|'duplicate'|null} the validation error, or null if valid
+ */
+export function validateCreditEntry(profile, ppc, subjectCode) {
+  if (!ppc.subjects.some((subject) => subject.code === subjectCode))
+    return 'unknown-subject';
+  if (profile.creditEntries.some((entry) => entry.subjectCode === subjectCode))
+    return 'duplicate';
+  return null;
+}
+
+/**
+ * Adds a Credit Entry for a Subject (UC-15). Assumes `subjectCode` has
+ * already been validated with `validateCreditEntry`.
+ * @param {import('./types.js').ProfileRecord} profile
+ * @param {string} subjectCode
+ * @returns {import('./types.js').ProfileRecord}
+ */
+export function addCreditEntryRecord(profile, subjectCode) {
+  return {
+    ...profile,
+    creditEntries: [...profile.creditEntries, { subjectCode, audit: false }],
+  };
+}
+
+/**
+ * Removes a Credit Entry by Subject code (UC-16) — this also removes any
+ * Audit Mark it carried, since the mark lives and dies with its carrier
+ * (see docs/DOMAIN.md, Audit Mark).
+ * @param {import('./types.js').ProfileRecord} profile
+ * @param {string} subjectCode
+ * @returns {import('./types.js').ProfileRecord}
+ */
+export function removeCreditEntryRecord(profile, subjectCode) {
+  return {
+    ...profile,
+    creditEntries: profile.creditEntries.filter(
+      (entry) => entry.subjectCode !== subjectCode,
+    ),
+  };
+}
+
+/**
+ * Toggles the Audit Mark on a Credit Entry (UC-20/21) — the credit-carrier
+ * half of the Audit Mark feature (see docs/DOMAIN.md, Audit Mark); the
+ * Section-carrier half is `toggleSectionMark` in domain/semester.js.
+ * @param {import('./types.js').ProfileRecord} profile
+ * @param {string} subjectCode
+ * @returns {import('./types.js').ProfileRecord}
+ */
+export function toggleCreditEntryAudit(profile, subjectCode) {
+  return {
+    ...profile,
+    creditEntries: profile.creditEntries.map((entry) =>
+      entry.subjectCode === subjectCode
+        ? { ...entry, audit: !entry.audit }
+        : entry,
     ),
   };
 }

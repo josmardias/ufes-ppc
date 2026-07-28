@@ -49,7 +49,8 @@ export function severityClass(section) {
   if (
     section.signals?.scheduleConflict ||
     section.signals?.duplicateSubject ||
-    section.signals?.redundantEnrollment
+    section.signals?.redundantEnrollment ||
+    section.signals?.offeringMismatch
   ) {
     return 'border-amber-400 text-amber-800';
   }
@@ -66,7 +67,8 @@ export function severityIcon(section) {
   if (
     section.signals?.scheduleConflict ||
     section.signals?.duplicateSubject ||
-    section.signals?.redundantEnrollment
+    section.signals?.redundantEnrollment ||
+    section.signals?.offeringMismatch
   ) {
     return IconAlertTriangle;
   }
@@ -110,7 +112,9 @@ export function sectionAccessibleLabel(section, ppc, session) {
         ? ', disciplina duplicada'
         : section.signals?.redundantEnrollment
           ? ', matrícula redundante'
-          : '';
+          : section.signals?.offeringMismatch
+            ? ', divergência da oferta'
+            : '';
   return `${name}${turma}${time}${section.failed ? ', reprovado' : ''}${section.audit ? ', ouvinte' : ''}${severity}`;
 }
 
