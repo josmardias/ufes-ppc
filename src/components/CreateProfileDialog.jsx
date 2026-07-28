@@ -231,7 +231,7 @@ export default function CreateProfileDialog({ ref, onCreated }) {
             />
             <span className="text-xs text-pretty text-slate-500">
               As disciplinas obrigatórias sugeridas até esse período serão
-              registradas como Aproveitamentos.
+              marcadas como concluídas.
             </span>
           </label>
         )}

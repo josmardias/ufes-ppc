@@ -6,6 +6,7 @@
 
 import { STATUS_LABELS } from '../../domain/format.js';
 import { semesterOrdinal } from '../../domain/semester.js';
+import { IconCheck } from '../icons.jsx';
 
 const STATUS_DOT = {
   clean: 'bg-emerald-500',
@@ -49,6 +50,7 @@ export default function SemesterList({
               : 'text-slate-700 hover:bg-slate-100'
           }`}
         >
+          <IconCheck className="size-2 shrink-0" />
           <span className="flex-1 truncate">Concluídos</span>
         </button>
       </li>

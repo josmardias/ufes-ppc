@@ -256,6 +256,17 @@ describe('sectionMatchesShiftFilter', () => {
     expect(sectionMatchesShiftFilter('day', 'morning')).toBe(true);
     expect(sectionMatchesShiftFilter('day', 'afternoon')).toBe(true);
   });
+
+  it('always shows null-shift (session-less) sections regardless of the filter', () => {
+    expect(sectionMatchesShiftFilter(null, 'morning')).toBe(true);
+    expect(sectionMatchesShiftFilter(null, 'afternoon')).toBe(true);
+    expect(sectionMatchesShiftFilter(null, 'day')).toBe(true);
+  });
+
+  it('always shows missing-shift sections regardless of the filter', () => {
+    expect(sectionMatchesShiftFilter(undefined, 'morning')).toBe(true);
+    expect(sectionMatchesShiftFilter(undefined, 'afternoon')).toBe(true);
+  });
 });
 
 describe('effectiveShiftFilter', () => {

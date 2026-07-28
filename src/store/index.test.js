@@ -354,7 +354,7 @@ describe('planner actions', () => {
   });
 });
 
-describe('Credit Entry actions (UC-15/16/20/21)', () => {
+describe('Credit Entry actions (UC-15/20/21)', () => {
   async function setup() {
     const { useStore } = await import('./index.js');
     const { profile } = useStore.getState().createProfile(baseInput());

@@ -268,7 +268,7 @@ export const useStore = create((set, get) => ({
     return { ok: true };
   },
 
-  /** Removes a Credit Entry by Subject code (UC-16). */
+  /** Removes a Credit Entry by Subject code (UC-15). */
   removeCreditEntry(id, subjectCode) {
     updateProfile(get, set, id, (profile) =>
       removeCreditEntryRecord(profile, subjectCode),

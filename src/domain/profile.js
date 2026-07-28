@@ -1,4 +1,4 @@
-// Pure profile creation and validation logic (UC-02, UC-15, UC-16, UC-28 —
+// Pure profile creation and validation logic (UC-02, UC-15, UC-28 —
 // see docs/USE_CASES.md).
 
 /**
@@ -168,7 +168,7 @@ export function addCreditEntryRecord(profile, subjectCode) {
 }
 
 /**
- * Removes a Credit Entry by Subject code (UC-16) — this also removes any
+ * Removes a Credit Entry by Subject code (UC-15) — this also removes any
  * Audit Mark it carried, since the mark lives and dies with its carrier
  * (see docs/DOMAIN.md, Audit Mark).
  * @param {import('./types.js').ProfileRecord} profile

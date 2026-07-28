@@ -113,6 +113,21 @@ describe('buildCandidateSubjects', () => {
     expect(result.map((c) => c.subjectCode)).not.toContain('MAT01');
   });
 
+  it('keeps a null-shift (session-less) Section under every Shift filter value', () => {
+    const noShiftOfferings = {
+      subjects: [
+        {
+          code: 'MAT01',
+          sections: [{ turma: '01', professor: 'X', shift: null, sessions: [] }],
+        },
+      ],
+    };
+    for (const shiftFilter of ['morning', 'afternoon', 'day']) {
+      const result = candidates({ offerings: noShiftOfferings, shiftFilter });
+      expect(result.map((c) => c.subjectCode)).toContain('MAT01');
+    }
+  });
+
   it('merges Sections offered under an equivalent code into the same candidate Subject', () => {
     const equivalentPpc = {
       id: 'test-ppc',

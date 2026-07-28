@@ -269,7 +269,7 @@ describe('addCreditEntryRecord / removeCreditEntryRecord / toggleCreditEntryAudi
     ]);
   });
 
-  it('removes a Credit Entry by Subject code, along with its Audit Mark (UC-16)', () => {
+  it('removes a Credit Entry by Subject code, along with its Audit Mark (UC-15)', () => {
     let profile = addCreditEntryRecord(baseProfile(), 'MAT01');
     profile = toggleCreditEntryAudit(profile, 'MAT01');
     expect(profile.creditEntries).toEqual([

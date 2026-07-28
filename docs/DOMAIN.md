@@ -27,7 +27,7 @@ Throughout this document, each concept is presented with its English name follow
 | Academic Transcript                        | Histórico Escolar                 |
 | Equivalence                                | Equivalência                      |
 | Planned Semester                           | Período                           |
-| Credit Entry                               | Aproveitamento                    |
+| Credit Entry                               | Disciplina concluída              |
 | Completed (pre-semester entry)             | Concluídos                        |
 | Failed Mark                                | Reprovação                        |
 | Schedule Conflict                          | Conflito de Horário               |
@@ -106,7 +106,7 @@ The Enrollment Scope of a Section may change between Enrollment Periods. It is c
 
 > **Note:** This tool does not model or enforce enrollment eligibility — Enrollment Scopes are context only. It does, however, record each Section's **target course** (course id and name — official documents sometimes suffix the course code with an entry-semester/cohort marker, which is stripped: the id identifies the course, never a cohort) and, in the planning listings, badges Sections targeted at a course other than the Student's own — they are always listed, never filtered out, which is realistic because Scopes commonly widen in the Second Enrollment Period, letting students take a Subject in another course's Section. Own-course matching compares the Section's target course id with the Student's course id and ignores the PPC version — all PPC versions of a course are the same course for Section-scope purposes.
 
-Each Section also has a **Shift (Turno)** classification, derived from its weekly sessions: **morning** if all sessions end at or before 13:00, **afternoon** if all sessions start at or after 13:00, and **day** otherwise. In this tool the classification is precomputed when the static datasets are generated, not derived at runtime.
+Each Section also has a **Shift (Turno)** classification, derived from its weekly sessions: **morning** if all sessions end at or before 13:00, **afternoon** if all sessions start at or after 13:00, and **day** otherwise. A Section with no weekly sessions (e.g. Estágio, TCC) has **no Shift classification** (`null`) — having no time window, it fits any shift and is listed under every Shift filter value. In this tool the classification is precomputed when the static datasets are generated, not derived at runtime.
 
 ### Enrollment Period (Etapa de Matrícula)
 
@@ -163,7 +163,7 @@ A Student's Planned Semesters form an ordered sequence of positions in the progr
 
 From that starting position on, Planned Semesters can represent any point in the student's timeline: the semester currently underway or future semesters the student wishes to anticipate — and, as time passes, semesters that have already taken place. The nature of a Planned Semester — past, present, or future — is understood from the student's ingress information and the current calendar date.
 
-It is common for a course to accept new students in both Year Semesters. When that happens, the course typically organizes Sections at different shifts (morning, afternoon, or night) to accommodate both groups simultaneously. For example, at UFES Electrical Engineering, students who ingress in Year Semester 1 tend to attend morning Sections, while students who ingress in Year Semester 2 tend to attend afternoon Sections. This gives students flexibility to attend a Section in a different shift in order to advance or retake a Subject. Shift and cohort are informal conventions of how a course organizes its Sections, not formally defined academic concepts. In this tool, the Student provides their shift (Day, Morning, or Afternoon) when creating their profile; it serves as the default Shift filter when listing available Sections, and the Student may override it at any time with a persisted toggle (morning, afternoon, or whole day — day-shift Sections appear under every option). The toggle is cleared when the last Planned Semester is deleted.
+It is common for a course to accept new students in both Year Semesters. When that happens, the course typically organizes Sections at different shifts (morning, afternoon, or night) to accommodate both groups simultaneously. For example, at UFES Electrical Engineering, students who ingress in Year Semester 1 tend to attend morning Sections, while students who ingress in Year Semester 2 tend to attend afternoon Sections. This gives students flexibility to attend a Section in a different shift in order to advance or retake a Subject. Shift and cohort are informal conventions of how a course organizes its Sections, not formally defined academic concepts. In this tool, the Student provides their shift (Day, Morning, or Afternoon) when creating their profile; it serves as the default Shift filter when listing available Sections, and the Student may override it at any time with a persisted toggle (morning, afternoon, or whole day — day-shift Sections and Sections with no Shift classification (no sessions) appear under every option). The toggle is cleared when the last Planned Semester is deleted.
 
 **Prerequisite and co-requisite evaluation** across Planned Semesters is based on position:
 
@@ -207,17 +207,17 @@ An Unmet Requisite is an **error** (see Planned Semester) — the one signal who
 
 ---
 
-### Credit Entry (Aproveitamento)
+### Credit Entry (Disciplina concluída)
 
-A Credit Entry (Aproveitamento) is the formal recognition that a Student has already mastered the content of a Subject — typically because they completed equivalent coursework in a previous program before joining their current course at UFES. The university reviews the prior work and officially credits the Subject, exempting the Student from taking it again.
+A Credit Entry (Disciplina concluída) records that a Student has already completed a Subject of their Course Curriculum — whether by passing it in an earlier semester of the course, or by formal credit (aproveitamento de estudos) for equivalent coursework done elsewhere. The tool does not distinguish the two: either way, the Subject counts as done and needs no further planning.
 
-A Credit Entry belongs to the Student's profile and is **timeless**: the credited Subject counts as fulfilled from the very start of the timeline, for every Planned Semester. No information about when the credit was granted is recorded.
+A Credit Entry belongs to the Student's profile and is **timeless**: the completed Subject counts as fulfilled from the very start of the timeline, for every Planned Semester. No information about when the completion happened is recorded.
 
-The Subject must belong to the Student's Course Curriculum. No information about the external institution or the original Subject is recorded — the Student simply identifies which curriculum Subject was credited.
+The Subject must belong to the Student's Course Curriculum. No information about grades, institutions, or the original coursework is recorded — the Student simply identifies which curriculum Subject is done.
 
-In this tool, Credit Entries also represent the Student's **completed semesters**: profile creation seeds one for each Required Subject suggested up to the last completed semester, and the Student corrects that history at credit level (see `USE_CASES.md`, UC-02, UC-15, UC-16).
+In this tool, Credit Entries also represent the Student's **completed semesters**: profile creation seeds one for each Required Subject suggested up to the last completed semester, and the Student corrects that history at credit level (see `USE_CASES.md`, UC-02, UC-15).
 
-In the planner, Credit Entries are surfaced as a single **Completed (Concluídos)** entry — a pre-semester listed above the Planned Semesters (see `USE_CASES.md`, UC-09). Like the entries it holds, it is timeless: one entry for the whole credited history, always present (even when empty), with no Year Semester label and no planning-signal status — Credit Entries are evaluation inputs, never signal carriers. It is where the Student reviews and manages the credited history (UC-15, UC-16) and its Audit Marks (UC-20, UC-21).
+In the planner, Credit Entries are surfaced as a single **Completed (Concluídos)** entry — a pre-semester listed above the Planned Semesters (see `USE_CASES.md`, UC-09). Like the entries it holds, it is timeless: one entry for the whole completed history, always present (even when empty), with no Year Semester label and no planning-signal status — Credit Entries are evaluation inputs, never signal carriers; in the semester list its row shows a completion (check) marker in the slot where semesters show their status dot. It is where the Student edits the completed history as a curriculum-wide checklist (UC-15) and toggles its Audit Marks (UC-20, UC-21).
 
 A Credit Entry may carry an **Audit Mark** (see below).
 

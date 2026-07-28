@@ -124,13 +124,16 @@ export function stillConflicted(members, signalType, window) {
 
 /**
  * Whether a Section of the given `shift` should be listed under a Shift
- * filter value (see docs/DOMAIN.md, Planned Semester): a "day" filter shows
- * everything, and day-shift Sections are shown under every filter value.
+ * filter value (see docs/DOMAIN.md, Section and Planned Semester): a "day"
+ * filter shows everything, day-shift Sections are shown under every filter
+ * value, and a Section with no Shift classification (`null` or missing —
+ * no weekly sessions) fits any shift and is shown under every filter value.
  * @param {"morning"|"afternoon"|"day"|null} sectionShift
  * @param {"morning"|"afternoon"|"day"} filter
  */
 export function sectionMatchesShiftFilter(sectionShift, filter) {
   if (filter === 'day') return true;
+  if (sectionShift == null) return true;
   return sectionShift === filter || sectionShift === 'day';
 }
 

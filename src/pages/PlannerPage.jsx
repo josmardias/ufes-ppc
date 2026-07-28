@@ -128,7 +128,7 @@ export default function PlannerPage() {
       selectedSection.resolvedSubjectCode,
     );
     if (entry?.source.kind === 'credit') {
-      redundantSource = { label: 'um Aproveitamento', kind: 'credit' };
+      redundantSource = { label: 'uma Disciplina concluída', kind: 'credit' };
     } else if (entry?.source.kind === 'section') {
       const sourceSemester = semesters[entry.source.semesterIndex];
       redundantSource = {

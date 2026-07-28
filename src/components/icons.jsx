@@ -130,3 +130,12 @@ export function IconAlertCircle(props) {
     </Icon>
   );
 }
+
+/** Completion marker for the Concluídos row (see docs/USE_CASES.md, UC-09 step 2) — a marker, not a status signal. */
+export function IconCheck(props) {
+  return (
+    <Icon {...props}>
+      <path d="M5 12.5l4.5 4.5L19 7.5" />
+    </Icon>
+  );
+}
