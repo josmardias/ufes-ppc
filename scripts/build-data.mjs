@@ -16,6 +16,7 @@ const stages = [
   'extract-subjects-eletrica.mjs',
   'extract-equivalencias-eletrica.mjs',
   'merge-equivalencias-eletrica.mjs',
+  'merge-requisitos-optativas-eletrica.mjs',
   'assemble-ppc.mjs',
   'extract-offerings.mjs',
   'collect-course-offerings.mjs',
